@@ -89,7 +89,7 @@ def refresh_tokens():
             continue
         try:
             refresh_token(account)
-            frappe.db.commit()
+            frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit refreshed access token per account
         except Exception as error:
             frappe.db.rollback()
             frappe.log_error(
