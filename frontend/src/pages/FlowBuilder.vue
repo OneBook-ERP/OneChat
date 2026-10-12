@@ -739,8 +739,8 @@ async function save(publishNow = false) {
       publishNow
         ? __('Published version {0}').format(saved.published_version)
         : hasDraft.value
-          ? __('Draft saved. The live flow is unchanged until you publish.')
-          : __('Flow saved'),
+        ? __('Draft saved. The live flow is unchanged until you publish.')
+        : __('Flow saved'),
     )
 
     if (route.params.name !== saved.name) {

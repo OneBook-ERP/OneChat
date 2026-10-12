@@ -6,7 +6,16 @@ import frappe
 import requests
 from frappe import _
 from frappe.query_builder.functions import Count, IfNull
-from frappe.utils import add_days, cint, flt, get_datetime, get_first_day, getdate, now_datetime, today
+from frappe.utils import (
+	add_days,
+	cint,
+	flt,
+	get_datetime,
+	get_first_day,
+	getdate,
+	now_datetime,
+	today,
+)
 from pypika.functions import Date
 
 from onechat.workspace import numbers
@@ -185,7 +194,9 @@ def spend_accounts(mode):
 	if per_account:
 		fields.append("spend_storage")
 	rows = frappe.get_all(
-		ACCOUNT, filters={"status": ["!=", "Inactive"], "business_id": ["is", "set"]}, fields=fields
+		ACCOUNT,
+		filters={"status": ["!=", "Inactive"], "business_id": ["is", "set"]},
+		fields=fields,
 	)
 	return [row for row in rows if ((row.get("spend_storage") if per_account else None) or STORE) == mode]
 
@@ -211,7 +222,11 @@ def fetch_account(account, first):
 		or account.billing_currency
 	)
 	now = int(datetime.now(timezone.utc).timestamp())
-	points, failures, cursor = [], [], max(getdate(first), getdate(add_days(today(), -META_DAYS)))
+	points, failures, cursor = (
+		[],
+		[],
+		max(getdate(first), getdate(add_days(today(), -META_DAYS))),
+	)
 	while utc_start(cursor) < now:
 		stop = min(utc_start(add_days(cursor, WINDOW_DAYS)), now)
 		try:
@@ -248,7 +263,10 @@ def fetch_account(account, first):
 			"cost": cost,
 			"currency": currency,
 		}
-		for (day, country, category, pricing_type, phone, tier), (volume, cost) in totals.items()
+		for (day, country, category, pricing_type, phone, tier), (
+			volume,
+			cost,
+		) in totals.items()
 	]
 	return currency, rows
 
@@ -277,7 +295,7 @@ def sync_account(name, days):
 	except Exception as error:
 		frappe.db.set_value(ACCOUNT, name, "spend_sync_error", str(error)[:500], update_modified=False)
 		frappe.log_error(title=f"OneChat spend sync: {name}")
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist spend sync state per account
 
 
 def live_accounts():
@@ -356,7 +374,10 @@ def learn_rates():
 			continue
 		if current:
 			frappe.db.set_value(
-				RATE, current.name, {"rate": rate, "currency": row.currency}, update_modified=False
+				RATE,
+				current.name,
+				{"rate": rate, "currency": row.currency},
+				update_modified=False,
 			)
 		else:
 			frappe.get_doc(
@@ -369,7 +390,7 @@ def learn_rates():
 					"source": "Meta",
 				}
 			).insert(ignore_permissions=True)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist learned message rates from meta spend
 
 
 def rate_table():
@@ -392,7 +413,12 @@ def billable_rows(since, until, extra=None):
 		message.pricing_country.as_("country"),
 		message.pricing_category.as_("category"),
 	]
-	groups = [message.whatsapp_account, day, message.pricing_country, message.pricing_category]
+	groups = [
+		message.whatsapp_account,
+		day,
+		message.pricing_country,
+		message.pricing_category,
+	]
 	for alias, column in (extra or {}).items():
 		columns.append(column.as_(alias))
 		groups.append(column)
@@ -401,7 +427,8 @@ def billable_rows(since, until, extra=None):
 		.select(*columns, Count("*").as_("count"))
 		.where(
 			shown(
-				message, (message.billable == 1) & (message.creation >= since) & (message.creation <= until)
+				message,
+				(message.billable == 1) & (message.creation >= since) & (message.creation <= until),
 			)
 		)
 		.groupby(*groups)
@@ -428,7 +455,16 @@ def actual_rows(since, until):
 	filters = {"date": ["between", [first, last]]}
 	if off:
 		filters["whatsapp_account"] = ["not in", list(off)]
-	fields = ["whatsapp_account", "date", "country", "category", "pricing_type", "volume", "cost", "currency"]
+	fields = [
+		"whatsapp_account",
+		"date",
+		"country",
+		"category",
+		"pricing_type",
+		"volume",
+		"cost",
+		"currency",
+	]
 	if frappe.get_meta(SPEND).has_field("tier"):
 		fields += ["phone", "tier"]
 	stored = frappe.get_all(SPEND, filters=filters, fields=fields)
@@ -442,7 +478,12 @@ def by_number(rows):
 		totals[row.whatsapp_account][0] += flt(row.cost)
 		totals[row.whatsapp_account][1] += cint(row.volume)
 	out = [
-		{"key": name, "name": labels.get(name) or name, "cost": round(cost, 4), "messages": count}
+		{
+			"key": name,
+			"name": labels.get(name) or name,
+			"cost": round(cost, 4),
+			"messages": count,
+		}
 		for name, (cost, count) in totals.items()
 	]
 	return sorted(out, key=lambda row: row["cost"], reverse=True)
@@ -459,7 +500,11 @@ def current_tiers(rows):
 			latest[key] = {"date": row.date, "tier": tier}
 	labels = dict(frappe.get_all(ACCOUNT, fields=["name", "account_name"], as_list=True))
 	return [
-		{"account": labels.get(account) or account, "category": category, "tier": value["tier"]}
+		{
+			"account": labels.get(account) or account,
+			"category": category,
+			"tier": value["tier"],
+		}
 		for (account, category), value in sorted(latest.items())
 	]
 
@@ -546,13 +591,19 @@ def template_stats(since, until):
 	off = set(numbers.hidden())
 	out, problem, basic = {}, None, set()
 	for account_name in frappe.get_all(
-		ACCOUNT, filters={"status": ["!=", "Inactive"], "business_id": ["is", "set"]}, pluck="name"
+		ACCOUNT,
+		filters={"status": ["!=", "Inactive"], "business_id": ["is", "set"]},
+		pluck="name",
 	):
 		if account_name in off:
 			continue
 		templates = frappe.get_all(
 			"WhatsApp Templates",
-			filters={"whatsapp_account": account_name, "id": ["is", "set"], "name": ["in", list(used)]},
+			filters={
+				"whatsapp_account": account_name,
+				"id": ["is", "set"],
+				"name": ["in", list(used)],
+			},
 			fields=["name", "template_name", "id"],
 		)
 		if not templates:
@@ -664,7 +715,9 @@ def currency():
 	values = [
 		row
 		for row in frappe.get_all(
-			ACCOUNT, filters={"billing_currency": ["is", "set"]}, pluck="billing_currency"
+			ACCOUNT,
+			filters={"billing_currency": ["is", "set"]},
+			pluck="billing_currency",
 		)
 	]
 	values += frappe.get_all(RATE, filters={"currency": ["is", "set"]}, pluck="currency", limit=1)
@@ -730,12 +783,19 @@ def budget_state(rates):
 def admins():
 	users = frappe.get_all(
 		"Has Role",
-		filters={"role": ["in", ["OneChat Admin", "System Manager"]], "parenttype": "User"},
+		filters={
+			"role": ["in", ["OneChat Admin", "System Manager"]],
+			"parenttype": "User",
+		},
 		pluck="parent",
 	)
 	enabled = frappe.get_all(
 		"User",
-		filters={"name": ["in", list(set(users)) or [""]], "enabled": 1, "user_type": "System User"},
+		filters={
+			"name": ["in", list(set(users)) or [""]],
+			"enabled": 1,
+			"user_type": "System User",
+		},
 		pluck="name",
 	)
 	return [user for user in enabled if user not in ("Administrator", "Guest")]
@@ -768,7 +828,7 @@ def check_budget():
 			).insert(ignore_permissions=True)
 		sent.add(key)
 	frappe.db.set_single_value(SETTINGS, "budget_alerts", json.dumps(sorted(sent)[-24:]))
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist budget alert notification records
 
 
 def costs(span):
@@ -885,7 +945,10 @@ def sync_now():
 	if not spend_accounts(STORE):
 		return _("Fetching fresh spend from Meta.")
 	frappe.enqueue(
-		"onechat.insights.costs.sync_all", queue="long", job_id="onechat_spend_sync", deduplicate=True
+		"onechat.insights.costs.sync_all",
+		queue="long",
+		job_id="onechat_spend_sync",
+		deduplicate=True,
 	)
 	return _("Fetching spend from Meta. This takes a minute.")
 
@@ -935,7 +998,10 @@ def set_storage(account: str, mode: str):
 		frappe.throw(_("Run bench migrate to finish setting up spend storage."))
 
 	frappe.db.set_value(
-		ACCOUNT, account, {"spend_storage": mode, "spend_synced_at": None}, update_modified=False
+		ACCOUNT,
+		account,
+		{"spend_storage": mode, "spend_synced_at": None},
+		update_modified=False,
 	)
 	forget_live([account])
 	if mode == LIVE:

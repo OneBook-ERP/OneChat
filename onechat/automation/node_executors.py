@@ -86,7 +86,11 @@ def exec_send_whatsapp(node: dict, context: dict) -> dict:
 	context["whatsapp"]["last_sent_to"] = to
 	context["whatsapp"]["last_template"] = template_name
 
-	context["last_output"] = {"message_id": message_id, "to": to, "template": template_name}
+	context["last_output"] = {
+		"message_id": message_id,
+		"to": to,
+		"template": template_name,
+	}
 
 	return context
 
@@ -136,7 +140,7 @@ def exec_create_document(node: dict, context: dict) -> dict:
 	doc = frappe.get_doc(doc_data)
 	frappe.log_error("triggered", doc)
 	doc.insert()
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist created document in workflow step
 
 	context["created_doc"] = doc.as_dict()
 	context["last_output"] = {"created": doc.name, "doctype": doctype}
@@ -167,10 +171,14 @@ def exec_update_document(node: dict, context: dict) -> dict:
 		setattr(doc, field, value)
 
 	doc.save()
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist updated document in workflow step
 
 	context["updated_doc"] = doc.as_dict()
-	context["last_output"] = {"updated": docname, "doctype": doctype, "fields": list(fields.keys())}
+	context["last_output"] = {
+		"updated": docname,
+		"doctype": doctype,
+		"fields": list(fields.keys()),
+	}
 
 	return context
 
@@ -189,7 +197,7 @@ def exec_delete_document(node: dict, context: dict) -> dict:
 		raise Exception(f"Document name not specified. Expression: '{docname_expr}'")
 
 	frappe.delete_doc(doctype, docname)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist deleted document in workflow step
 
 	context["last_output"] = {"deleted": docname, "doctype": doctype}
 
@@ -228,7 +236,10 @@ def exec_http_request(node: dict, context: dict) -> dict:
 
 	context["http"] = {"status_code": response.status_code, "response": response_data}
 
-	context["last_output"] = {"status_code": response.status_code, "response": response_data}
+	context["last_output"] = {
+		"status_code": response.status_code,
+		"response": response_data,
+	}
 
 	return context
 
@@ -291,7 +302,12 @@ def exec_loop(node: dict, context: dict) -> dict:
 	if not isinstance(items, list):
 		items = []
 
-	context["loop"] = {"items": items, "current_index": 0, "total": len(items), "item_variable": item_var}
+	context["loop"] = {
+		"items": items,
+		"current_index": 0,
+		"total": len(items),
+		"item_variable": item_var,
+	}
 
 	if items:
 		context["vars"] = context.get("vars", {})
@@ -430,7 +446,7 @@ def exec_send_notification(node: dict, context: dict) -> dict:
 		}
 	)
 	notification.insert(ignore_permissions=True)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist notification log in workflow step
 
 	context["last_output"] = {"notification": notification.name}
 
@@ -459,7 +475,7 @@ def exec_create_comment(node: dict, context: dict) -> dict:
 		}
 	)
 	comment.insert(ignore_permissions=True)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist comment in workflow step
 
 	context["last_output"] = {"comment": comment.name}
 
@@ -555,9 +571,13 @@ def exec_submit_doc(node: dict, context: dict) -> dict:
 
 	doc = frappe.get_doc(doctype, docname)
 	doc.submit()
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist submitted document in workflow step
 
-	context["last_output"] = {"doctype": doctype, "name": docname, "docstatus": doc.docstatus}
+	context["last_output"] = {
+		"doctype": doctype,
+		"name": docname,
+		"docstatus": doc.docstatus,
+	}
 
 	return context
 
@@ -574,9 +594,13 @@ def exec_cancel_doc(node: dict, context: dict) -> dict:
 
 	doc = frappe.get_doc(doctype, docname)
 	doc.cancel()
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist cancelled document in workflow step
 
-	context["last_output"] = {"doctype": doctype, "name": docname, "docstatus": doc.docstatus}
+	context["last_output"] = {
+		"doctype": doctype,
+		"name": docname,
+		"docstatus": doc.docstatus,
+	}
 
 	return context
 

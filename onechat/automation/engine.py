@@ -36,7 +36,13 @@ MESSAGE_TRIGGERS = (
 	"whatsapp_incoming_trigger",
 	"comment_received",
 )
-TRIGGERS = (*MESSAGE_TRIGGERS, *DOC_EVENT_TRIGGERS, "scheduled_trigger", "manual_trigger", "webhook_trigger")
+TRIGGERS = (
+	*MESSAGE_TRIGGERS,
+	*DOC_EVENT_TRIGGERS,
+	"scheduled_trigger",
+	"manual_trigger",
+	"webhook_trigger",
+)
 SAFE_LEGACY = {
 	"set_variable",
 	"python_expression",
@@ -168,7 +174,12 @@ class Run:
 			if values.get("attach"):
 				bubble["attach"] = values["attach"]
 			if values.get("template"):
-				bubble.update({"type": "template", "text": _("Template: {0}").format(values["template"])})
+				bubble.update(
+					{
+						"type": "template",
+						"text": _("Template: {0}").format(values["template"]),
+					}
+				)
 			if values.get("flow"):
 				bubble.update({"type": "form", "form": values["flow"]})
 			self.outbox.append(bubble)
@@ -252,7 +263,7 @@ class Run:
 		self.waiting = {
 			"node": node_id,
 			"kind": result.wait,
-			"resume_at": add_to_date(now_datetime(), minutes=minutes) if minutes else None,
+			"resume_at": (add_to_date(now_datetime(), minutes=minutes) if minutes else None),
 		}
 
 	def step(self, node_id, node):
@@ -314,7 +325,12 @@ class Run:
 
 		try:
 			result = handler(self, node_id, Graph.config(node), event)
-			self.log(node_id, kind, "Success", output=result.output or {"resumed": event["kind"]})
+			self.log(
+				node_id,
+				kind,
+				"Success",
+				output=result.output or {"resumed": event["kind"]},
+			)
 		except Exception as error:
 			result = self.fail(node_id, node, kind, Graph.config(node), error)
 
@@ -331,7 +347,7 @@ class Run:
 				"node_id": node_id,
 				"node_type": kind,
 				"status": status,
-				"output": json.dumps(plain(output), default=str)[:5000] if output else None,
+				"output": (json.dumps(plain(output), default=str)[:5000] if output else None),
 				"error": error,
 				"timestamp": now_datetime(),
 			}
@@ -356,7 +372,13 @@ def trigger_index():
 		node_id = graph.trigger()
 		if node_id:
 			node = graph.nodes[node_id]
-			rows.append({"flow": flow.name, "kind": Graph.kind(node), "config": Graph.config(node)})
+			rows.append(
+				{
+					"flow": flow.name,
+					"kind": Graph.kind(node),
+					"config": Graph.config(node),
+				}
+			)
 
 	frappe.cache().set_value(TRIGGER_CACHE, rows, expires_in_sec=6 * 3600)
 	return rows
@@ -529,7 +551,11 @@ def resume(session, event):
 	flow = load_flow(session.flow)
 	graph = Graph(flow.graph_json or "{}")
 	if session.current_node and session.current_node not in graph.nodes:
-		end_session(session, "Stopped", _("The step this chat was waiting on was removed from the flow"))
+		end_session(
+			session,
+			"Stopped",
+			_("The step this chat was waiting on was removed from the flow"),
+		)
 		return session
 	saved = json.loads(session.context_json or "{}")
 	context = saved.get("context") or {}
@@ -564,7 +590,12 @@ def finish(run, session, log, error=None):
 		if not isinstance(error, FlowError):
 			message = f"{error}\n\n{traceback.format_exc()}"
 		session.update(
-			{"status": "Failed", "stop_reason": message[:140], "resume_at": None, "waiting_for": None}
+			{
+				"status": "Failed",
+				"stop_reason": message[:140],
+				"resume_at": None,
+				"waiting_for": None,
+			}
 		)
 		log.update(
 			{
@@ -588,7 +619,12 @@ def finish(run, session, log, error=None):
 		log.status = "Waiting"
 	else:
 		session.update(
-			{"status": "Completed", "resume_at": None, "waiting_for": None, "stop_reason": run.stop_reason}
+			{
+				"status": "Completed",
+				"resume_at": None,
+				"waiting_for": None,
+				"stop_reason": run.stop_reason,
+			}
 		)
 		log.update({"status": "Success", "end_time": now_datetime()})
 
@@ -606,7 +642,10 @@ def fallback(run, session, message):
 	text = (flow.get("error_message") or "").strip()
 	try:
 		if cint(flow.get("error_handover")):
-			config = {"text": text, "note": _("The flow {0} stopped: {1}").format(flow.name, message[:300])}
+			config = {
+				"text": text,
+				"note": _("The flow {0} stopped: {1}").format(flow.name, message[:300]),
+			}
 			if not frappe.db.get_value(CONTACT, session.contact, "assigned_to"):
 				config.update(
 					{"mode": "team", "team": flow.error_team}
@@ -663,7 +702,11 @@ def track_failure(flow, message):
 def waiting_session(contact):
 	names = frappe.get_all(
 		SESSION,
-		filters={"contact": contact, "status": "Waiting", "waiting_for": ["in", ["Reply", "Form"]]},
+		filters={
+			"contact": contact,
+			"status": "Waiting",
+			"waiting_for": ["in", ["Reply", "Form"]],
+		},
 		pluck="name",
 		order_by="modified desc",
 		limit_page_length=1,
@@ -677,7 +720,8 @@ def normalized(text):
 
 def first_message(doc, contact):
 	return not frappe.db.exists(
-		MESSAGE, {"whatsapp_contact": contact, "type": "Incoming", "name": ["!=", doc.name]}
+		MESSAGE,
+		{"whatsapp_contact": contact, "type": "Incoming", "name": ["!=", doc.name]},
 	)
 
 
@@ -872,7 +916,11 @@ def start_comment_flow(doc):
 		message = message_context(doc)
 		flow = matching_flow(doc, message, contact)
 	except Exception:
-		frappe.log_error(title="OneChat comment flow", reference_doctype=MESSAGE, reference_name=doc.name)
+		frappe.log_error(
+			title="OneChat comment flow",
+			reference_doctype=MESSAGE,
+			reference_name=doc.name,
+		)
 		return False
 	if not flow:
 		return False
@@ -883,14 +931,22 @@ def start_comment_flow(doc):
 	context = {
 		"trigger": "message",
 		"message": message,
-		"comment": {"id": doc.message_id, "media_id": doc.get("media_id"), "link": doc.get("link_url")},
+		"comment": {
+			"id": doc.message_id,
+			"media_id": doc.get("media_id"),
+			"link": doc.get("link_url"),
+		},
 	}
 	frappe.db.savepoint("onechat_comment_flow")
 	try:
 		start(flow, context, contact=contact, account=doc.get("whatsapp_account"))
 	except Exception:
 		frappe.db.rollback(save_point="onechat_comment_flow")
-		frappe.log_error(title="OneChat comment flow", reference_doctype=MESSAGE, reference_name=doc.name)
+		frappe.log_error(
+			title="OneChat comment flow",
+			reference_doctype=MESSAGE,
+			reference_name=doc.name,
+		)
 	return True
 
 
@@ -1028,10 +1084,10 @@ def run_schedules():
 			continue
 
 		frappe.db.set_value(FLOW, row["flow"], "last_scheduled_run", now, update_modified=False)
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit - update schedule timestamp before execution
 		try:
 			start(row["flow"], {"trigger": "schedule", "scheduled_at": str(now)})
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit scheduled flow execution state
 		except Exception:
 			frappe.db.rollback()
 			frappe.log_error(title=f"OneChat scheduled flow {row['flow']}")
@@ -1054,8 +1110,11 @@ def resume_due(limit=100):
 				or get_datetime(session.resume_at) > now_datetime()
 			):
 				continue
-			resume(session, {"kind": "timer" if session.waiting_for == "Timer" else "timeout"})
-			frappe.db.commit()
+			resume(
+				session,
+				{"kind": "timer" if session.waiting_for == "Timer" else "timeout"},
+			)
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit resumed flow session state per loop
 		except Exception:
 			frappe.db.rollback()
 			frappe.log_error(title=f"OneChat flow session {name}")
@@ -1114,14 +1173,16 @@ def simulate(graph_json, state=None, reply=None):
 		"messages": run.outbox,
 		"path": run.path,
 		"done": done,
-		"waiting": None if done else {"node": run.waiting["node"], "kind": run.waiting["kind"]},
-		"state": None
-		if done
-		else {
-			"context": plain(run.context),
-			"state": run.state,
-			"waiting": {"node": run.waiting["node"], "kind": run.waiting["kind"]},
-		},
+		"waiting": (None if done else {"node": run.waiting["node"], "kind": run.waiting["kind"]}),
+		"state": (
+			None
+			if done
+			else {
+				"context": plain(run.context),
+				"state": run.state,
+				"waiting": {"node": run.waiting["node"], "kind": run.waiting["kind"]},
+			}
+		),
 	}
 
 

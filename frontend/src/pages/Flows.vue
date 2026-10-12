@@ -13,7 +13,9 @@
       empty-icon="lucide-git-fork"
       :empty-title="__('No flows yet')"
       :empty-description="
-        __('Build chatbots and automations for WhatsApp and Instagram: welcome menus, questions, lead capture, order lookups and reminders.')
+        __(
+          'Build chatbots and automations for WhatsApp and Instagram: welcome menus, questions, lead capture, order lookups and reminders.',
+        )
       "
       export-name="automation-flows"
       importable

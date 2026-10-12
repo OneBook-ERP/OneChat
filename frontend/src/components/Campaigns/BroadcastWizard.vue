@@ -570,9 +570,7 @@ async function finish() {
         ab_metric: form.ab_metric || 'Replies',
         ab_wait_hours: Number(form.ab_wait_hours) || 4,
         template: form.template,
-        template_variables: JSON.stringify(
-          Object.fromEntries(keys.value.map((key) => [key, `recipient.${key}`])),
-        ),
+        template_variables: JSON.stringify(Object.fromEntries(keys.value.map((key) => [key, `recipient.${key}`]))),
         scheduled_time: form.when === 'later' ? form.scheduled_time : null,
         smart_send: form.smart_send && !form.ab_test ? 1 : 0,
       },

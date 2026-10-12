@@ -28,7 +28,14 @@ def split(members, percent, seed):
 def variant_stats(name):
 	message = frappe.qb.DocType(MESSAGE)
 	out = {
-		variant: {"sent": 0, "delivered": 0, "read": 0, "failed": 0, "replied": 0, "first_sent": None}
+		variant: {
+			"sent": 0,
+			"delivered": 0,
+			"read": 0,
+			"failed": 0,
+			"replied": 0,
+			"first_sent": None,
+		}
 		for variant in ("A", "B")
 	}
 	for variant, status, count, first in (
@@ -126,12 +133,16 @@ def notify(doc, winner, count):
 def run():
 	for name in frappe.get_all(
 		BULK,
-		filters={"ab_status": "Testing", "ab_decide_at": ["<=", now_datetime()], "docstatus": 1},
+		filters={
+			"ab_status": "Testing",
+			"ab_decide_at": ["<=", now_datetime()],
+			"docstatus": 1,
+		},
 		pluck="name",
 	):
 		try:
 			decide(name)
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit A/B test decision per campaign
 		except Exception:
 			frappe.db.rollback()
 			frappe.log_error(title=f"OneChat A/B test: {name}")

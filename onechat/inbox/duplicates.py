@@ -6,7 +6,14 @@ from frappe import _
 from frappe.query_builder.functions import Count
 from frappe.utils import cint, get_datetime
 
-from onechat.inbox.conversations import CONTACT, CONTACT_LABEL, MESSAGE, digits, guard, publish
+from onechat.inbox.conversations import (
+	CONTACT,
+	CONTACT_LABEL,
+	MESSAGE,
+	digits,
+	guard,
+	publish,
+)
 from onechat.inbox.visibility import check as check_visible
 from onechat.integrations import links
 from onechat.workspace.audit import track
@@ -108,7 +115,7 @@ def keeper(first, second):
 		return (
 			1 if row.get("reference_docname") else 0,
 			get_datetime(row.get("last_message_at") or "1900-01-01"),
-			-get_datetime(row.get("creation")).timestamp() if row.get("creation") else 0,
+			(-get_datetime(row.get("creation")).timestamp() if row.get("creation") else 0),
 		)
 
 	return (first, second) if rank(first) >= rank(second) else (second, first)
@@ -204,7 +211,11 @@ def set_mode(mode: str):
 		frappe.throw(_("Pick Manual or Automatic."))
 	frappe.db.set_single_value(SETTINGS, "duplicate_merge", mode)
 	if mode == AUTOMATIC:
-		frappe.enqueue("onechat.inbox.duplicates.merge_all", queue="long", enqueue_after_commit=True)
+		frappe.enqueue(
+			"onechat.inbox.duplicates.merge_all",
+			queue="long",
+			enqueue_after_commit=True,
+		)
 	return mode
 
 
@@ -243,7 +254,10 @@ def merge_contacts(keep, duplicate):
 		if not first.get(field) and second.get(field):
 			updates[field] = second.get(field)
 	if not first.reference_docname and second.reference_docname:
-		updates.update(reference_doctype=second.reference_doctype, reference_docname=second.reference_docname)
+		updates.update(
+			reference_doctype=second.reference_doctype,
+			reference_docname=second.reference_docname,
+		)
 	if not first.assigned_to and second.assigned_to:
 		updates["assigned_to"] = second.assigned_to
 	if cint(second.opted_out) and not cint(first.opted_out):
@@ -294,7 +308,10 @@ def merge_contacts(keep, duplicate):
 	track(CONTACT, keep, [("merged", duplicate, keep)])
 	publish(keep)
 	frappe.publish_realtime(
-		"onechat_inbox", {"removed": duplicate}, room=f"doctype:{CONTACT}", after_commit=True
+		"onechat_inbox",
+		{"removed": duplicate},
+		room=f"doctype:{CONTACT}",
+		after_commit=True,
 	)
 	try:
 		from onechat.inbox.scores import queue_update
@@ -325,7 +342,7 @@ def merge_all():
 		keep, duplicate = keeper(first, second)
 		try:
 			merge_contacts(keep.name, duplicate.name)
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit each automatic duplicate contact merge
 			merged += 1
 		except Exception:
 			frappe.db.rollback()
@@ -357,11 +374,16 @@ def for_contact(contact: str):
 	for kind, value in keys_of(row):
 		if kind == "phone":
 			candidates = frappe.get_all(
-				CONTACT, filters={"wa_number": ["like", f"%{value}"], "name": ["!=", contact]}, pluck="name"
+				CONTACT,
+				filters={"wa_number": ["like", f"%{value}"], "name": ["!=", contact]},
+				pluck="name",
 			)
 			candidates += frappe.get_all(
 				CONTACT,
-				filters={"other_numbers": ["like", f"%{value}%"], "name": ["!=", contact]},
+				filters={
+					"other_numbers": ["like", f"%{value}%"],
+					"name": ["!=", contact],
+				},
 				pluck="name",
 			)
 		elif kind == "email":

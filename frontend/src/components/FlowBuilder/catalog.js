@@ -225,8 +225,7 @@ export const CATALOG = [
       { key: 'hide_comment', label: 'Hide the comment after replying', type: 'switch' },
       { key: 'once_per_person', label: 'Only once per person per post', type: 'switch', default: true },
     ],
-    summary: (config) =>
-      config.match === 'any' ? 'Any comment' : (config.keywords || []).map((row) => row.value ?? row).join(', '),
+    summary: (config) => (config.match === 'any' ? 'Any comment' : (config.keywords || []).map((row) => row.value ?? row).join(', ')),
   },
   {
     type: 'doc_event_trigger',

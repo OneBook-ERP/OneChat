@@ -45,7 +45,7 @@ def settings():
 	doc = frappe.get_cached_doc(SETTINGS)
 	return frappe._dict(
 		{
-			key: doc.get(key) if doc.meta.has_field(key) and doc.get(key) is not None else default
+			key: (doc.get(key) if doc.meta.has_field(key) and doc.get(key) is not None else default)
 			for key, default in DEFAULTS.items()
 		}
 	)
@@ -122,7 +122,11 @@ def receive(value, account):
 	if contact:
 		if sender.get("username") and not frappe.db.get_value(CONTACT, contact, "instagram_username"):
 			frappe.db.set_value(
-				CONTACT, contact, "instagram_username", sender["username"], update_modified=False
+				CONTACT,
+				contact,
+				"instagram_username",
+				sender["username"],
+				update_modified=False,
 			)
 		if config.ig_comment_label:
 			apply_label(contact, config.ig_comment_label)
@@ -145,7 +149,9 @@ def process(message):
 			hide(comment)
 		except (graph.GraphError, requests.RequestException):
 			frappe.log_error(
-				title="Instagram comment: hide", reference_doctype=MESSAGE, reference_name=comment.name
+				title="Instagram comment: hide",
+				reference_doctype=MESSAGE,
+				reference_name=comment.name,
 			)
 		return
 	check(comment)
@@ -264,7 +270,10 @@ def hide(comment, hidden=1, auto=False):
 	frappe.db.set_value(
 		MESSAGE,
 		comment.name,
-		{"comment_hidden": 1 if hidden else 0, "comment_auto_hidden": 1 if hidden and auto else 0},
+		{
+			"comment_hidden": 1 if hidden else 0,
+			"comment_auto_hidden": 1 if hidden and auto else 0,
+		},
 		update_modified=False,
 	)
 	if comment.get("whatsapp_contact"):
@@ -284,7 +293,9 @@ def run_flow_actions(config, comment):
 			hide(comment)
 	except Exception:
 		frappe.log_error(
-			title="OneChat comment reply", reference_doctype=MESSAGE, reference_name=comment.name
+			title="OneChat comment reply",
+			reference_doctype=MESSAGE,
+			reference_name=comment.name,
 		)
 
 
@@ -310,7 +321,9 @@ def media_of(account):
 			rows = graph.recent_media(graph.account_doc(account))
 		except (graph.GraphError, requests.RequestException):
 			frappe.log_error(
-				title="Instagram recent posts", reference_doctype=ACCOUNT, reference_name=account
+				title="Instagram recent posts",
+				reference_doctype=ACCOUNT,
+				reference_name=account,
 			)
 			return []
 		cache.set_value(key, rows, expires_in_sec=MEDIA_SECONDS)
@@ -430,7 +443,10 @@ def moderation(
 	if ids:
 		for reply in frappe.get_all(
 			MESSAGE,
-			filters={"content_type": "comment_reply", "reply_to_message_id": ["in", ids]},
+			filters={
+				"content_type": "comment_reply",
+				"reply_to_message_id": ["in", ids],
+			},
 			fields=["reply_to_message_id", "message", "owner", "creation"],
 			order_by="creation asc",
 		):
@@ -513,7 +529,7 @@ def run_bulk(job, names, action, text=None, hidden=1):
 		frappe.db.savepoint("onechat_comment_bulk")
 		try:
 			apply(name)
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit each processed bulk comment action
 			done += 1
 		except Exception:
 			frappe.db.rollback(save_point="onechat_comment_bulk")

@@ -112,10 +112,7 @@ const route = useRoute()
 
 const title = computed(
   () =>
-    props.row.contact_name ||
-    props.row.mobile_no ||
-    (props.row.instagram_username && `@${props.row.instagram_username}`) ||
-    props.row.name,
+    props.row.contact_name || props.row.mobile_no || (props.row.instagram_username && `@${props.row.instagram_username}`) || props.row.name,
 )
 const unread = computed(() => props.row.unread_count > 0)
 const resolved = computed(() => statusOf(props.row) === 'Resolved')

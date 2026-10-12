@@ -4,7 +4,15 @@ import re
 import frappe
 import requests
 from frappe import _
-from frappe.utils import add_to_date, cint, flt, fmt_money, get_url, now_datetime, nowdate
+from frappe.utils import (
+	add_to_date,
+	cint,
+	flt,
+	fmt_money,
+	get_url,
+	now_datetime,
+	nowdate,
+)
 
 from onechat.inbox.conversations import CONTACT, MESSAGE, guard, publish
 from onechat.inbox.visibility import check as check_visible
@@ -204,7 +212,11 @@ def create_configuration(
 		frappe.throw(_("Use 3 to 60 letters, digits, dashes or underscores for the name."))
 	if provider not in PROVIDERS:
 		frappe.throw(_("Pick a payment provider."))
-	data = {"configuration_name": name, "provider_name": provider, "redirect_url": redirect()}
+	data = {
+		"configuration_name": name,
+		"provider_name": provider,
+		"redirect_url": redirect(),
+	}
 	if provider == "upi_vpa":
 		if not (vpa or "").strip():
 			frappe.throw(_("Enter the UPI ID payments go to, for example shop@okhdfc."))
@@ -238,7 +250,12 @@ def connect_link(account: str, name: str):
 @frappe.whitelist(methods=["POST"])
 def remove_configuration(account: str, name: str):
 	doc = admin_account(account)
-	graph(doc, "DELETE", f"{doc.business_id}/payment_configuration", payload={"configuration_name": name})
+	graph(
+		doc,
+		"DELETE",
+		f"{doc.business_id}/payment_configuration",
+		payload={"configuration_name": name},
+	)
 	if doc.get("pay_configuration") == name:
 		frappe.db.set_value(ACCOUNT, doc.name, {"pay_configuration": None, "pay_provider": None})
 		doc.reload()
@@ -251,7 +268,11 @@ def use_configuration(account: str, name: str):
 	match = next((row for row in fetch_configurations(doc) if row["name"] == name), None)
 	if not match:
 		frappe.throw(_("Meta has no payment configuration called {0}.").format(name))
-	frappe.db.set_value(ACCOUNT, doc.name, {"pay_configuration": name, "pay_provider": match["provider"]})
+	frappe.db.set_value(
+		ACCOUNT,
+		doc.name,
+		{"pay_configuration": name, "pay_provider": match["provider"]},
+	)
 	doc.reload()
 	return overview(doc)
 
@@ -281,7 +302,10 @@ def erp_options():
 		"modes": [
 			row.get("name")
 			for row in source.get_all(
-				"Mode of Payment", filters={"enabled": 1}, fields=["name"], order_by="name asc"
+				"Mode of Payment",
+				filters={"enabled": 1},
+				fields=["name"],
+				order_by="name asc",
 			)
 		],
 	}
@@ -366,7 +390,11 @@ def origins(codes):
 
 
 def line(name, value, quantity, physical, importer, origin=None):
-	row = {"name": name[:60], "amount": {"value": value, "offset": OFFSET}, "quantity": quantity}
+	row = {
+		"name": name[:60],
+		"amount": {"value": value, "offset": OFFSET},
+		"quantity": quantity,
+	}
 	if physical:
 		row.update(
 			{
@@ -418,8 +446,14 @@ def order_lines(doc, due, physical, importer):
 
 def payment_settings(settings, reference_id, name):
 	if settings.pay_provider == "upi_vpa":
-		return {"payment_type": "upi", "payment_configuration": settings.pay_configuration}
-	gateway = {"type": settings.pay_provider, "configuration_name": settings.pay_configuration}
+		return {
+			"payment_type": "upi",
+			"payment_configuration": settings.pay_configuration,
+		}
+	gateway = {
+		"type": settings.pay_provider,
+		"configuration_name": settings.pay_configuration,
+	}
 	if settings.pay_provider == "razorpay":
 		gateway["razorpay"] = {"receipt": reference_id, "notes": {"reference": name}}
 	elif settings.pay_provider == "payu":
@@ -509,7 +543,11 @@ def send_order(contact, payload):
 		first, money(amount), name
 	)
 	message = send_interactive(
-		contact, account, "order_details", text, interactive_body(settings, doc, amount, reference_id, text)
+		contact,
+		account,
+		"order_details",
+		text,
+		interactive_body(settings, doc, amount, reference_id, text),
 	)
 	record = frappe.get_doc(
 		{
@@ -591,7 +629,11 @@ def announce(row):
 
 def lookup(row):
 	account = frappe.get_doc(ACCOUNT, row.whatsapp_account)
-	result = graph(account, "GET", f"{account.phone_id}/payments/{row.configuration}/{row.reference_id}")
+	result = graph(
+		account,
+		"GET",
+		f"{account.phone_id}/payments/{row.configuration}/{row.reference_id}",
+	)
 	payments = result.get("payments") or []
 	return payments[0] if payments else {}
 
@@ -639,7 +681,10 @@ def on_status(status):
 	if not name or not frappe.db.exists(PAYMENT, name):
 		return
 	row = frappe.get_doc(PAYMENT, name)
-	info = {"status": status.get("status"), "transaction": payment.get("transaction") or {}}
+	info = {
+		"status": status.get("status"),
+		"transaction": payment.get("transaction") or {},
+	}
 	if succeeded(info)[0]:
 		try:
 			confirmed = lookup(row)
@@ -686,7 +731,10 @@ def paid_now(row):
 	if window(contact.name):
 		try:
 			status_message(
-				row, contact, "processing", _("Payment of {0} received. Thank you!").format(money(row.amount))
+				row,
+				contact,
+				"processing",
+				_("Payment of {0} received. Thank you!").format(money(row.amount)),
 			)
 			frappe.db.set_value(PAYMENT, row.name, "order_status", "processing")
 		except Exception:
@@ -698,7 +746,16 @@ def clean(value):
 		return {
 			key: clean(item)
 			for key, item in value.items()
-			if key not in ("name", "__islocal", "__unsaved", "owner", "creation", "modified", "modified_by")
+			if key
+			not in (
+				"name",
+				"__islocal",
+				"__unsaved",
+				"owner",
+				"creation",
+				"modified",
+				"modified_by",
+			)
 		}
 	if isinstance(value, list):
 		return [clean(item) for item in value]
@@ -765,7 +822,10 @@ def status_message(row, contact, status, text=None):
 		"body": {"text": body[:1024]},
 		"action": {
 			"name": "review_order",
-			"parameters": {"reference_id": row.reference_id, "order": {"status": status}},
+			"parameters": {
+				"reference_id": row.reference_id,
+				"order": {"status": status},
+			},
 		},
 	}
 	return send_interactive(contact, row.whatsapp_account, "order_status", body, interactive)
@@ -796,7 +856,7 @@ def retry_pending():
 			apply(row, info)
 			if row.status != before:
 				announce(row)
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit payment retry state per transaction
 		except Exception:
 			frappe.db.rollback()
 			frappe.log_error(title=f"OneChat WhatsApp payment retry: {name}")
@@ -911,7 +971,11 @@ def cancel_open(doctype, name, keep=None):
 	done = []
 	for payment in frappe.get_all(
 		PAYMENT,
-		filters={"reference_doctype": doctype, "reference_name": name, "status": "Pending"},
+		filters={
+			"reference_doctype": doctype,
+			"reference_name": name,
+			"status": "Pending",
+		},
 		pluck="name",
 	):
 		if payment == keep:

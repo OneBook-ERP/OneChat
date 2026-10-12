@@ -32,12 +32,24 @@ PURCHASE_FIELDS = (
 	"favourite_category",
 )
 GROUPS = {
-	"Champion": {"theme": "green", "hint": "Buys often, bought recently and spends the most"},
-	"Loyal": {"theme": "green", "hint": "Buys regularly and bought in the last 3 months"},
+	"Champion": {
+		"theme": "green",
+		"hint": "Buys often, bought recently and spends the most",
+	},
+	"Loyal": {
+		"theme": "green",
+		"hint": "Buys regularly and bought in the last 3 months",
+	},
 	"New customer": {"theme": "blue", "hint": "First purchase in the last 45 days"},
 	"Promising": {"theme": "blue", "hint": "Bought recently but only once or twice"},
-	"Needs attention": {"theme": "amber", "hint": "Last purchase was 3 to 6 months ago"},
-	"At risk": {"theme": "red", "hint": "Used to buy regularly, nothing in over 6 months"},
+	"Needs attention": {
+		"theme": "amber",
+		"hint": "Last purchase was 3 to 6 months ago",
+	},
+	"At risk": {
+		"theme": "red",
+		"hint": "Used to buy regularly, nothing in over 6 months",
+	},
 	"Lost": {"theme": "gray", "hint": "No purchase in over a year"},
 	"Prospect": {"theme": "gray", "hint": "Has not bought anything yet"},
 }
@@ -137,7 +149,8 @@ def purchases(contacts):
 	records = links.pairs(contacts)
 	for row in contacts:
 		record = next(
-			((doctype, name) for doctype, name in records.get(row.name, []) if doctype in measured), None
+			((doctype, name) for doctype, name in records.get(row.name, []) if doctype in measured),
+			None,
 		)
 		if record:
 			by_doctype.setdefault(record[0], []).append((row.name, record[1]))
@@ -155,7 +168,8 @@ def purchases(contacts):
 
 def top_value(stats):
 	values = sorted(
-		(flt(row.get("lifetime_value")) for row in stats if flt(row.get("lifetime_value"))), reverse=True
+		(flt(row.get("lifetime_value")) for row in stats if flt(row.get("lifetime_value"))),
+		reverse=True,
 	)
 	if len(values) < 10:
 		return None
@@ -220,7 +234,7 @@ def update_all():
 	start = 0
 	while rows := contact_rows(start=start):
 		update(rows, top)
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit - batch commit updated contact scores to avoid large transactions
 		start += BATCH
 	from onechat.inbox.segments import forget_overview
 
@@ -253,7 +267,13 @@ def refresh(contact: str):
 @frappe.whitelist(methods=["POST"])
 def refresh_all():
 	require_admin()
-	frappe.enqueue(update_all, queue="long", timeout=3600, deduplicate=True, job_id="onechat-scores-all")
+	frappe.enqueue(
+		update_all,
+		queue="long",
+		timeout=3600,
+		deduplicate=True,
+		job_id="onechat-scores-all",
+	)
 	return True
 
 
@@ -280,7 +300,7 @@ def summary(contact):
 		**row,
 		"purchases": integrations.has_purchases(),
 		"last_purchase_on": str(row.last_purchase_on) if row.last_purchase_on else None,
-		"scores_updated_at": str(get_datetime(row.scores_updated_at)) if row.scores_updated_at else None,
+		"scores_updated_at": (str(get_datetime(row.scores_updated_at)) if row.scores_updated_at else None),
 		"group_theme": group.get("theme", "gray"),
 		"group_hint": _(group["hint"]) if group.get("hint") else None,
 	}

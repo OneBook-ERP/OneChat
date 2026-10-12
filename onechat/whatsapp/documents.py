@@ -10,7 +10,7 @@ def get_authorized_pdf_link(doctype: str, docname: str, print_format: str | None
 	doc = frappe.get_doc(doctype, docname)
 	doc.check_permission("read")
 	key = doc.get_document_share_key()
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist document share key for link access
 
 	if not print_format:
 		if doc.get("custom"):
@@ -39,9 +39,12 @@ def send_document_print_format(
 	doc = frappe.get_doc(doctype, docname)
 	doc.check_permission("read")
 	if not frappe.has_permission("OneChat Message", "create"):
-		frappe.throw(_("You don't have permission to send WhatsApp messages."), frappe.PermissionError)
+		frappe.throw(
+			_("You don't have permission to send WhatsApp messages."),
+			frappe.PermissionError,
+		)
 	key = doc.get_document_share_key()
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist document share key for link access
 
 	print_format = "Standard"
 	if doc.get("custom"):
@@ -70,5 +73,5 @@ def send_document_print_format(
 	wh_mes.to = mobile or doc.mobile_no
 	wh_mes.whatsapp_account = get_whatsapp_account(account_type="Outgoing").name
 	wh_mes.insert(ignore_permissions=True)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit queued outgoing message before returning
 	return {"status": "success", "message": "WhatsApp message queued"}

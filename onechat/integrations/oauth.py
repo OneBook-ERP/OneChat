@@ -183,7 +183,7 @@ def store_agent(user, row, tokens, remote_user=None):
 	if remote_user:
 		doc.remote_user = remote_user
 	doc.save(ignore_permissions=True)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist stored agent oauth token credentials
 
 
 def agent_token(user, row, force=False):
@@ -207,7 +207,7 @@ def agent_token(user, row, force=False):
 	except connection.RemoteError as error:
 		if not error.transient:
 			frappe.delete_doc(AGENT_TOKEN, doc.name, ignore_permissions=True, force=True)
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist agent token cleanup on invalid refresh
 			return None
 		raise
 	store_agent(user, row, tokens)
@@ -257,7 +257,8 @@ def callback(
 
 	if not saved or saved.get("user") != frappe.session.user:
 		return back_to_app(
-			integration, _("The sign-in link expired. Start again from Settings → Integrations.")
+			integration,
+			_("The sign-in link expired. Start again from Settings → Integrations."),
 		)
 	if error or not code:
 		return back_to_app(integration, error_description or error or _("Sign-in was cancelled."))
@@ -297,7 +298,8 @@ def exchange(row, data):
 		response = requests.post(f"{row.base_url()}{TOKEN}", data=data, timeout=connection.TIMEOUT)
 	except requests.RequestException as error:
 		raise connection.RemoteError(
-			_("Could not reach {0} at {1}: {2}").format(row.label, row.base_url(), str(error)), transient=True
+			_("Could not reach {0} at {1}: {2}").format(row.label, row.base_url(), str(error)),
+			transient=True,
 		) from error
 
 	try:
@@ -321,7 +323,7 @@ def store(row, tokens):
 	if tokens.get("refresh_token"):
 		values["refresh_token"] = tokens["refresh_token"]
 	row.update(values)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist oauth tokens for integration connection
 
 
 def access_token(row, force=False):
@@ -338,16 +340,18 @@ def refresh(row):
 	refresh_token = secret(row, "refresh_token")
 	if not refresh_token:
 		raise connection.RemoteError(
-			_("Sign in to {0} again from Settings → Integrations.").format(row.label), status=401
+			_("Sign in to {0} again from Settings → Integrations.").format(row.label),
+			status=401,
 		)
 	try:
 		tokens = exchange(row, {"grant_type": "refresh_token", "refresh_token": refresh_token})
 	except connection.RemoteError as error:
 		if not error.transient:
 			row.record_status(
-				_("Signed out: {0}. Sign in again from Settings → Integrations.").format(str(error)), False
+				_("Signed out: {0}. Sign in again from Settings → Integrations.").format(str(error)),
+				False,
 			)
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist connection error status on refresh failure
 		raise
 	store(row, tokens)
 	return tokens["access_token"]
@@ -357,7 +361,18 @@ def revoke(row):
 	token = secret(row, "refresh_token") or secret(row, "access_token")
 	if token:
 		try:
-			requests.post(f"{row.base_url()}{REVOKE}", data={"token": token}, timeout=connection.TIMEOUT)
+			requests.post(
+				f"{row.base_url()}{REVOKE}",
+				data={"token": token},
+				timeout=connection.TIMEOUT,
+			)
 		except requests.RequestException:
 			pass
-	row.update({"access_token": "", "refresh_token": "", "token_expires_at": None, "oauth_user": ""})
+	row.update(
+		{
+			"access_token": "",
+			"refresh_token": "",
+			"token_expires_at": None,
+			"oauth_user": "",
+		}
+	)

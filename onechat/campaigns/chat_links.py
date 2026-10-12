@@ -22,7 +22,8 @@ MARK = "\u2063"
 DIGITS = "\u200b\u200c\u200d\u2060"
 HIDDEN = re.compile(f"{MARK}([{DIGITS}]+){MARK}")
 BOTS = re.compile(
-	r"bot|crawl|spider|preview|facebookexternalhit|whatsapp|telegram|slack|discord|curl|python|wget", re.I
+	r"bot|crawl|spider|preview|facebookexternalhit|whatsapp|telegram|slack|discord|curl|python|wget",
+	re.I,
 )
 MIN_MATCH = 12
 
@@ -65,7 +66,9 @@ def tracked_links():
 	cached = getattr(frappe.local, "onechat_tracked_links", None)
 	if cached is None:
 		cached = frappe.get_all(
-			LINK, filters={"track": 1}, fields=["name", "prefilled_message", "meta_ad_ids"]
+			LINK,
+			filters={"track": 1},
+			fields=["name", "prefilled_message", "meta_ad_ids"],
 		)
 		frappe.local.onechat_tracked_links = cached
 	return cached
@@ -140,7 +143,9 @@ def lookup_number(account):
 		return None
 
 	known = frappe.db.get_value(
-		LINK, {"whatsapp_account": account, "display_number": ["is", "set"]}, "display_number"
+		LINK,
+		{"whatsapp_account": account, "display_number": ["is", "set"]},
+		"display_number",
 	)
 	if known:
 		return known
@@ -184,7 +189,12 @@ def svg(url):
 
 	buffer = io.BytesIO()
 	pyqrcode.create(url, error="M").svg(
-		buffer, scale=8, module_color="#000000", background="#ffffff", xmldecl=False, quiet_zone=4
+		buffer,
+		scale=8,
+		module_color="#000000",
+		background="#ffffff",
+		xmldecl=False,
+		quiet_zone=4,
 	)
 	return buffer.getvalue().decode()
 
@@ -199,7 +209,13 @@ def stats(name: str, days: int | str = 30):
 	link = frappe.db.get_value(
 		LINK,
 		name,
-		["ref_code", "conversations", "last_conversation_at", "clicks", "last_click_at"],
+		[
+			"ref_code",
+			"conversations",
+			"last_conversation_at",
+			"clicks",
+			"last_click_at",
+		],
 		as_dict=True,
 	)
 	if not link:
@@ -213,7 +229,10 @@ def stats(name: str, days: int | str = 30):
 		matches.append([MESSAGE, "message", "like", f"%[ref:{link.ref_code}]%"])
 	for row in frappe.get_all(
 		MESSAGE,
-		filters=[[MESSAGE, "type", "=", "Incoming"], [MESSAGE, "creation", ">=", start]],
+		filters=[
+			[MESSAGE, "type", "=", "Incoming"],
+			[MESSAGE, "creation", ">=", start],
+		],
 		or_filters=matches,
 		fields=["creation"],
 		limit_page_length=5000,
@@ -316,7 +335,7 @@ def click(code):
 			.where(table.name == link.name)
 			.run()
 		)
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist link click count on redirect
 	return link.link_url
 
 

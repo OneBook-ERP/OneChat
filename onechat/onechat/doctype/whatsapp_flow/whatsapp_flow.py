@@ -69,7 +69,10 @@ class WhatsAppFlow(Document):
 					"EmbeddedLink",
 					"Footer",
 				]:
-					accumulated_fields[field.field_name] = {"type": "string", "__example__": ""}
+					accumulated_fields[field.field_name] = {
+						"type": "string",
+						"__example__": "",
+					}
 
 		return screen_data_map
 
@@ -145,9 +148,17 @@ class WhatsAppFlow(Document):
 
 		if field_type == "Footer":
 			action = self.build_footer_action(field, screen)
-			return {"type": "Footer", "label": field.label or "Submit", "on-click-action": action}
+			return {
+				"type": "Footer",
+				"label": field.label or "Submit",
+				"on-click-action": action,
+			}
 
-		component = {"type": field_type, "name": field.field_name, "label": field.label or field.field_name}
+		component = {
+			"type": field_type,
+			"name": field.field_name,
+			"label": field.label or field.field_name,
+		}
 
 		if field.required:
 			component["required"] = True
@@ -262,7 +273,10 @@ class WhatsAppFlow(Document):
 
 		payload = {"name": self.flow_name, "categories": [self.category]}
 
-		headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+		headers = {
+			"Authorization": f"Bearer {token}",
+			"Content-Type": "application/json",
+		}
 
 		try:
 			response = make_post_request(url, headers=headers, data=json.dumps(payload))
@@ -271,7 +285,7 @@ class WhatsAppFlow(Document):
 
 		self.flow_id = response.get("id")
 		self.save()
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist flow_id before uploading assets
 
 		try:
 			self.upload_flow_json()
@@ -341,7 +355,10 @@ class WhatsAppFlow(Document):
 
 		url = f"{account.url}/{account.version}/{self.flow_id}/publish"
 
-		headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+		headers = {
+			"Authorization": f"Bearer {token}",
+			"Content-Type": "application/json",
+		}
 
 		try:
 			import requests
@@ -373,7 +390,10 @@ class WhatsAppFlow(Document):
 
 		url = f"{account.url}/{account.version}/{self.flow_id}/deprecate"
 
-		headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+		headers = {
+			"Authorization": f"Bearer {token}",
+			"Content-Type": "application/json",
+		}
 
 		try:
 			make_post_request(url, headers=headers)
@@ -465,7 +485,7 @@ class WhatsAppFlow(Document):
 			}
 		)
 		msg.insert(ignore_permissions=True)
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit test message immediately
 
 		frappe.msgprint(_("Test flow sent to {0}").format(phone_number), indicator="green")
 		return msg.name
@@ -666,7 +686,7 @@ def import_flow(whatsapp_account, flow_id, flow_name=None):
 				"whatsapp_account": whatsapp_account,
 				"flow_id": flow_id,
 				"status": data.get("status", "Draft").title(),
-				"category": data["categories"][0] if data.get("categories") else "OTHER",
+				"category": (data["categories"][0] if data.get("categories") else "OTHER"),
 				"data_api_version": data.get("json_version", "6.0"),
 				"preview_url": data.get("preview", {}).get("preview_url", ""),
 			}
@@ -680,8 +700,11 @@ def import_flow(whatsapp_account, flow_id, flow_name=None):
 		flow_doc.flags.ignore_validate = True
 		flow_doc.insert(ignore_permissions=True)
 
-		frappe.db.commit()
-		frappe.msgprint(_("Flow imported successfully: {0}").format(flow_doc.name), indicator="green")
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist imported flow record
+		frappe.msgprint(
+			_("Flow imported successfully: {0}").format(flow_doc.name),
+			indicator="green",
+		)
 
 		return flow_doc.name
 
@@ -783,7 +806,7 @@ def sync_all_flows(whatsapp_account: str):
 							"whatsapp_account": whatsapp_account,
 							"flow_id": flow_id,
 							"status": flow.get("status", "Draft").title(),
-							"category": flow["categories"][0] if flow.get("categories") else "OTHER",
+							"category": (flow["categories"][0] if flow.get("categories") else "OTHER"),
 						}
 					)
 
@@ -800,7 +823,7 @@ def sync_all_flows(whatsapp_account: str):
 					frappe.log_error(f"Failed to import flow {flow_id}: {e!s}")
 					result["skipped"] += 1
 
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist batch synchronized flows
 		return result
 
 	except Exception as e:

@@ -70,10 +70,14 @@ def release_due():
 	for name in frappe.get_all(BULK, filters={"docstatus": 1, "smart_queue": ["is", "set"]}, pluck="name"):
 		try:
 			release(name)
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit released smart send queue per campaign
 		except Exception:
 			frappe.db.rollback()
-			frappe.log_error(title="Smart send release failed", reference_doctype=BULK, reference_name=name)
+			frappe.log_error(
+				title="Smart send release failed",
+				reference_doctype=BULK,
+				reference_name=name,
+			)
 
 
 def release(name):

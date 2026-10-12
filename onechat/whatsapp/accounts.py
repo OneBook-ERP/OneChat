@@ -45,7 +45,10 @@ EVENT_THROTTLE = 300
 
 def admin_only():
 	if not is_admin():
-		frappe.throw(_("Only OneChat admins can manage WhatsApp accounts."), frappe.PermissionError)
+		frappe.throw(
+			_("Only OneChat admins can manage WhatsApp accounts."),
+			frappe.PermissionError,
+		)
 
 
 def token(account):
@@ -112,7 +115,9 @@ def run_check(account):
 			try:
 				numbers = (
 					graph(
-						account, f"{account.business_id}/phone_numbers", {"fields": "id", "limit": 100}
+						account,
+						f"{account.business_id}/phone_numbers",
+						{"fields": "id", "limit": 100},
 					).get("data")
 					or []
 				)
@@ -130,7 +135,8 @@ def run_check(account):
 					"verified_name": phone.get("verified_name"),
 					"quality_rating": (phone.get("quality_rating") or "").title() or None,
 					"messaging_limit": LIMITS.get(
-						phone.get("messaging_limit_tier"), phone.get("messaging_limit_tier")
+						phone.get("messaging_limit_tier"),
+						phone.get("messaging_limit_tier"),
 					),
 					"name_status": (phone.get("name_status") or "").replace("_", " ").title() or None,
 				}
@@ -160,10 +166,14 @@ def check_all():
 	for name in frappe.get_all(ACCOUNT, filters={"status": "Active"}, pluck="name"):
 		try:
 			run_check(frappe.get_doc(ACCOUNT, name))
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit status per account in loop
 		except Exception:
 			frappe.db.rollback()
-			frappe.log_error(title="WhatsApp account check", reference_doctype=ACCOUNT, reference_name=name)
+			frappe.log_error(
+				title="WhatsApp account check",
+				reference_doctype=ACCOUNT,
+				reference_name=name,
+			)
 
 
 def refresh(name):
@@ -182,7 +192,11 @@ def set_alert(name, level, text):
 	frappe.db.set_value(
 		ACCOUNT,
 		name,
-		{"account_alert": text, "account_alert_level": level, "account_alert_at": now_datetime()},
+		{
+			"account_alert": text,
+			"account_alert_level": level,
+			"account_alert_at": now_datetime(),
+		},
 		update_modified=False,
 	)
 
@@ -260,14 +274,21 @@ def on_name_update(value, waba_id=None):
 	for name in find_accounts(waba_id, value.get("display_phone_number")):
 		if decision == "APPROVED":
 			frappe.db.set_value(
-				ACCOUNT, name, {"name_status": "Approved", "verified_name": requested}, update_modified=False
+				ACCOUNT,
+				name,
+				{"name_status": "Approved", "verified_name": requested},
+				update_modified=False,
 			)
 			set_alert(name, "Info", _("Meta approved the display name {0}.").format(requested))
 		elif decision == "REJECTED":
 			frappe.db.set_value(ACCOUNT, name, "name_status", "Declined", update_modified=False)
 			reason = value.get("rejection_reason")
 			text = _("Meta declined the display name {0}.").format(requested)
-			set_alert(name, "Warning", f"{text} {reason}" if reason and reason != "NONE" else text)
+			set_alert(
+				name,
+				"Warning",
+				f"{text} {reason}" if reason and reason != "NONE" else text,
+			)
 		elif decision == "DEFERRED":
 			frappe.db.set_value(ACCOUNT, name, "name_status", "Pending review", update_modified=False)
 
@@ -318,7 +339,11 @@ def profile(name: str):
 	if missing(account):
 		frappe.throw(_("Add the access token and phone number ID first."))
 
-	data = graph(account, f"{account.phone_id}/whatsapp_business_profile", {"fields": PROFILE_FIELDS})
+	data = graph(
+		account,
+		f"{account.phone_id}/whatsapp_business_profile",
+		{"fields": PROFILE_FIELDS},
+	)
 	row = (data.get("data") or [{}])[0]
 	return {
 		"about": row.get("about") or "",
@@ -360,7 +385,12 @@ def save_profile(name: str, values: JSON):
 		frappe.throw(_("Pick a valid business category."))
 	payload["vertical"] = vertical
 
-	graph(account, f"{account.phone_id}/whatsapp_business_profile", method="POST", payload=payload)
+	graph(
+		account,
+		f"{account.phone_id}/whatsapp_business_profile",
+		method="POST",
+		payload=payload,
+	)
 	return profile(name)
 
 

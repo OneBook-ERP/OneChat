@@ -199,7 +199,10 @@ class WhatsAppTemplates(Document):
 			version=settings.version,
 			business_id=settings.business_id,
 			app_id=settings.app_id,
-			headers={"authorization": f"Bearer {token}", "content-type": "application/json"},
+			headers={
+				"authorization": f"Bearer {token}",
+				"content-type": "application/json",
+			},
 		)
 
 	def on_trash(self):
@@ -210,7 +213,11 @@ class WhatsAppTemplates(Document):
 		except Exception:
 			res = frappe.flags.integration_request.json().get("error", {})
 			if res.get("error_user_title") == "Message Template Not Found":
-				frappe.msgprint(_("Deleted locally"), res.get("error_user_title", _("Error")), alert=True)
+				frappe.msgprint(
+					_("Deleted locally"),
+					res.get("error_user_title", _("Error")),
+					alert=True,
+				)
 			else:
 				frappe.throw(
 					msg=res.get("error_user_msg"),
@@ -273,7 +280,10 @@ def fetch():
 		version = account.version
 		business_id = account.business_id
 
-		headers = {"authorization": f"Bearer {token}", "content-type": "application/json"}
+		headers = {
+			"authorization": f"Bearer {token}",
+			"content-type": "application/json",
+		}
 
 		try:
 			response = make_request(
@@ -320,7 +330,8 @@ def fetch():
 					elif component["type"] == "BUTTONS":
 						doc.set("buttons", [])
 						frappe.db.delete(
-							"WhatsApp Button", {"parent": doc.name, "parenttype": "WhatsApp Templates"}
+							"WhatsApp Button",
+							{"parent": doc.name, "parenttype": "WhatsApp Templates"},
 						)
 						typeMap = {
 							"URL": "Visit Website",
@@ -396,4 +407,4 @@ def upsert_doc_without_hooks(doc, child_dt, child_field):
 		d.parenttype = doc.doctype
 		d.parentfield = child_field
 		d.db_insert()
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist raw db insertion of template buttons

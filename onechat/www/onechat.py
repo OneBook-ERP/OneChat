@@ -18,7 +18,7 @@ def get_context(context):
 		frappe.throw(_("You do not have access to OneChat."), frappe.PermissionError)
 
 	context.boot = boot()
-	frappe.db.commit()  # nosemgrep
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit user session boot data before rendering spa
 	capture("active_site", "onechat")
 
 	return context

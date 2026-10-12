@@ -88,7 +88,8 @@ onMounted(() => {
     if (!embedded && session.user.is_admin) useOnboarding().welcome()
     if (instagramReturn && session.user.is_admin) {
       ui.openSettings('accounts')
-      if (instagramReturn.status === 'error') toast.error(instagramReturn.message || __('Could not connect Instagram.'), { duration: 10000 })
+      if (instagramReturn.status === 'error')
+        toast.error(instagramReturn.message || __('Could not connect Instagram.'), { duration: 10000 })
       else toast.success(__('Instagram connected.'))
       window.history.replaceState(null, '', window.location.pathname)
     }

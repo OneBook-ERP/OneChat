@@ -215,10 +215,10 @@ const channelRows = computed(() => {
       CHANNEL_COLUMNS.map((column) => [
         column.key,
         column.time
-          ? (waitTime(row[column.key]) ?? '—')
+          ? waitTime(row[column.key]) ?? '—'
           : column.key === 'resolution_rate'
-            ? percentText(row[column.key])
-            : (row[column.key] ?? 0),
+          ? percentText(row[column.key])
+          : row[column.key] ?? 0,
       ]),
     ),
   }))

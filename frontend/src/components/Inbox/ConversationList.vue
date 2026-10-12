@@ -207,7 +207,6 @@ const assignOptions = computed(() => [
 
 const channels = computed(() => counts.data?.channels || [])
 
-
 const labelOptions = computed(() => {
   const rows = labels.data || []
   if (!rows.length) return []

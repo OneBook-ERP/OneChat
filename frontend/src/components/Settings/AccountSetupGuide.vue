@@ -44,8 +44,8 @@
             step.done
               ? 'bg-surface-green-6 text-ink-white'
               : index === currentIndex
-                ? 'bg-surface-gray-7 text-ink-white'
-                : 'border border-outline-gray-3 text-ink-gray-4'
+              ? 'bg-surface-gray-7 text-ink-white'
+              : 'border border-outline-gray-3 text-ink-gray-4'
           "
         >
           <span v-if="step.done" class="lucide-check size-3" aria-hidden="true" />
@@ -59,8 +59,8 @@
               step.done
                 ? 'text-ink-gray-5 line-through decoration-outline-gray-3'
                 : index === currentIndex
-                  ? 'font-medium text-ink-gray-9'
-                  : 'text-ink-gray-5'
+                ? 'font-medium text-ink-gray-9'
+                : 'text-ink-gray-5'
             "
           >
             {{ __(step.title) }}
@@ -319,14 +319,10 @@ function show(target) {
 @keyframes onechat-guide-flash {
   0%,
   60% {
-    box-shadow:
-      0 0 0 4px var(--surface-base, #fff),
-      0 0 0 6px var(--ink-blue-3, #3b82f6);
+    box-shadow: 0 0 0 4px var(--surface-base, #fff), 0 0 0 6px var(--ink-blue-3, #3b82f6);
   }
   100% {
-    box-shadow:
-      0 0 0 4px transparent,
-      0 0 0 6px transparent;
+    box-shadow: 0 0 0 4px transparent, 0 0 0 6px transparent;
   }
 }
 

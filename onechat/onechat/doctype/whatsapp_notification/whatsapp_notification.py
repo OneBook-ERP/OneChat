@@ -32,7 +32,9 @@ class WhatsAppNotification(Document):
 			if self.field_name:
 				fields = frappe.get_doc("DocType", self.reference_doctype).fields
 				fields += frappe.get_all(
-					"Custom Field", filters={"dt": self.reference_doctype}, fields=["fieldname"]
+					"Custom Field",
+					filters={"dt": self.reference_doctype},
+					fields=["fieldname"],
 				)
 				if not any(field.fieldname == self.field_name for field in fields):
 					frappe.throw(_("Field name {0} does not exists").format(self.field_name))
@@ -97,7 +99,11 @@ class WhatsAppNotification(Document):
 			self.notify(data, template_account=template.get("whatsapp_account"))
 
 	def send_template_message(
-		self, doc: Document, phone_no=None, default_template=None, ignore_condition=False
+		self,
+		doc: Document,
+		phone_no=None,
+		default_template=None,
+		ignore_condition=False,
 	):
 		if self.disabled:
 			return
@@ -134,7 +140,10 @@ class WhatsAppNotification(Document):
 						value = doc.get_formatted(field.field_name)
 					else:
 						value = doc_data[field.field_name]
-						if isinstance(doc_data[field.field_name], datetime.date | datetime.datetime):
+						if isinstance(
+							doc_data[field.field_name],
+							datetime.date | datetime.datetime,
+						):
 							value = str(doc_data[field.field_name])
 
 					parameters.append({"type": "text", "text": value})
@@ -149,7 +158,7 @@ class WhatsAppNotification(Document):
 			media = None
 			if self.attach_document_print:
 				key = doc.get_document_share_key()
-				frappe.db.commit()
+				frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist document share key for link access
 				print_format = "Standard"
 				doctype = frappe.get_doc("DocType", doc_data["doctype"])
 				if doctype.custom:
@@ -158,7 +167,10 @@ class WhatsAppNotification(Document):
 				else:
 					default_print_format = frappe.db.get_value(
 						"Property Setter",
-						filters={"doc_type": doc_data["doctype"], "property": "default_print_format"},
+						filters={
+							"doc_type": doc_data["doctype"],
+							"property": "default_print_format",
+						},
 						fieldname="value",
 					)
 					print_format = default_print_format if default_print_format else print_format
@@ -191,7 +203,12 @@ class WhatsAppNotification(Document):
 				components.append(
 					{
 						"type": "header",
-						"parameters": [{"type": "document", "document": {**media, "filename": filename}}],
+						"parameters": [
+							{
+								"type": "document",
+								"document": {**media, "filename": filename},
+							}
+						],
 					}
 				)
 			elif media and template.header_type == "IMAGE":
@@ -213,7 +230,12 @@ class WhatsAppNotification(Document):
 									"type": "button",
 									"sub_type": "url",
 									"index": str(idx),
-									"parameters": [{"type": "text", "text": doc.get(button_fields.pop(0))}],
+									"parameters": [
+										{
+											"type": "text",
+											"text": doc.get(button_fields.pop(0)),
+										}
+									],
 								}
 							)
 
@@ -254,7 +276,10 @@ class WhatsAppNotification(Document):
 
 		token = whatsapp_account.get_password("token")
 
-		headers = {"authorization": f"Bearer {token}", "content-type": "application/json"}
+		headers = {
+			"authorization": f"Bearer {token}",
+			"content-type": "application/json",
+		}
 		try:
 			success = False
 			response = make_post_request(
@@ -267,10 +292,14 @@ class WhatsAppNotification(Document):
 				self.content_type = "text"
 
 			parameters = None
-			body = next((part for part in data["template"]["components"] if part.get("type") == "body"), None)
+			body = next(
+				(part for part in data["template"]["components"] if part.get("type") == "body"),
+				None,
+			)
 			if body:
 				parameters = frappe.json.dumps(
-					[param.get("text") for param in body.get("parameters") or []], default=str
+					[param.get("text") for param in body.get("parameters") or []],
+					default=str,
 				)
 
 			new_doc = {
@@ -311,7 +340,12 @@ class WhatsAppNotification(Document):
 						if df.fieldtype in frappe.model.numeric_fieldtypes:
 							value = frappe.utils.cint(value)
 
-						frappe.db.set_value(doc_data.get("doctype"), doc_data.get("name"), fieldname, value)
+						frappe.db.set_value(
+							doc_data.get("doctype"),
+							doc_data.get("name"),
+							fieldname,
+							value,
+						)
 
 			frappe.msgprint(_("WhatsApp Message Triggered"), indicator="green", alert=True)
 			success = True
@@ -324,7 +358,9 @@ class WhatsAppNotification(Document):
 					error_message = response.get("Error", response.get("message"))
 
 			frappe.msgprint(
-				f"Failed to trigger whatsapp message: {error_message}", indicator="red", alert=True
+				f"Failed to trigger whatsapp message: {error_message}",
+				indicator="red",
+				alert=True,
 			)
 		finally:
 			if not success:
@@ -332,7 +368,11 @@ class WhatsAppNotification(Document):
 			else:
 				meta = frappe.flags.integration_request.json()
 			frappe.get_doc(
-				{"doctype": "WhatsApp Notification Log", "template": self.template, "meta_data": meta}
+				{
+					"doctype": "WhatsApp Notification Log",
+					"template": self.template,
+					"meta_data": meta,
+				}
 			).insert(ignore_permissions=True)
 
 	def on_trash(self):
@@ -382,7 +422,10 @@ class WhatsAppNotification(Document):
 			frappe.throw(_("Please set a default outgoing WhatsApp Account"))
 
 		token = whatsapp_account.get_password("token")
-		headers = {"authorization": f"Bearer {token}", "content-type": "application/json"}
+		headers = {
+			"authorization": f"Bearer {token}",
+			"content-type": "application/json",
+		}
 
 		formatted_number = self.format_number(phone_no)
 		data = {
@@ -427,12 +470,18 @@ class WhatsAppNotification(Document):
 					error_message = resp.get("Error", resp.get("message", error_message))
 
 			frappe.msgprint(
-				f"Failed to send plain WhatsApp message: {error_message}", indicator="red", alert=True
+				f"Failed to send plain WhatsApp message: {error_message}",
+				indicator="red",
+				alert=True,
 			)
 		finally:
 			meta = frappe.flags.integration_request.json() if success else {"error": error_message}
 			frappe.get_doc(
-				{"doctype": "WhatsApp Notification Log", "template": self.name, "meta_data": meta}
+				{
+					"doctype": "WhatsApp Notification Log",
+					"template": self.name,
+					"meta_data": meta,
+				}
 			).insert(ignore_permissions=True)
 
 	def format_number(self, number):
@@ -481,7 +530,10 @@ def trigger_notifications(method="daily"):
 	if method == "daily":
 		doc_list = frappe.get_all(
 			"WhatsApp Notification",
-			filters={"doctype_event": ("in", ("Days Before", "Days After")), "disabled": 0},
+			filters={
+				"doctype_event": ("in", ("Days Before", "Days After")),
+				"disabled": 0,
+			},
 		)
 		for d in doc_list:
 			alert = frappe.get_doc("WhatsApp Notification", d.name)

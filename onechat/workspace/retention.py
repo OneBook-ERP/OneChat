@@ -87,7 +87,10 @@ def purge_records(rules):
 		removed = 0
 		while removed < MAX_PER_RUN:
 			names = frappe.get_all(
-				spec["doctype"], filters=record_filters(spec, days), pluck="name", limit_page_length=BATCH
+				spec["doctype"],
+				filters=record_filters(spec, days),
+				pluck="name",
+				limit_page_length=BATCH,
 			)
 			if not names:
 				break
@@ -95,7 +98,7 @@ def purge_records(rules):
 				frappe.db.delete(child, {"parenttype": spec["doctype"], "parent": ["in", names]})
 			frappe.db.delete(spec["doctype"], {"name": ["in", names]})
 			removed += len(names)
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - batch delete to avoid holding db lock
 		if removed:
 			out[spec["key"]] = removed
 	return out
@@ -120,7 +123,10 @@ def protected_files():
 
 def old_messages(before, limit):
 	return frappe.get_all(
-		MESSAGE, filters={"creation": ["<", before]}, fields=["name", "attach"], limit_page_length=limit
+		MESSAGE,
+		filters={"creation": ["<", before]},
+		fields=["name", "attach"],
+		limit_page_length=limit,
 	)
 
 
@@ -158,7 +164,7 @@ def purge(rules):
 		media += delete_files([row.attach for row in rows], keep)
 		frappe.db.delete(MESSAGE, {"name": ["in", [row.name for row in rows]]})
 		messages += len(rows)
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit - batch delete messages to avoid holding db lock
 
 	cleared = 0
 	while cleared < MAX_PER_RUN:
@@ -171,7 +177,7 @@ def purge(rules):
 			table.name.isin([row.name for row in rows])
 		).run()
 		cleared += len(rows)
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit - batch clear media to avoid holding db lock
 
 	return {"messages": messages, "media": media, "records": purge_records(rules)}
 
@@ -182,9 +188,10 @@ def record(result):
 	if others:
 		summary += _(", plus {0} older log and history records").format(others)
 	frappe.db.set_single_value(
-		SETTINGS, {"retention_last_run": now_datetime(), "retention_last_summary": summary}
+		SETTINGS,
+		{"retention_last_run": now_datetime(), "retention_last_summary": summary},
 	)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist retention summary status
 
 	return summary
 
@@ -214,7 +221,8 @@ def preview():
 		**rules,
 		"messages": frappe.db.count(MESSAGE, {"creation": ["<", cutoff(rules["message_days"])]}),
 		"media": frappe.db.count(
-			MESSAGE, {"creation": ["<", cutoff(rules["media_days"])], "attach": ["is", "set"]}
+			MESSAGE,
+			{"creation": ["<", cutoff(rules["media_days"])], "attach": ["is", "set"]},
 		),
 		"last_run": settings.get("retention_last_run"),
 		"last_summary": settings.get("retention_last_summary"),
@@ -225,12 +233,19 @@ def preview():
 				"key": spec["key"],
 				"days": rules["records"].get(spec["key"]) or 0,
 				"min": spec["min"],
-				"total": frappe.db.count(spec["doctype"], spec["filters"])
-				if frappe.db.exists("DocType", spec["doctype"])
-				else 0,
-				"due": frappe.db.count(spec["doctype"], record_filters(spec, rules["records"][spec["key"]]))
-				if rules["records"].get(spec["key"]) and frappe.db.exists("DocType", spec["doctype"])
-				else 0,
+				"total": (
+					frappe.db.count(spec["doctype"], spec["filters"])
+					if frappe.db.exists("DocType", spec["doctype"])
+					else 0
+				),
+				"due": (
+					frappe.db.count(
+						spec["doctype"],
+						record_filters(spec, rules["records"][spec["key"]]),
+					)
+					if rules["records"].get(spec["key"]) and frappe.db.exists("DocType", spec["doctype"])
+					else 0
+				),
 			}
 			for spec in RECORDS
 		],
@@ -242,6 +257,9 @@ def run_now():
 	admin_only()
 
 	frappe.enqueue(
-		"onechat.workspace.retention.run_forced", queue="long", timeout=3600, enqueue_after_commit=True
+		"onechat.workspace.retention.run_forced",
+		queue="long",
+		timeout=3600,
+		enqueue_after_commit=True,
 	)
 	return _("Cleanup started. It runs in the background; refresh in a few minutes to see the result.")

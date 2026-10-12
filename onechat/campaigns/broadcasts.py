@@ -10,7 +10,9 @@ from pypika.terms import Field
 from onechat.api_types import JSON
 from onechat.campaigns.smart_send import pending, sender_batches
 from onechat.inbox.conversations import CONTACT, digits, find_contact
-from onechat.onechat.report.bulk_whatsapp_status.bulk_whatsapp_status import execute as run_status_report
+from onechat.onechat.report.bulk_whatsapp_status.bulk_whatsapp_status import (
+	execute as run_status_report,
+)
 from onechat.workspace.session import is_admin, require
 
 
@@ -70,9 +72,14 @@ def broadcast(name: str, limit: int | str = 500):
 			"queued": counts.get("queued", 0),
 			"delivered": counts.get("delivered", 0),
 			"read": counts.get("read", 0),
-			"percent": min(100, round((sent + failed + cint(doc.get("skipped_count"))) / total * 100))
-			if total
-			else 0,
+			"percent": (
+				min(
+					100,
+					round((sent + failed + cint(doc.get("skipped_count"))) / total * 100),
+				)
+				if total
+				else 0
+			),
 		},
 		"messages": messages,
 		"smart_pending": pending(doc),
@@ -144,7 +151,13 @@ def delivery_report(filters: JSON = None):
 	columns, rows = run_status_report(filters)
 	totals = {
 		key: sum(cint(row.get(key)) for row in rows)
-		for key in ("recipient_count", "sent_count", "delivered_count", "read_count", "failed_count")
+		for key in (
+			"recipient_count",
+			"sent_count",
+			"delivered_count",
+			"read_count",
+			"failed_count",
+		)
 	}
 
 	return {"columns": columns, "rows": rows, "totals": totals}
@@ -172,7 +185,7 @@ def send_due_broadcasts():
 	for name in due:
 		try:
 			frappe.get_doc("Bulk WhatsApp Message", name).submit()
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit - commit each scheduled broadcast submission
 		except Exception:
 			frappe.db.rollback()
 			frappe.log_error(title=f"Scheduled broadcast {name} failed")
@@ -199,7 +212,11 @@ def audiences(name):
 	message = frappe.qb.DocType("OneChat Message")
 	rows = (
 		frappe.qb.from_(message)
-		.select(message.to, Lower(IfNull(message.status, "")).as_("status"), message.creation)
+		.select(
+			message.to,
+			Lower(IfNull(message.status, "")).as_("status"),
+			message.creation,
+		)
 		.where((message.bulk_message_reference == name) & (message.type == "Outgoing"))
 		.run(as_dict=True)
 	)
@@ -292,7 +309,9 @@ def create_follow_up(name: str, audience: str, template: str | None = None):
 		rows.append(
 			{
 				"mobile_number": number,
-				"recipient_name": frappe.db.get_value(CONTACT, contact, "contact_name") if contact else None,
+				"recipient_name": (
+					frappe.db.get_value(CONTACT, contact, "contact_name") if contact else None
+				),
 			}
 		)
 

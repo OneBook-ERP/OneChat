@@ -16,7 +16,14 @@ from onechat.workspace.session import require_admin
 SIGNATURE = "X-Frappe-Webhook-Signature"
 RECEIVER = "onechat.integrations.remote_setup.receive"
 LEGACY_RECEIVER = "onechat.integrations.erpnext_remote.receive"
-EVENTS = ("after_insert", "on_update", "on_submit", "on_cancel", "on_update_after_submit", "on_trash")
+EVENTS = (
+	"after_insert",
+	"on_update",
+	"on_submit",
+	"on_cancel",
+	"on_update_after_submit",
+	"on_trash",
+)
 ALWAYS = {
 	"erpnext": (
 		("Payment Request", "on_update_after_submit"),
@@ -27,7 +34,11 @@ ALWAYS = {
 		("Supplier", "after_insert"),
 		("Contact", "on_update"),
 	),
-	"crm": (("CRM Deal", "on_update"), ("CRM Deal", "after_insert"), ("CRM Lead", "after_insert")),
+	"crm": (
+		("CRM Deal", "on_update"),
+		("CRM Deal", "after_insert"),
+		("CRM Lead", "after_insert"),
+	),
 }
 ROLES = {
 	"erpnext": "Sales User, Accounts User and Stock User",
@@ -208,10 +219,11 @@ def check(row):
 		result = row.test()
 	except Exception as error:
 		row.record_status(_("Not connected: {0}").format(str(error)), False)
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist connection failure status immediately
 		raise
 	row.record_status(
-		_("Connected as {0} · {1} {2}").format(result["user"], row.label, result.get("version") or ""), True
+		_("Connected as {0} · {1} {2}").format(result["user"], row.label, result.get("version") or ""),
+		True,
 	)
 	return result
 
@@ -239,9 +251,23 @@ def grant(client, doctype, rights):
 		current = [{}]
 	for letter, ptype in FLAGS.items():
 		if letter in rights and not current[0].get(ptype):
-			client.call(f"{PERMISSIONS}update", doctype=doctype, role=ROLE, permlevel=0, ptype=ptype, value=1)
+			client.call(
+				f"{PERMISSIONS}update",
+				doctype=doctype,
+				role=ROLE,
+				permlevel=0,
+				ptype=ptype,
+				value=1,
+			)
 	if not current[0].get("report"):
-		client.call(f"{PERMISSIONS}update", doctype=doctype, role=ROLE, permlevel=0, ptype="report", value=1)
+		client.call(
+			f"{PERMISSIONS}update",
+			doctype=doctype,
+			role=ROLE,
+			permlevel=0,
+			ptype="report",
+			value=1,
+		)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -355,7 +381,9 @@ def sync(integration):
 			client.call("frappe.client.delete", doctype="Webhook", name=have[pair])
 		if needed:
 			status = _("{0} {1} events are sent to OneChat: {2}").format(
-				len(needed), row.label, ", ".join(f"{doctype} ({event})" for doctype, event in sorted(needed))
+				len(needed),
+				row.label,
+				", ".join(f"{doctype} ({event})" for doctype, event in sorted(needed)),
 			)
 		else:
 			status = _(
@@ -412,7 +440,11 @@ def receive():
 	except ValueError:
 		frappe.throw(_("Invalid payload"))
 
-	doctype, name, event = payload.get("doctype"), payload.get("name"), payload.get("event")
+	doctype, name, event = (
+		payload.get("doctype"),
+		payload.get("name"),
+		payload.get("event"),
+	)
 	doc = payload.get("doc") or {}
 	if isinstance(doc, str):
 		doc = json.loads(doc)
@@ -422,7 +454,10 @@ def receive():
 	frappe.db.set_value(
 		connection.CONNECTION,
 		key,
-		{"last_event_at": frappe.utils.now_datetime(), "last_event": f"{doctype} · {event}"},
+		{
+			"last_event_at": frappe.utils.now_datetime(),
+			"last_event": f"{doctype} · {event}",
+		},
 		update_modified=False,
 	)
 	frappe.set_user("Administrator")
