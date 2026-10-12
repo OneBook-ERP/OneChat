@@ -1,0 +1,297 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-09-28 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "contact",
+  "whatsapp_account",
+  "channel",
+  "status",
+  "onechat_conversation_0_column_1",
+  "assigned_to",
+  "team",
+  "bot_flow",
+  "response_section",
+  "opened_at",
+  "first_response_at",
+  "first_response_by",
+  "response_column_1",
+  "response_seconds",
+  "resolution_seconds",
+  "resolution_section",
+  "resolved_at",
+  "resolved_by",
+  "resolution_reason",
+  "resolution_column_1",
+  "resolution_note",
+  "counts_section",
+  "incoming_count",
+  "messages_column_1",
+  "agent_replies",
+  "messages_column_2",
+  "bot_replies",
+  "csat_section",
+  "csat_score",
+  "satisfaction_column_1",
+  "csat_asked_at",
+  "csat_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "contact",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Contact",
+   "options": "OneChat Contact",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "whatsapp_account",
+   "fieldtype": "Link",
+   "label": "WhatsApp Account",
+   "options": "OneChat Account",
+   "read_only": 1
+  },
+  {
+   "default": "WhatsApp",
+   "fetch_from": "whatsapp_account.channel",
+   "fieldname": "channel",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Channel",
+   "options": "WhatsApp\nInstagram",
+   "read_only": 1
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Open\nResolved",
+   "read_only": 1
+  },
+  {
+   "fieldname": "onechat_conversation_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "assigned_to",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Assigned To",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "team",
+   "fieldtype": "Link",
+   "label": "Team",
+   "options": "OneChat Team",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bot_flow",
+   "fieldtype": "Link",
+   "label": "Handled By Flow",
+   "options": "Automation Flow",
+   "read_only": 1
+  },
+  {
+   "fieldname": "response_section",
+   "fieldtype": "Section Break",
+   "label": "Response"
+  },
+  {
+   "fieldname": "opened_at",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Opened At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "first_response_at",
+   "fieldtype": "Datetime",
+   "label": "First Response At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "first_response_by",
+   "fieldtype": "Link",
+   "label": "First Response By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "response_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "response_seconds",
+   "fieldtype": "Int",
+   "label": "Response Time (Seconds)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "resolution_seconds",
+   "fieldtype": "Int",
+   "label": "Resolution Time (Seconds)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "resolution_section",
+   "fieldtype": "Section Break",
+   "label": "Resolution"
+  },
+  {
+   "fieldname": "resolved_at",
+   "fieldtype": "Datetime",
+   "label": "Resolved At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "resolved_by",
+   "fieldtype": "Link",
+   "label": "Resolved By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "resolution_reason",
+   "fieldtype": "Data",
+   "label": "Resolution reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "resolution_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "resolution_note",
+   "fieldtype": "Small Text",
+   "label": "Resolution note",
+   "read_only": 1
+  },
+  {
+   "fieldname": "counts_section",
+   "fieldtype": "Section Break",
+   "label": "Messages"
+  },
+  {
+   "fieldname": "incoming_count",
+   "fieldtype": "Int",
+   "label": "Received",
+   "read_only": 1
+  },
+  {
+   "fieldname": "messages_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "agent_replies",
+   "fieldtype": "Int",
+   "label": "Agent Replies",
+   "read_only": 1
+  },
+  {
+   "fieldname": "messages_column_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bot_replies",
+   "fieldtype": "Int",
+   "label": "Automated Replies",
+   "read_only": 1
+  },
+  {
+   "fieldname": "csat_section",
+   "fieldtype": "Section Break",
+   "label": "Satisfaction"
+  },
+  {
+   "fieldname": "csat_score",
+   "fieldtype": "Int",
+   "label": "Score (1-3)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "satisfaction_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "csat_asked_at",
+   "fieldtype": "Datetime",
+   "label": "Survey Sent At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "csat_at",
+   "fieldtype": "Datetime",
+   "label": "Rated At",
+   "read_only": 1
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat Conversation",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Agent"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "opened_at",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "contact",
+ "track_changes": 0
+}

@@ -1,0 +1,235 @@
+@import 'frappe-ui/style.css';
+
+.onechat-flow {
+  --vf-node-bg: var(--surface-elevation-1);
+  --vf-node-text: var(--ink-gray-8);
+  --vf-connection-path: var(--outline-gray-4);
+  --vf-handle: var(--ink-gray-5);
+  background-color: var(--surface-gray-1);
+}
+
+.onechat-flow .vue-flow__background pattern circle {
+  fill: var(--outline-gray-3);
+}
+
+.onechat-flow .vue-flow__edge-path,
+.onechat-flow .vue-flow__connection-path {
+  stroke: var(--outline-gray-4);
+  stroke-width: 1.5;
+}
+
+.onechat-flow .vue-flow__edge.selected .vue-flow__edge-path,
+.onechat-flow .vue-flow__edge:focus .vue-flow__edge-path,
+.onechat-flow .vue-flow__edge:hover .vue-flow__edge-path {
+  stroke: var(--ink-gray-7);
+}
+
+.onechat-flow .vue-flow__arrowhead polyline {
+  stroke: var(--outline-gray-4) !important;
+  fill: var(--outline-gray-4) !important;
+}
+
+.onechat-flow .vue-flow__edge-textbg {
+  fill: var(--surface-elevation-1);
+}
+
+.onechat-flow .vue-flow__edge-text {
+  fill: var(--ink-gray-7);
+  font-size: 11px;
+}
+
+.onechat-flow .vue-flow__handle {
+  width: 10px;
+  height: 10px;
+  background: var(--surface-elevation-1);
+  border: 2px solid var(--outline-gray-4);
+}
+
+.onechat-flow .vue-flow__handle:hover,
+.onechat-flow .vue-flow__handle.connecting {
+  border-color: var(--ink-gray-7);
+}
+
+.onechat-flow .vue-flow__handle.valid {
+  border-color: var(--ink-green-6);
+}
+
+.onechat-flow .vue-flow__selection,
+.onechat-flow .vue-flow__nodesselection-rect {
+  background: transparent;
+  border: 1px dashed var(--outline-gray-5);
+}
+
+.onechat-flow .vue-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--outline-gray-2);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.onechat-flow .vue-flow__controls-button {
+  background: var(--surface-elevation-1);
+  border-bottom: 1px solid var(--outline-gray-1);
+  fill: var(--ink-gray-7);
+}
+
+.onechat-flow .vue-flow__controls-button svg {
+  fill: var(--ink-gray-7);
+}
+
+.onechat-flow .vue-flow__controls-button:hover {
+  background: var(--surface-gray-2);
+}
+
+.onechat-flow .vue-flow__minimap {
+  overflow: hidden;
+  background-color: var(--surface-elevation-1);
+  border: 1px solid var(--outline-gray-2);
+  border-radius: 8px;
+}
+
+.onechat-flow .vue-flow__minimap-mask {
+  fill: var(--surface-gray-3);
+  fill-opacity: 0.6;
+}
+
+.onechat-flow .vue-flow__minimap-node {
+  fill: var(--surface-gray-4);
+  stroke: none;
+}
+
+.onechat-flow .vue-flow__minimap-node.fb-mini-violet { fill: var(--surface-violet-4); }
+.onechat-flow .vue-flow__minimap-node.fb-mini-amber { fill: var(--surface-amber-4); }
+.onechat-flow .vue-flow__minimap-node.fb-mini-cyan { fill: var(--surface-cyan-4); }
+.onechat-flow .vue-flow__minimap-node.fb-mini-blue { fill: var(--surface-blue-4); }
+.onechat-flow .vue-flow__minimap-node.fb-mini-green { fill: var(--surface-green-4); }
+.onechat-flow .vue-flow__minimap-node.fb-mini-red { fill: var(--surface-red-4); }
+.onechat-flow .vue-flow__minimap-node.fb-mini-orange { fill: var(--surface-orange-4); }
+.onechat-flow .vue-flow__minimap-node.fb-mini-teal { fill: var(--surface-teal-4); }
+.onechat-flow .vue-flow__minimap-node.fb-mini-purple { fill: var(--surface-purple-4); }
+.onechat-flow .vue-flow__minimap-node.fb-mini-gray { fill: var(--surface-gray-5); }
+
+textarea:not([data-fixed-size]) {
+  field-sizing: content;
+  min-height: 4.5rem;
+  overflow-y: hidden;
+  resize: none;
+}
+
+:where(.fui-skeleton) {
+  border-radius: var(--radius-4);
+}
+
+html,
+body {
+  @apply bg-surface-base;
+}
+
+[role='tabpanel'],
+div:has(> [role='tabpanel']) {
+  min-width: 0;
+}
+
+.bottom-sheet-content pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 639px) {
+  .dialog-scroll-container:has(.onechat-settings-bar) > div {
+    padding: 0;
+  }
+
+  .dialog-content:has(.onechat-settings-bar) {
+    margin: 0;
+    max-width: none;
+    border-radius: 0;
+  }
+
+  .dialog-content:has(.onechat-settings-bar) .w-screen {
+    width: 100%;
+  }
+}
+
+.onechat-tour-hole {
+  border-radius: 10px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 9999px rgba(15, 15, 15, 0.55),
+    0 0 0 2px rgba(59, 130, 246, 0.95);
+  transition:
+    left 0.2s ease,
+    top 0.2s ease,
+    width 0.2s ease,
+    height 0.2s ease;
+}
+
+.onechat-tour-hole::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  animation: onechat-tour-pulse 1.6s ease-out infinite;
+}
+
+@keyframes onechat-tour-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(59, 130, 246, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onechat-tour-hole {
+    transition: none;
+  }
+  .onechat-tour-hole::after {
+    animation: none;
+  }
+}
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --onechat-scroll-thumb: oklch(0.83 0 0);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --onechat-scroll-thumb: oklch(0.439 0 0);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--onechat-scroll-thumb) transparent;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--onechat-scroll-thumb);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 9999px;
+}
+
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration,
+input[type='search']::-webkit-search-results-button,
+input[type='search']::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}

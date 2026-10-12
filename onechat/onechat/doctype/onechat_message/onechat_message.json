@@ -1,0 +1,566 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2022-10-27 22:02:51.430491",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "message_tab",
+  "type",
+  "to",
+  "from",
+  "profile_name",
+  "whatsapp_account",
+  "channel",
+  "message_tag",
+  "is_echo",
+  "link_url",
+  "media_id",
+  "reply_to_comment",
+  "comment_replied",
+  "comment_hidden",
+  "comment_auto_hidden",
+  "message_0_column_1",
+  "status",
+  "message_type",
+  "content_type",
+  "source",
+  "label",
+  "content_section",
+  "message",
+  "attach",
+  "template_section",
+  "use_template",
+  "template",
+  "template_column_1",
+  "template_parameters",
+  "template_header_parameters",
+  "body_param",
+  "reply_section",
+  "is_reply",
+  "reply_column_1",
+  "reply_to_message_id",
+  "error_section",
+  "error_message",
+  "interactive_tab",
+  "buttons",
+  "products",
+  "section_break_flow",
+  "flow",
+  "flow_cta",
+  "flow_settings_column_1",
+  "flow_screen",
+  "flow_token",
+  "section_break_flow_response",
+  "flow_response",
+  "details_tab",
+  "message_id",
+  "conversation_id",
+  "details_0_column_1",
+  "chat_link",
+  "referral",
+  "reference_section",
+  "reference_doctype",
+  "reference_name",
+  "reference_column_1",
+  "whatsapp_contact",
+  "bulk_message_reference",
+  "ab_variant",
+  "pricing_section",
+  "billable",
+  "pricing_category",
+  "pricing_column_1",
+  "pricing_type",
+  "pricing_country"
+ ],
+ "fields": [
+  {
+   "fieldname": "message_tab",
+   "fieldtype": "Tab Break",
+   "label": "Message"
+  },
+  {
+   "fieldname": "type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Type",
+   "options": "Outgoing\nIncoming",
+   "set_only_once": 1
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "depends_on": "eval:(doc.type==\"Outgoing\");",
+   "description": "Mobile number with country code",
+   "fieldname": "to",
+   "fieldtype": "Data",
+   "label": "TO ",
+   "set_only_once": 1
+  },
+  {
+   "depends_on": "eval:(doc.type==\"Incoming\");",
+   "fieldname": "from",
+   "fieldtype": "Data",
+   "label": "From",
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "profile_name",
+   "fieldtype": "Data",
+   "label": "Profile Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "whatsapp_account",
+   "fieldtype": "Link",
+   "label": "WhatsApp Account",
+   "options": "OneChat Account"
+  },
+  {
+   "default": "WhatsApp",
+   "fetch_from": "whatsapp_account.channel",
+   "fieldname": "channel",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Channel",
+   "options": "WhatsApp\nInstagram",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.channel=='Instagram'",
+   "fieldname": "message_tag",
+   "fieldtype": "Data",
+   "label": "Message Tag",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.channel=='Instagram'",
+   "fieldname": "is_echo",
+   "fieldtype": "Check",
+   "label": "Sent from Instagram app",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.link_url",
+   "fieldname": "link_url",
+   "fieldtype": "Data",
+   "label": "Link",
+   "options": "URL",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.media_id",
+   "fieldname": "media_id",
+   "fieldtype": "Data",
+   "label": "Post ID",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.reply_to_comment",
+   "fieldname": "reply_to_comment",
+   "fieldtype": "Data",
+   "label": "Private reply to comment",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.content_type=='comment'",
+   "fieldname": "comment_replied",
+   "fieldtype": "Check",
+   "label": "Replied privately",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.content_type=='comment'",
+   "fieldname": "comment_hidden",
+   "fieldtype": "Check",
+   "label": "Comment hidden",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.content_type=='comment'",
+   "fieldname": "comment_auto_hidden",
+   "fieldtype": "Check",
+   "label": "Hidden by AI",
+   "read_only": 1
+  },
+  {
+   "fieldname": "message_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Status",
+   "read_only": 1
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "message_type",
+   "fieldtype": "Select",
+   "label": "Message Type",
+   "options": "Manual\nTemplate",
+   "read_only": 1
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "content_type",
+   "fieldtype": "Select",
+   "label": "Content Type",
+   "options": "text\ndocument\nimage\nvideo\naudio\nflow\nreaction\nlocation\ncontact\nbutton\ninteractive\nproduct\nproduct_list\norder\norder_details\norder_status\nstory_reply\nstory_mention\nshare\ncomment\ncomment_reply",
+   "reqd": 1
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Sent By",
+   "options": "\nAgent\nBot\nAuto reply\nAway message\nNotification\nBroadcast",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Label"
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "message",
+   "fieldtype": "HTML Editor",
+   "label": "Message",
+   "set_only_once": 1
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "depends_on": "eval:(doc.content_type =='audio' || doc.content_type =='video' || doc.content_type =='document' || doc.content_type =='image' || doc.message_type=='Template')",
+   "fieldname": "attach",
+   "fieldtype": "Attach",
+   "label": "Attach"
+  },
+  {
+   "fieldname": "template_section",
+   "fieldtype": "Section Break",
+   "label": "Template"
+  },
+  {
+   "default": "0",
+   "fieldname": "use_template",
+   "fieldtype": "Check",
+   "label": "Use Template"
+  },
+  {
+   "depends_on": "eval:doc.use_template == 1",
+   "fieldname": "template",
+   "fieldtype": "Link",
+   "label": "Template",
+   "options": "WhatsApp Templates"
+  },
+  {
+   "fieldname": "template_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "template_parameters",
+   "fieldtype": "Small Text",
+   "label": "Template Parameters",
+   "read_only": 1
+  },
+  {
+   "fieldname": "template_header_parameters",
+   "fieldtype": "Small Text",
+   "label": "Template Header Parameters",
+   "read_only": 1
+  },
+  {
+   "fieldname": "body_param",
+   "fieldtype": "JSON",
+   "label": "Body Param"
+  },
+  {
+   "fieldname": "reply_section",
+   "fieldtype": "Section Break",
+   "label": "Reply"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_reply",
+   "fieldtype": "Check",
+   "label": "Is Reply"
+  },
+  {
+   "fieldname": "reply_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reply_to_message_id",
+   "fieldtype": "Data",
+   "label": "Reply To Message ID"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.error_message",
+   "fieldname": "error_section",
+   "fieldtype": "Section Break",
+   "label": "Error"
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Error",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "interactive_tab",
+   "fieldtype": "Tab Break",
+   "label": "Interactive"
+  },
+  {
+   "default": "{}",
+   "depends_on": "eval:doc.content_type=='interactive'",
+   "description": "JSON array: [{\"id\": \"yes\", \"title\": \"Yes\"}, {\"id\": \"no\", \"title\": \"No\"}]",
+   "fieldname": "buttons",
+   "fieldtype": "JSON",
+   "label": "Buttons"
+  },
+  {
+   "depends_on": "eval:['product','product_list','order'].includes(doc.content_type)",
+   "fieldname": "products",
+   "fieldtype": "JSON",
+   "label": "Products"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.content_type=='flow'",
+   "fieldname": "section_break_flow",
+   "fieldtype": "Section Break",
+   "label": "Flow Settings"
+  },
+  {
+   "depends_on": "eval:doc.content_type=='flow'",
+   "description": "For a reply, the form it answers",
+   "fieldname": "flow",
+   "fieldtype": "Link",
+   "label": "WhatsApp Flow",
+   "options": "WhatsApp Flow",
+   "read_only_depends_on": "eval:doc.type=='Incoming'"
+  },
+  {
+   "depends_on": "eval:doc.content_type=='flow' && doc.type=='Outgoing'",
+   "description": "Button text to open the flow",
+   "fieldname": "flow_cta",
+   "fieldtype": "Data",
+   "label": "Flow CTA"
+  },
+  {
+   "fieldname": "flow_settings_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.content_type=='flow' && doc.type=='Outgoing'",
+   "description": "Starting screen ID (optional)",
+   "fieldname": "flow_screen",
+   "fieldtype": "Data",
+   "label": "Flow Screen"
+  },
+  {
+   "depends_on": "eval:doc.content_type=='flow' && doc.type=='Outgoing'",
+   "description": "Generated automatically. Links the customer's reply back to this message.",
+   "fieldname": "flow_token",
+   "fieldtype": "Data",
+   "label": "Flow Token",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.type=='Incoming' && doc.content_type=='flow'",
+   "fieldname": "section_break_flow_response",
+   "fieldtype": "Section Break",
+   "label": "Flow Response"
+  },
+  {
+   "depends_on": "eval:doc.type=='Incoming' && doc.content_type=='flow'",
+   "fieldname": "flow_response",
+   "fieldtype": "JSON",
+   "label": "Flow Response Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "message_id",
+   "fieldtype": "Data",
+   "label": "Message ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "conversation_id",
+   "fieldtype": "Data",
+   "label": "Conversation ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "details_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "chat_link",
+   "fieldtype": "Link",
+   "label": "Chat link",
+   "options": "OneChat Chat Link",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "referral",
+   "fieldtype": "Small Text",
+   "label": "Ad referral",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference_section",
+   "fieldtype": "Section Break",
+   "label": "Reference"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference name",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "reference_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "whatsapp_contact",
+   "fieldtype": "Link",
+   "label": "WhatsApp Contact",
+   "options": "OneChat Contact",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "bulk_message_reference",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "bulk_message_reference"
+  },
+  {
+   "fieldname": "ab_variant",
+   "fieldtype": "Select",
+   "label": "A/B Variant",
+   "options": "\nA\nB",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "default": "0",
+   "fieldname": "billable",
+   "fieldtype": "Check",
+   "label": "Billable",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_category",
+   "fieldtype": "Data",
+   "label": "Pricing Category",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pricing_type",
+   "fieldtype": "Data",
+   "label": "Pricing Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_country",
+   "fieldtype": "Data",
+   "label": "Recipient Country",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-10 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat Message",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "OneChat Agent"
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_seen": 1
+}

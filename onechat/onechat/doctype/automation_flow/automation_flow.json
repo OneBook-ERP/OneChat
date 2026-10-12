@@ -1,0 +1,310 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:flow_name",
+ "creation": "2025-12-08 23:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "flow_tab",
+  "flow_name",
+  "trigger_type",
+  "flow_0_column_1",
+  "category",
+  "is_active",
+  "flow_1_section",
+  "description",
+  "behaviour_section",
+  "stop_on_agent_reply",
+  "behaviour_column_1",
+  "reply_timeout_hours",
+  "errors_section",
+  "error_message",
+  "error_handover",
+  "error_team",
+  "when_a_step_fails_column_1",
+  "error_notify",
+  "error_pause",
+  "definition_tab",
+  "graph_json",
+  "draft_json",
+  "published_version",
+  "published_at",
+  "published_by",
+  "activity_tab",
+  "run_count",
+  "last_scheduled_run",
+  "activity_0_column_1",
+  "created_user",
+  "creation_date",
+  "activity_0_column_2",
+  "modified_user",
+  "last_modified"
+ ],
+ "fields": [
+  {
+   "fieldname": "flow_tab",
+   "fieldtype": "Tab Break",
+   "label": "Flow"
+  },
+  {
+   "fieldname": "flow_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Flow Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "trigger_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Trigger Type",
+   "options": "WhatsApp Incoming\nERPNext Document Event\nScheduled\nManual\nWebhook"
+  },
+  {
+   "fieldname": "flow_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "options": "Customer Service\nSales\nSupport\nNotifications\nWorkflow Automation\nOther"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "flow_1_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "behaviour_section",
+   "fieldtype": "Section Break",
+   "label": "Behaviour"
+  },
+  {
+   "default": "1",
+   "description": "Stop the bot for a conversation as soon as an agent replies by hand.",
+   "fieldname": "stop_on_agent_reply",
+   "fieldtype": "Check",
+   "label": "Stop when an agent replies"
+  },
+  {
+   "fieldname": "behaviour_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "24",
+   "description": "How long the bot waits for an answer before giving up. WhatsApp only allows free-form replies for 24 hours.",
+   "fieldname": "reply_timeout_hours",
+   "fieldtype": "Int",
+   "label": "Wait for replies (hours)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "errors_section",
+   "fieldtype": "Section Break",
+   "label": "When a Step Fails"
+  },
+  {
+   "default": "Sorry, something went wrong on our side. A teammate will reply to you shortly.",
+   "description": "Sent to the customer when a step fails and no On error path handles it. Leave empty to send nothing.",
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Message to Customer"
+  },
+  {
+   "default": "1",
+   "description": "Stop the bot and give the chat to the next available agent.",
+   "fieldname": "error_handover",
+   "fieldtype": "Check",
+   "label": "Hand Over to an Agent"
+  },
+  {
+   "depends_on": "error_handover",
+   "fieldname": "error_team",
+   "fieldtype": "Link",
+   "label": "Hand Over to Team",
+   "options": "OneChat Team"
+  },
+  {
+   "fieldname": "when_a_step_fails_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Alert admins when this flow fails several times within an hour.",
+   "fieldname": "error_notify",
+   "fieldtype": "Check",
+   "label": "Alert Admins on Repeated Failures"
+  },
+  {
+   "default": "0",
+   "description": "Turn the flow off automatically after 5 failures within an hour.",
+   "fieldname": "error_pause",
+   "fieldtype": "Check",
+   "label": "Pause on Repeated Failures"
+  },
+  {
+   "fieldname": "definition_tab",
+   "fieldtype": "Tab Break",
+   "label": "Definition"
+  },
+  {
+   "fieldname": "graph_json",
+   "fieldtype": "Code",
+   "label": "Graph JSON"
+  },
+  {
+   "description": "Unpublished changes to the steps and trigger of an active flow.",
+   "fieldname": "draft_json",
+   "fieldtype": "Code",
+   "label": "Draft",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "published_version",
+   "fieldtype": "Int",
+   "label": "Published Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "published_at",
+   "fieldtype": "Datetime",
+   "label": "Published At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "published_by",
+   "fieldtype": "Link",
+   "label": "Published By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "activity_tab",
+   "fieldtype": "Tab Break",
+   "label": "Activity"
+  },
+  {
+   "default": "0",
+   "fieldname": "run_count",
+   "fieldtype": "Int",
+   "label": "Runs",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_scheduled_run",
+   "fieldtype": "Datetime",
+   "label": "Last scheduled run",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "activity_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "created_user",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "creation_date",
+   "fieldtype": "Datetime",
+   "label": "Creation Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "activity_0_column_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "modified_user",
+   "fieldtype": "Link",
+   "label": "Modified By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_modified",
+   "fieldtype": "Datetime",
+   "label": "Last Modified",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "group": "Execution",
+   "link_doctype": "Automation Execution Log",
+   "link_fieldname": "flow"
+  }
+ ],
+ "modified": "2026-10-10 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "Automation Flow",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

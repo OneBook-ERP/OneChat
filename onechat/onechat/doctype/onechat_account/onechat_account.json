@@ -1,0 +1,596 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:account_name",
+ "creation": "2025-05-26 17:33:44.556320",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "setup_tab",
+  "account_name",
+  "status",
+  "channel",
+  "ig_user_id",
+  "ig_username",
+  "phone_id",
+  "business_id",
+  "setup_0_column_1",
+  "app_id",
+  "is_default_incoming",
+  "is_default_outgoing",
+  "api_section",
+  "url",
+  "version",
+  "token",
+  "api_column_1",
+  "webhook_verify_token",
+  "app_secret",
+  "read_receipts_section",
+  "read_receipts",
+  "read_receipts_column_1",
+  "allow_auto_read_receipt",
+  "status_tab",
+  "connection_section",
+  "connection_status",
+  "last_checked_at",
+  "token_expires_at",
+  "connection_message",
+  "connection_column_1",
+  "display_phone_number",
+  "verified_name",
+  "quality_rating",
+  "messaging_limit",
+  "name_status",
+  "webhook_section",
+  "webhook_verified_at",
+  "webhook_column_1",
+  "webhook_last_event_at",
+  "alert_section",
+  "account_alert_level",
+  "account_alert_at",
+  "alert_column_1",
+  "account_alert",
+  "catalog_tab",
+  "catalog_id",
+  "commerce_price_list",
+  "catalog_with_gst",
+  "catalog_stock",
+  "catalog_when_out",
+  "catalog_auto_sync",
+  "catalog_0_column_1",
+  "catalog_last_synced",
+  "catalog_sync_status",
+  "item_filters_section",
+  "catalog_item_groups",
+  "catalog_brands",
+  "item_filters_column_1",
+  "catalog_warehouses",
+  "catalog_item_filters",
+  "payments_tab",
+  "pay_configuration",
+  "pay_provider",
+  "pay_goods_type",
+  "payments_0_column_1",
+  "pay_auto_entry",
+  "pay_deposit_account",
+  "pay_mode_of_payment",
+  "billing_tab",
+  "billing_currency",
+  "spend_storage",
+  "billing_0_column_1",
+  "spend_synced_at",
+  "spend_sync_error"
+ ],
+ "fields": [
+  {
+   "fieldname": "setup_tab",
+   "fieldtype": "Tab Break",
+   "label": "Setup"
+  },
+  {
+   "fieldname": "account_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Account Name",
+   "unique": 1
+  },
+  {
+   "default": "Active",
+   "description": "Inactive accounts don't send or receive messages.",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Active\nInactive"
+  },
+  {
+   "default": "WhatsApp",
+   "fieldname": "channel",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Channel",
+   "options": "WhatsApp\nInstagram",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "depends_on": "eval:doc.channel=='Instagram'",
+   "description": "Filled by Check connection",
+   "fieldname": "ig_user_id",
+   "fieldtype": "Data",
+   "label": "Instagram Account ID",
+   "unique": 1
+  },
+  {
+   "depends_on": "eval:doc.channel=='Instagram'",
+   "fieldname": "ig_username",
+   "fieldtype": "Data",
+   "label": "Instagram Username",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.channel!='Instagram'",
+   "fieldname": "phone_id",
+   "fieldtype": "Data",
+   "label": "Phone ID",
+   "unique": 1
+  },
+  {
+   "depends_on": "eval:doc.channel!='Instagram'",
+   "fieldname": "business_id",
+   "fieldtype": "Data",
+   "label": "Business ID"
+  },
+  {
+   "fieldname": "setup_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "app_id",
+   "fieldtype": "Data",
+   "label": "App ID"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_default_incoming",
+   "fieldtype": "Check",
+   "label": "Is Default Incoming"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_default_outgoing",
+   "fieldtype": "Check",
+   "label": "Is Default Outgoing"
+  },
+  {
+   "fieldname": "api_section",
+   "fieldtype": "Section Break",
+   "label": "API"
+  },
+  {
+   "fieldname": "url",
+   "fieldtype": "Data",
+   "label": "URL"
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Version"
+  },
+  {
+   "fieldname": "token",
+   "fieldtype": "Password",
+   "label": "Token",
+   "length": 300
+  },
+  {
+   "fieldname": "api_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "webhook_verify_token",
+   "fieldtype": "Data",
+   "label": "Webhook Verify Token",
+   "unique": 1
+  },
+  {
+   "description": "From Meta App settings â†’ Basic. Used to verify that webhook calls really come from Meta.",
+   "fieldname": "app_secret",
+   "fieldtype": "Password",
+   "label": "App secret"
+  },
+  {
+   "fieldname": "read_receipts_section",
+   "fieldtype": "Section Break",
+   "label": "Read Receipts"
+  },
+  {
+   "default": "When an agent opens the chat",
+   "description": "When the customer sees blue ticks on their messages",
+   "fieldname": "read_receipts",
+   "fieldtype": "Select",
+   "label": "Read Receipts",
+   "options": "When an agent opens the chat\nWhen a message arrives\nNever"
+  },
+  {
+   "fieldname": "read_receipts_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "allow_auto_read_receipt",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Allow auto read receipt"
+  },
+  {
+   "fieldname": "status_tab",
+   "fieldtype": "Tab Break",
+   "label": "Status"
+  },
+  {
+   "fieldname": "connection_section",
+   "fieldtype": "Section Break",
+   "label": "Connection"
+  },
+  {
+   "fieldname": "connection_status",
+   "fieldtype": "Select",
+   "label": "Connection status",
+   "no_copy": 1,
+   "options": "\nConnected\nError",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_checked_at",
+   "fieldtype": "Datetime",
+   "label": "Last checked",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.channel=='Instagram'",
+   "fieldname": "token_expires_at",
+   "fieldtype": "Datetime",
+   "label": "Token Expires",
+   "read_only": 1
+  },
+  {
+   "fieldname": "connection_message",
+   "fieldtype": "Small Text",
+   "label": "Connection message",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "connection_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.channel!='Instagram'",
+   "fieldname": "display_phone_number",
+   "fieldtype": "Data",
+   "label": "Phone number",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.channel!='Instagram'",
+   "fieldname": "verified_name",
+   "fieldtype": "Data",
+   "label": "Verified name",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.channel!='Instagram'",
+   "fieldname": "quality_rating",
+   "fieldtype": "Data",
+   "label": "Quality rating",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.channel!='Instagram'",
+   "fieldname": "messaging_limit",
+   "fieldtype": "Data",
+   "label": "Messaging limit",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.channel!='Instagram'",
+   "fieldname": "name_status",
+   "fieldtype": "Data",
+   "label": "Display name status",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "webhook_section",
+   "fieldtype": "Section Break",
+   "label": "Webhook"
+  },
+  {
+   "fieldname": "webhook_verified_at",
+   "fieldtype": "Datetime",
+   "label": "Webhook verified",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "webhook_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "webhook_last_event_at",
+   "fieldtype": "Datetime",
+   "label": "Last webhook event",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "alert_section",
+   "fieldtype": "Section Break",
+   "label": "Alert"
+  },
+  {
+   "fieldname": "account_alert_level",
+   "fieldtype": "Select",
+   "label": "Alert level",
+   "no_copy": 1,
+   "options": "\nInfo\nWarning\nCritical",
+   "read_only": 1
+  },
+  {
+   "fieldname": "account_alert_at",
+   "fieldtype": "Datetime",
+   "label": "Alert received",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "alert_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "account_alert",
+   "fieldtype": "Small Text",
+   "label": "Alert",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.channel!='Instagram'",
+   "fieldname": "catalog_tab",
+   "fieldtype": "Tab Break",
+   "label": "Catalog"
+  },
+  {
+   "description": "Meta Commerce catalog connected to this WhatsApp Business account",
+   "fieldname": "catalog_id",
+   "fieldtype": "Data",
+   "label": "Catalog ID"
+  },
+  {
+   "description": "ERPNext Price List used for catalog prices and WhatsApp orders",
+   "fieldname": "commerce_price_list",
+   "fieldtype": "Data",
+   "label": "Price List"
+  },
+  {
+   "default": "0",
+   "description": "Adds each item's GST rate, from ERPNext's item details, to the catalog price",
+   "fieldname": "catalog_with_gst",
+   "fieldtype": "Check",
+   "label": "Prices Include GST"
+  },
+  {
+   "default": "Always in stock",
+   "fieldname": "catalog_stock",
+   "fieldtype": "Select",
+   "label": "Availability",
+   "options": "Always in stock\nUse ERPNext stock"
+  },
+  {
+   "default": "Show as out of stock",
+   "depends_on": "eval:doc.catalog_stock=='Use ERPNext stock'",
+   "fieldname": "catalog_when_out",
+   "fieldtype": "Select",
+   "label": "When Stock Runs Out",
+   "options": "Show as out of stock\nKeep it orderable\nFollow ERPNext negative stock"
+  },
+  {
+   "default": "1",
+   "fieldname": "catalog_auto_sync",
+   "fieldtype": "Check",
+   "label": "Sync every night"
+  },
+  {
+   "fieldname": "catalog_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "catalog_last_synced",
+   "fieldtype": "Datetime",
+   "label": "Catalog Last Synced",
+   "read_only": 1
+  },
+  {
+   "fieldname": "catalog_sync_status",
+   "fieldtype": "Small Text",
+   "label": "Catalog Sync Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item_filters_section",
+   "fieldtype": "Section Break",
+   "label": "Item Filters"
+  },
+  {
+   "description": "Only items in these item groups (and their sub-groups) go to the catalog. JSON list; empty means all.",
+   "fieldname": "catalog_item_groups",
+   "fieldtype": "Small Text",
+   "label": "Catalog item groups"
+  },
+  {
+   "description": "Only items of these brands go to the catalog. JSON list; empty means all.",
+   "fieldname": "catalog_brands",
+   "fieldtype": "Small Text",
+   "label": "Catalog brands"
+  },
+  {
+   "fieldname": "item_filters_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Count stock only in these warehouses (and their sub-warehouses). JSON list; empty means all.",
+   "fieldname": "catalog_warehouses",
+   "fieldtype": "Small Text",
+   "label": "Stock warehouses"
+  },
+  {
+   "description": "Extra conditions on Item fields, saved as JSON",
+   "fieldname": "catalog_item_filters",
+   "fieldtype": "Long Text",
+   "label": "Item Filters"
+  },
+  {
+   "depends_on": "eval:doc.channel!='Instagram'",
+   "fieldname": "payments_tab",
+   "fieldtype": "Tab Break",
+   "label": "Payments"
+  },
+  {
+   "description": "Name of the Meta payment configuration used for payment requests",
+   "fieldname": "pay_configuration",
+   "fieldtype": "Data",
+   "label": "Payment Configuration"
+  },
+  {
+   "fieldname": "pay_provider",
+   "fieldtype": "Data",
+   "label": "Payment Provider",
+   "read_only": 1
+  },
+  {
+   "default": "physical-goods",
+   "fieldname": "pay_goods_type",
+   "fieldtype": "Select",
+   "label": "Goods Type",
+   "options": "physical-goods\ndigital-goods"
+  },
+  {
+   "fieldname": "payments_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "pay_auto_entry",
+   "fieldtype": "Check",
+   "label": "Create Payment Entry When Paid"
+  },
+  {
+   "description": "ERPNext bank account the payment is received into",
+   "fieldname": "pay_deposit_account",
+   "fieldtype": "Data",
+   "label": "Deposit Account"
+  },
+  {
+   "fieldname": "pay_mode_of_payment",
+   "fieldtype": "Data",
+   "label": "Mode of Payment"
+  },
+  {
+   "depends_on": "eval:doc.channel!='Instagram'",
+   "fieldname": "billing_tab",
+   "fieldtype": "Tab Break",
+   "label": "Billing"
+  },
+  {
+   "fieldname": "billing_currency",
+   "fieldtype": "Data",
+   "label": "Billing Currency",
+   "read_only": 1
+  },
+  {
+   "default": "Store in OneChat",
+   "description": "Store keeps a copy of Meta's daily spend for this number in OneChat. Fetch live asks Meta each time and saves nothing.",
+   "fieldname": "spend_storage",
+   "fieldtype": "Select",
+   "label": "Spend Data",
+   "options": "Store in OneChat\nFetch live from Meta"
+  },
+  {
+   "fieldname": "billing_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "spend_synced_at",
+   "fieldtype": "Datetime",
+   "label": "Spend Synced At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "spend_sync_error",
+   "fieldtype": "Small Text",
+   "label": "Spend Sync Error",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat Account",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

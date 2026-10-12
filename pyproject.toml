@@ -1,0 +1,63 @@
+[project]
+name = "onechat"
+authors = [
+    { name = "Leo Daniel A", email = "daniel@onebook.app"}
+]
+description = "A comprehensive WhatsApp business automation platform"
+requires-python = ">=3.10"
+readme = "README.md"
+license = { file = "license.txt" }
+classifiers = ["License :: OSI Approved :: GNU Affero General Public License v3"]
+dynamic = ["version"]
+dependencies = [
+    "python-magic",
+    "anthropic",
+    "openai",
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0,<17.0.0"
+
+[tool.bench.dev-dependencies]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "F",
+    "E",
+    "W",
+    "I",
+    "UP",
+    "B",
+    "RUF",
+]
+ignore = [
+    "B007",
+    "B017",
+    "B018",
+    "B023",
+    "B904",
+    "E101",
+    "E402",
+    "E501",
+    "E741",
+    "F401",
+    "F403",
+    "F405",
+    "RUF001",
+    "F722",
+    "W191",
+]
+typing-modules = ["frappe.types.DF"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "tab"
+docstring-code-format = true

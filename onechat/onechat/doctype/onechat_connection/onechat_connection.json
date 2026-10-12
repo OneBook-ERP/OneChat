@@ -1,0 +1,253 @@
+{
+ "actions": [],
+ "autoname": "field:integration",
+ "creation": "2026-09-28 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "integration",
+  "mode",
+  "onechat_connection_0_column_1",
+  "url",
+  "auth_method",
+  "sign_in_section",
+  "client_id",
+  "client_secret",
+  "oauth_user",
+  "sign_in_column_1",
+  "access_token",
+  "refresh_token",
+  "token_expires_at",
+  "api_key_section",
+  "api_key",
+  "api_key_column_1",
+  "api_secret",
+  "webhook_secret",
+  "status_section",
+  "connected",
+  "checked_at",
+  "last_event_at",
+  "last_event",
+  "status_column_1",
+  "status",
+  "role_status",
+  "webhooks"
+ ],
+ "fields": [
+  {
+   "fieldname": "integration",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Integration",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "This site",
+   "fieldname": "mode",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Runs On",
+   "options": "This site\nAnother site"
+  },
+  {
+   "fieldname": "onechat_connection_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.mode==\"Another site\"",
+   "fieldname": "url",
+   "fieldtype": "Data",
+   "label": "Site URL"
+  },
+  {
+   "fieldname": "auth_method",
+   "fieldtype": "Select",
+   "label": "Sign in with",
+   "options": "API key\nOAuth",
+   "default": "API key",
+   "depends_on": "eval:doc.mode=='Another site'"
+  },
+  {
+   "fieldname": "sign_in_section",
+   "fieldtype": "Section Break",
+   "label": "Sign-in"
+  },
+  {
+   "fieldname": "client_id",
+   "fieldtype": "Data",
+   "label": "OAuth client ID",
+   "depends_on": "eval:doc.auth_method=='OAuth'"
+  },
+  {
+   "fieldname": "client_secret",
+   "fieldtype": "Password",
+   "label": "OAuth client secret",
+   "depends_on": "eval:doc.auth_method=='OAuth'"
+  },
+  {
+   "fieldname": "oauth_user",
+   "fieldtype": "Data",
+   "label": "Signed in as",
+   "read_only": 1,
+   "depends_on": "eval:doc.auth_method=='OAuth'"
+  },
+  {
+   "fieldname": "sign_in_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "access_token",
+   "fieldtype": "Password",
+   "label": "Access token",
+   "read_only": 1,
+   "depends_on": "eval:doc.auth_method=='OAuth'"
+  },
+  {
+   "fieldname": "refresh_token",
+   "fieldtype": "Password",
+   "label": "Refresh token",
+   "read_only": 1,
+   "depends_on": "eval:doc.auth_method=='OAuth'"
+  },
+  {
+   "fieldname": "token_expires_at",
+   "fieldtype": "Datetime",
+   "label": "Token expires at",
+   "read_only": 1,
+   "depends_on": "eval:doc.auth_method=='OAuth'"
+  },
+  {
+   "fieldname": "api_key_section",
+   "fieldtype": "Section Break",
+   "label": "API Key"
+  },
+  {
+   "depends_on": "eval:doc.mode==\"Another site\"",
+   "fieldname": "api_key",
+   "fieldtype": "Data",
+   "label": "API Key"
+  },
+  {
+   "fieldname": "api_key_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.mode==\"Another site\"",
+   "fieldname": "api_secret",
+   "fieldtype": "Password",
+   "label": "API Secret"
+  },
+  {
+   "fieldname": "webhook_secret",
+   "fieldtype": "Password",
+   "hidden": 1,
+   "label": "Webhook Secret"
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "default": "0",
+   "fieldname": "connected",
+   "fieldtype": "Check",
+   "label": "Connected",
+   "read_only": 1
+  },
+  {
+   "fieldname": "checked_at",
+   "fieldtype": "Datetime",
+   "label": "Last Checked",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_event_at",
+   "fieldtype": "Datetime",
+   "label": "Last Event At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_event",
+   "fieldtype": "Data",
+   "label": "Last Event",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Small Text",
+   "label": "Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "role_status",
+   "fieldtype": "Small Text",
+   "label": "Role Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "webhooks",
+   "fieldtype": "Small Text",
+   "label": "Webhooks",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat Connection",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "integration",
+ "track_changes": 1
+}

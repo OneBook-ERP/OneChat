@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="OneChat assistant">
+  <path d="M8 19.5l1-3.2A6.5 6.5 0 1 1 11.7 19z" stroke="#1f8a5b" stroke-width="2"/>
+  <rect x="11.85" y="11.6" width="1.6" height="3.2" rx=".8" fill="#1f8a5b"/>
+  <rect x="15.75" y="11.6" width="1.6" height="3.2" rx=".8" fill="#1f8a5b"/>
+  <path d="M21.6 4c.22 1.5.75 2.03 2.25 2.25-1.5.22-2.03.75-2.25 2.25-.22-1.5-.75-2.03-2.25-2.25 1.5-.22 2.03-.75 2.25-2.25Z" fill="#e0a800"/>
+</svg>

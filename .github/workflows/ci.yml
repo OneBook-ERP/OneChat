@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - frappe-branch: version-15
+            python-version: "3.11"
+            node-version: 20
+          - frappe-branch: version-16
+            python-version: "3.14"
+            node-version: 24
+    name: Server (frappe ${{ matrix.frappe-branch }})
+
+    services:
+      redis-cache:
+        image: redis:alpine
+        ports:
+          - 13000:6379
+      redis-queue:
+        image: redis:alpine
+        ports:
+          - 11000:6379
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: --health-cmd="mariadb-admin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Find Frappe commit
+        id: versions
+        run: echo "frappe=$(git ls-remote https://github.com/frappe/frappe refs/heads/${{ matrix.frappe-branch }} | cut -c1-12)" >> $GITHUB_OUTPUT
+
+      - name: Restore bench
+        id: bench-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/frappe-bench
+          key: bench-${{ runner.os }}-py${{ matrix.python-version }}-${{ steps.versions.outputs.frappe }}
+
+      - name: Install bench and MariaDB client
+        run: |
+          pip install frappe-bench
+          sudo apt-get install -y --no-install-recommends mariadb-client || (sudo apt-get update && sudo apt-get install -y --no-install-recommends mariadb-client)
+
+      - name: Create bench
+        if: steps.bench-cache.outputs.cache-hit != 'true'
+        run: bench init --skip-redis-config-generation --skip-assets --python "$(which python)" --frappe-branch ${{ matrix.frappe-branch }} ~/frappe-bench
+
+      - name: Save bench
+        if: steps.bench-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/frappe-bench
+          key: ${{ steps.bench-cache.outputs.cache-primary-key }}
+
+      - name: Configure MariaDB
+        run: |
+          mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
+          mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
+
+      - name: Install
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench get-app onechat $GITHUB_WORKSPACE --skip-assets
+          bench setup requirements --dev
+          bench new-site --db-root-password root --admin-password admin test_site
+          bench --site test_site install-app onechat
+        env:
+          CI: 'Yes'
+
+      - name: Run Tests
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench --site test_site set-config allow_tests true
+          bench --site test_site run-tests --app onechat
+        env:
+          TYPE: server

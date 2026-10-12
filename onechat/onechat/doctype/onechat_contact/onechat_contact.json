@@ -1,0 +1,515 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:WC-{YY}-{#}",
+ "creation": "2024-01-25 18:19:50.868390",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "contact_tab",
+  "contact_name",
+  "mobile_no",
+  "instagram_id",
+  "instagram_username",
+  "email",
+  "whatsapp_account",
+  "channel",
+  "contact_0_column_1",
+  "profile_image",
+  "disable",
+  "source",
+  "contact_1_section",
+  "labels",
+  "linked_record_section",
+  "reference_doctype",
+  "linked_record_column_1",
+  "reference_docname",
+  "links_section",
+  "links",
+  "consent_section",
+  "opted_out",
+  "consent_column_1",
+  "opted_out_at",
+  "conversation_tab",
+  "conversation_status",
+  "assigned_to",
+  "team",
+  "snoozed_until",
+  "snoozed_by",
+  "conversation_0_column_1",
+  "wa_number",
+  "other_numbers",
+  "unread_count",
+  "last_message_section",
+  "last_message_at",
+  "last_message_type",
+  "last_message_column_1",
+  "last_message",
+  "response_section",
+  "first_response_at",
+  "sla_due_at",
+  "sla_breached",
+  "response_column_1",
+  "resolved_by",
+  "resolved_at",
+  "bot_section",
+  "bot_flow",
+  "bot_column_1",
+  "bot_session",
+  "scores_tab",
+  "value_group",
+  "engagement_score",
+  "favourite_category",
+  "last_reply_at",
+  "scores_0_column_1",
+  "lifetime_value",
+  "order_count",
+  "first_purchase_on",
+  "last_purchase_on",
+  "outstanding_amount",
+  "scores_updated_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "contact_tab",
+   "fieldtype": "Tab Break",
+   "label": "Contact"
+  },
+  {
+   "fieldname": "contact_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Contact Name"
+  },
+  {
+   "description": "Country code in mandatory else set default country code",
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Mobile No"
+  },
+  {
+   "depends_on": "eval:doc.channel=='Instagram'",
+   "fieldname": "instagram_id",
+   "fieldtype": "Data",
+   "label": "Instagram ID",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "depends_on": "eval:doc.channel=='Instagram'",
+   "fieldname": "instagram_username",
+   "fieldtype": "Data",
+   "label": "Instagram Username",
+   "read_only": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "whatsapp_account",
+   "fieldtype": "Link",
+   "label": "WhatsApp number",
+   "options": "OneChat Account",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "WhatsApp",
+   "fetch_from": "whatsapp_account.channel",
+   "fieldname": "channel",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Channel",
+   "options": "WhatsApp\nInstagram",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contact_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "profile_image",
+   "fieldtype": "Attach Image",
+   "label": "Profile Image"
+  },
+  {
+   "default": "0",
+   "fieldname": "disable",
+   "fieldtype": "Check",
+   "label": "Disable"
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Data",
+   "label": "Came from",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contact_1_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "labels",
+   "fieldtype": "Table MultiSelect",
+   "label": "Labels",
+   "options": "OneChat Contact Label"
+  },
+  {
+   "fieldname": "linked_record_section",
+   "fieldtype": "Section Break",
+   "label": "Linked Record"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Data",
+   "label": "Reference Doctype"
+  },
+  {
+   "fieldname": "linked_record_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reference_docname",
+   "fieldtype": "Data",
+   "label": "Reference Docname"
+  },
+  {
+   "fieldname": "links_section",
+   "fieldtype": "Section Break",
+   "label": "Links"
+  },
+  {
+   "fieldname": "links",
+   "fieldtype": "Table",
+   "label": "Linked records",
+   "options": "OneChat Contact Link"
+  },
+  {
+   "fieldname": "consent_section",
+   "fieldtype": "Section Break",
+   "label": "Consent"
+  },
+  {
+   "default": "0",
+   "description": "Customer asked not to receive marketing messages",
+   "fieldname": "opted_out",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Opted Out"
+  },
+  {
+   "fieldname": "consent_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "opted_out_at",
+   "fieldtype": "Datetime",
+   "label": "Opted Out At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "conversation_tab",
+   "fieldtype": "Tab Break",
+   "label": "Conversation"
+  },
+  {
+   "default": "Open",
+   "fieldname": "conversation_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Conversation Status",
+   "options": "Open\nPending\nResolved",
+   "search_index": 1
+  },
+  {
+   "fieldname": "assigned_to",
+   "fieldtype": "Link",
+   "label": "Assigned To",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "team",
+   "fieldtype": "Link",
+   "label": "Team",
+   "options": "OneChat Team",
+   "search_index": 1
+  },
+  {
+   "fieldname": "snoozed_until",
+   "fieldtype": "Datetime",
+   "label": "Snoozed Until",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "snoozed_by",
+   "fieldtype": "Link",
+   "label": "Snoozed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "conversation_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Digits only, used to match incoming messages",
+   "fieldname": "wa_number",
+   "fieldtype": "Data",
+   "label": "WhatsApp Number",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "description": "Numbers from merged contacts. Messages from these numbers go to this contact.",
+   "fieldname": "other_numbers",
+   "fieldtype": "Small Text",
+   "label": "Other Numbers",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "unread_count",
+   "fieldtype": "Int",
+   "label": "Unread Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_message_section",
+   "fieldtype": "Section Break",
+   "label": "Last Message"
+  },
+  {
+   "fieldname": "last_message_at",
+   "fieldtype": "Datetime",
+   "label": "Last Message At",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "last_message_type",
+   "fieldtype": "Data",
+   "label": "Last Message Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_message_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_message",
+   "fieldtype": "Small Text",
+   "label": "Last Message",
+   "read_only": 1
+  },
+  {
+   "fieldname": "response_section",
+   "fieldtype": "Section Break",
+   "label": "Response"
+  },
+  {
+   "fieldname": "first_response_at",
+   "fieldtype": "Datetime",
+   "label": "First Response At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sla_due_at",
+   "fieldtype": "Datetime",
+   "label": "First Response Due",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "sla_breached",
+   "fieldtype": "Check",
+   "label": "Reply Overdue",
+   "read_only": 1
+  },
+  {
+   "fieldname": "response_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "resolved_by",
+   "fieldtype": "Link",
+   "label": "Resolved By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "resolved_at",
+   "fieldtype": "Datetime",
+   "label": "Resolved At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bot_section",
+   "fieldtype": "Section Break",
+   "label": "Bot"
+  },
+  {
+   "fieldname": "bot_flow",
+   "fieldtype": "Link",
+   "label": "Bot flow",
+   "no_copy": 1,
+   "options": "Automation Flow",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bot_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bot_session",
+   "fieldtype": "Link",
+   "label": "Bot session",
+   "no_copy": 1,
+   "options": "OneChat Flow Session",
+   "read_only": 1
+  },
+  {
+   "fieldname": "scores_tab",
+   "fieldtype": "Tab Break",
+   "label": "Scores"
+  },
+  {
+   "fieldname": "value_group",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Value Group",
+   "options": "\nChampion\nLoyal\nNew customer\nPromising\nNeeds attention\nAt risk\nLost\nProspect",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "engagement_score",
+   "fieldtype": "Int",
+   "label": "Engagement Score",
+   "read_only": 1
+  },
+  {
+   "fieldname": "favourite_category",
+   "fieldtype": "Data",
+   "label": "Favourite Category",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_reply_at",
+   "fieldtype": "Datetime",
+   "label": "Last Reply At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "scores_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "lifetime_value",
+   "fieldtype": "Float",
+   "label": "Lifetime Value",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "order_count",
+   "fieldtype": "Int",
+   "label": "Purchases",
+   "read_only": 1
+  },
+  {
+   "fieldname": "first_purchase_on",
+   "fieldtype": "Date",
+   "label": "First Purchase",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_purchase_on",
+   "fieldtype": "Date",
+   "label": "Last Purchase",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "outstanding_amount",
+   "fieldtype": "Float",
+   "label": "Outstanding",
+   "read_only": 1
+  },
+  {
+   "fieldname": "scores_updated_at",
+   "fieldtype": "Datetime",
+   "label": "Scores Updated At",
+   "read_only": 1
+  }
+ ],
+ "image_field": "profile_image",
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat Contact",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "OneChat Agent",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

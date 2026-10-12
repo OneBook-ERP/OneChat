@@ -1,0 +1,257 @@
+{
+ "actions": [],
+ "autoname": "field:reference_id",
+ "creation": "2026-10-01 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "reference_id",
+  "status",
+  "order_status",
+  "amount",
+  "currency",
+  "onechat_whatsapp_payment_0_column_1",
+  "contact",
+  "whatsapp_account",
+  "whatsapp_message",
+  "erpnext_section",
+  "reference_doctype",
+  "reference_name",
+  "erpnext_column_1",
+  "payment_entry",
+  "gateway_section",
+  "configuration",
+  "provider",
+  "method",
+  "gateway_column_1",
+  "transaction_id",
+  "pg_transaction_id",
+  "paid_at",
+  "refund_section",
+  "refunded_amount",
+  "refund_column_1",
+  "refund_id",
+  "error_section",
+  "error"
+ ],
+ "fields": [
+  {
+   "fieldname": "reference_id",
+   "fieldtype": "Data",
+   "label": "Reference ID",
+   "reqd": 1,
+   "unique": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Payment Status",
+   "options": "Pending\nPaid\nFailed\nRefunded\nPartly Refunded\nCanceled",
+   "default": "Pending",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "order_status",
+   "fieldtype": "Select",
+   "label": "Order Status",
+   "options": "pending\nprocessing\npartially_shipped\nshipped\ncompleted\ncanceled",
+   "default": "pending",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "options": "currency",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Data",
+   "label": "Currency",
+   "default": "INR"
+  },
+  {
+   "fieldname": "onechat_whatsapp_payment_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contact",
+   "fieldtype": "Link",
+   "label": "Contact",
+   "options": "OneChat Contact",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "whatsapp_account",
+   "fieldtype": "Link",
+   "label": "WhatsApp Account",
+   "options": "OneChat Account"
+  },
+  {
+   "fieldname": "whatsapp_message",
+   "fieldtype": "Link",
+   "label": "Message",
+   "options": "OneChat Message"
+  },
+  {
+   "fieldname": "erpnext_section",
+   "fieldtype": "Section Break",
+   "label": "Reference"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference Document Type",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Document",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "erpnext_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "payment_entry",
+   "fieldtype": "Data",
+   "label": "Payment Entry"
+  },
+  {
+   "fieldname": "gateway_section",
+   "fieldtype": "Section Break",
+   "label": "Gateway"
+  },
+  {
+   "fieldname": "configuration",
+   "fieldtype": "Data",
+   "label": "Payment Configuration"
+  },
+  {
+   "fieldname": "provider",
+   "fieldtype": "Data",
+   "label": "Provider"
+  },
+  {
+   "fieldname": "method",
+   "fieldtype": "Data",
+   "label": "Paid With"
+  },
+  {
+   "fieldname": "gateway_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "transaction_id",
+   "fieldtype": "Data",
+   "label": "Gateway Order ID"
+  },
+  {
+   "fieldname": "pg_transaction_id",
+   "fieldtype": "Data",
+   "label": "Gateway Payment ID"
+  },
+  {
+   "fieldname": "paid_at",
+   "fieldtype": "Datetime",
+   "label": "Paid At"
+  },
+  {
+   "fieldname": "refund_section",
+   "fieldtype": "Section Break",
+   "label": "Refund"
+  },
+  {
+   "fieldname": "refunded_amount",
+   "fieldtype": "Currency",
+   "label": "Refunded",
+   "options": "currency"
+  },
+  {
+   "fieldname": "refund_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "refund_id",
+   "fieldtype": "Data",
+   "label": "Refund ID"
+  },
+  {
+   "fieldname": "error_section",
+   "fieldtype": "Section Break",
+   "label": "Error",
+   "collapsible": 1,
+   "depends_on": "eval:doc.error"
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Last Error"
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat WhatsApp Payment",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "role": "System Manager"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "role": "OneChat Admin"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "role": "OneChat Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Agent",
+   "write": 1,
+   "create": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "reference_name",
+ "track_changes": 1
+}

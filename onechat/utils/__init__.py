@@ -1,0 +1,124 @@
+import frappe
+from frappe.core.doctype.server_script.server_script_utils import EVENT_MAP
+
+
+def run_server_script_for_doc_event(doc, event):
+	if event not in EVENT_MAP:
+		return
+
+	if frappe.flags.in_install:
+		return
+
+	if frappe.flags.in_migrate:
+		return
+
+	if frappe.flags.in_uninstall:
+		return
+
+	notification = get_notifications_map().get(doc.doctype, {}).get(EVENT_MAP[event], None)
+
+	if notification:
+		for notification_name in notification:
+			frappe.get_doc("WhatsApp Notification", notification_name).send_template_message(doc)
+
+
+def get_notifications_map():
+	if frappe.flags.in_patch and not frappe.db.table_exists("WhatsApp Notification"):
+		return {}
+
+	notification_map = {}
+	enabled_whatsapp_notifications = frappe.get_all(
+		"WhatsApp Notification",
+		fields=("name", "reference_doctype", "doctype_event", "notification_type"),
+		filters={"disabled": 0},
+	)
+	for notification in enabled_whatsapp_notifications:
+		if notification.notification_type == "DocType Event":
+			notification_map.setdefault(notification.reference_doctype, {}).setdefault(
+				notification.doctype_event, []
+			).append(notification.name)
+
+	frappe.cache().set_value("whatsapp_notification_map", notification_map)
+
+	return notification_map
+
+
+def trigger_whatsapp_notifications_all():
+	trigger_whatsapp_notifications("All")
+
+
+def trigger_whatsapp_notifications_hourly():
+	trigger_whatsapp_notifications("Hourly")
+
+
+def trigger_whatsapp_notifications_daily():
+	trigger_whatsapp_notifications("Daily")
+
+
+def trigger_whatsapp_notifications_weekly():
+	trigger_whatsapp_notifications("Weekly")
+
+
+def trigger_whatsapp_notifications_monthly():
+	trigger_whatsapp_notifications("Monthly")
+
+
+def trigger_whatsapp_notifications_yearly():
+	trigger_whatsapp_notifications("Yearly")
+
+
+def trigger_whatsapp_notifications_hourly_long():
+	trigger_whatsapp_notifications("Hourly Long")
+
+
+def trigger_whatsapp_notifications_daily_long():
+	trigger_whatsapp_notifications("Daily Long")
+
+
+def trigger_whatsapp_notifications_weekly_long():
+	trigger_whatsapp_notifications("Weekly Long")
+
+
+def trigger_whatsapp_notifications_monthly_long():
+	trigger_whatsapp_notifications("Monthly Long")
+
+
+def trigger_whatsapp_notifications(event):
+	wa_notify_list = frappe.get_list(
+		"WhatsApp Notification",
+		filters={
+			"event_frequency": event,
+			"disabled": 0,
+		},
+	)
+
+	for wa in wa_notify_list:
+		frappe.get_doc(
+			"WhatsApp Notification",
+			wa.name,
+		).send_scheduled_message()
+
+
+def get_whatsapp_account(phone_id=None, account_type="incoming"):
+	if phone_id:
+		account_name = frappe.db.get_value(
+			"OneChat Account", {"phone_id": phone_id, "status": ["!=", "Inactive"]}, "name"
+		)
+		if account_name:
+			return frappe.get_doc("OneChat Account", account_name)
+
+	account_field_type = "is_default_incoming" if account_type == "incoming" else "is_default_outgoing"
+	default_account_name = frappe.db.get_value(
+		"OneChat Account", {account_field_type: 1, "status": ["!=", "Inactive"]}, "name"
+	)
+	if default_account_name:
+		return frappe.get_doc("OneChat Account", default_account_name)
+
+	return None
+
+
+def format_number(number):
+	if number.startswith("+"):
+		number = number[1 : len(number)]
+
+	return number

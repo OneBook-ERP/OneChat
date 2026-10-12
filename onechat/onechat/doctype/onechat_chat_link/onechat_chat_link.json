@@ -1,0 +1,220 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-09-26 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "whatsapp_account",
+  "display_number",
+  "onechat_chat_link_0_column_1",
+  "ref_code",
+  "label",
+  "track",
+  "section_message",
+  "prefilled_message",
+  "message_column_1",
+  "meta_ad_ids",
+  "link_section",
+  "link_url",
+  "link_column_1",
+  "short_url",
+  "section_stats",
+  "clicks",
+  "last_click_at",
+  "stats_column_1",
+  "conversations",
+  "last_conversation_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "whatsapp_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "WhatsApp Account",
+   "options": "OneChat Account",
+   "reqd": 1
+  },
+  {
+   "description": "The number people message, with country code. Filled from Meta when left empty.",
+   "fieldname": "display_number",
+   "fieldtype": "Data",
+   "label": "WhatsApp Number",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "onechat_chat_link_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Short code added to the message so conversations can be counted. Generated when empty.",
+   "fieldname": "ref_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ref Code",
+   "no_copy": 1,
+   "unique": 1
+  },
+  {
+   "description": "Applied to contacts who message through this link",
+   "fieldname": "label",
+   "fieldtype": "Link",
+   "label": "Label",
+   "options": "OneChat Label"
+  },
+  {
+   "default": "1",
+   "description": "Append [ref:CODE] to the message to count conversations started from this link",
+   "fieldname": "track",
+   "fieldtype": "Check",
+   "label": "Track Conversations"
+  },
+  {
+   "fieldname": "section_message",
+   "fieldtype": "Section Break",
+   "label": "Message"
+  },
+  {
+   "fieldname": "prefilled_message",
+   "fieldtype": "Small Text",
+   "label": "Prefilled Message"
+  },
+  {
+   "fieldname": "message_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "meta_ad_ids",
+   "fieldtype": "Small Text",
+   "label": "Meta ad IDs",
+   "description": "Chats from click-to-WhatsApp ads with these IDs count for this link. Separate with commas."
+  },
+  {
+   "fieldname": "link_section",
+   "fieldtype": "Section Break",
+   "label": "Link"
+  },
+  {
+   "fieldname": "link_url",
+   "fieldtype": "Small Text",
+   "label": "Link",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "link_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "short_url",
+   "fieldtype": "Data",
+   "label": "Short link",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "Counts clicks, then opens WhatsApp."
+  },
+  {
+   "fieldname": "section_stats",
+   "fieldtype": "Section Break",
+   "label": "Stats"
+  },
+  {
+   "fieldname": "clicks",
+   "fieldtype": "Int",
+   "label": "Clicks",
+   "read_only": 1,
+   "default": "0",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "last_click_at",
+   "fieldtype": "Datetime",
+   "label": "Last click",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "stats_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "conversations",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Conversations Started",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_conversation_at",
+   "fieldtype": "Datetime",
+   "label": "Last Conversation At",
+   "no_copy": 1,
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat Chat Link",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "OneChat Agent"
+  }
+ ],
+ "row_format": "Dynamic",
+ "show_title_field_in_link": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title"
+}

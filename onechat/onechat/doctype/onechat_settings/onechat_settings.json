@@ -1,0 +1,744 @@
+{
+ "actions": [],
+ "creation": "2026-09-26 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "assignment_tab",
+  "assignment_section",
+  "auto_assign",
+  "assign_only_available",
+  "assign_sticky",
+  "assign_release_on_resolve",
+  "assignment_column_1",
+  "assign_on",
+  "assign_team",
+  "assign_method",
+  "assign_capacity",
+  "agent_visibility",
+  "business_hours_section",
+  "business_hours_enabled",
+  "business_hours",
+  "away_section",
+  "away_message",
+  "away_message_column_1",
+  "away_cooldown_hours",
+  "sla_section",
+  "sla_enabled",
+  "sla_business_hours_only",
+  "sla_column_1",
+  "sla_first_response_minutes",
+  "conversations_tab",
+  "resolve_section",
+  "resolve_require_reason",
+  "resolve_require_note",
+  "resolve_only_owner",
+  "outgoing_new_status",
+  "resolving_chats_column_1",
+  "resolve_when_waiting",
+  "resolve_reasons",
+  "csat_section",
+  "csat_enabled",
+  "satisfaction_survey_column_1",
+  "csat_message",
+  "duplicates_section",
+  "duplicate_merge",
+  "duplicate_contacts_column_1",
+  "ignored_duplicates",
+  "assistant_tab",
+  "assistant_enabled",
+  "assistant_provider",
+  "assistant_max_tokens",
+  "assistant_0_column_1",
+  "assistant_agent_signin",
+  "claude_section",
+  "assistant_anthropic_key",
+  "claude_column_1",
+  "assistant_claude_model",
+  "openai_section",
+  "assistant_openai_key",
+  "openai_column_1",
+  "assistant_openai_model",
+  "other_provider_section",
+  "assistant_other_name",
+  "assistant_other_url",
+  "other_provider_column_1",
+  "assistant_other_key",
+  "assistant_other_model",
+  "access_section",
+  "assistant_roles",
+  "payments_tab",
+  "payment_template",
+  "payment_receipts",
+  "payments_0_column_1",
+  "receipt_template",
+  "desk_payment_links",
+  "data_app_tab",
+  "retention_section",
+  "retention_enabled",
+  "message_retention_days",
+  "media_retention_days",
+  "data_retention_column_1",
+  "retention_records",
+  "retention_last_run",
+  "retention_last_summary",
+  "app_section",
+  "app_name",
+  "app_short_name",
+  "app_install_button",
+  "app_column_1",
+  "app_icon",
+  "app_theme_color",
+  "instagram_tab",
+  "ig_comments_section",
+  "ig_comments_in_inbox",
+  "ig_comment_unread",
+  "ig_comment_replies",
+  "ig_comments_column",
+  "ig_comment_hide_words",
+  "ig_comment_hide_links",
+  "ig_comment_label",
+  "ig_comment_hide_negative",
+  "ig_comment_negative_level",
+  "ig_stories_section",
+  "ig_story_thanks",
+  "ig_story_thanks_message",
+  "ig_story_thanks_hours"
+ ],
+ "fields": [
+  {
+   "fieldname": "assignment_tab",
+   "fieldtype": "Tab Break",
+   "label": "Assignment"
+  },
+  {
+   "fieldname": "assignment_section",
+   "fieldtype": "Section Break",
+   "label": "Assignment"
+  },
+  {
+   "default": "0",
+   "fieldname": "auto_assign",
+   "fieldtype": "Check",
+   "label": "Auto Assign"
+  },
+  {
+   "default": "1",
+   "fieldname": "assign_only_available",
+   "fieldtype": "Check",
+   "label": "Assign Only Available Agents"
+  },
+  {
+   "default": "0",
+   "description": "A returning customer goes back to the agent who handled them last, if that agent can take the chat.",
+   "fieldname": "assign_sticky",
+   "fieldtype": "Check",
+   "label": "Keep Customers with Their Last Agent"
+  },
+  {
+   "default": "0",
+   "description": "Clear the owner when a chat is resolved, so the next conversation is assigned again.",
+   "fieldname": "assign_release_on_resolve",
+   "fieldtype": "Check",
+   "label": "Release Chats When Resolved"
+  },
+  {
+   "fieldname": "assignment_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "New conversations",
+   "fieldname": "assign_on",
+   "fieldtype": "Select",
+   "label": "Assign On",
+   "options": "New conversations\nEvery unassigned incoming message"
+  },
+  {
+   "depends_on": "auto_assign",
+   "description": "Leave empty to share conversations between all agents",
+   "fieldname": "assign_team",
+   "fieldtype": "Link",
+   "label": "Assign Within Team",
+   "options": "OneChat Team"
+  },
+  {
+   "default": "Round robin",
+   "description": "Round robin takes turns. Least busy picks whoever has the fewest open and pending chats.",
+   "fieldname": "assign_method",
+   "fieldtype": "Select",
+   "label": "Assignment Method",
+   "options": "Round robin\nLeast busy"
+  },
+  {
+   "default": "0",
+   "description": "Skip agents who already have this many open or pending chats. 0 means no limit.",
+   "fieldname": "assign_capacity",
+   "fieldtype": "Int",
+   "label": "Max Open Chats per Agent",
+   "non_negative": 1
+  },
+  {
+   "default": "All conversations",
+   "description": "Admins and managers always see every conversation.",
+   "fieldname": "agent_visibility",
+   "fieldtype": "Select",
+   "label": "Agents Can See",
+   "options": "All conversations\nTeam conversations\nOwn conversations"
+  },
+  {
+   "fieldname": "business_hours_section",
+   "fieldtype": "Section Break",
+   "label": "Business Hours"
+  },
+  {
+   "default": "0",
+   "fieldname": "business_hours_enabled",
+   "fieldtype": "Check",
+   "label": "Business Hours Enabled"
+  },
+  {
+   "fieldname": "business_hours",
+   "fieldtype": "Table",
+   "label": "Business Hours",
+   "options": "OneChat Business Hour"
+  },
+  {
+   "fieldname": "away_section",
+   "fieldtype": "Section Break",
+   "label": "Away Message"
+  },
+  {
+   "default": "Thanks for your message! We're away right now and will reply when we're back.",
+   "fieldname": "away_message",
+   "fieldtype": "Small Text",
+   "label": "Away Message"
+  },
+  {
+   "fieldname": "away_message_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "12",
+   "fieldname": "away_cooldown_hours",
+   "fieldtype": "Int",
+   "label": "Away Cooldown Hours",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "sla_section",
+   "fieldtype": "Section Break",
+   "label": "SLA"
+  },
+  {
+   "default": "0",
+   "fieldname": "sla_enabled",
+   "fieldtype": "Check",
+   "label": "Track first response time"
+  },
+  {
+   "default": "1",
+   "fieldname": "sla_business_hours_only",
+   "fieldtype": "Check",
+   "label": "Count only business hours"
+  },
+  {
+   "fieldname": "sla_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "30",
+   "fieldname": "sla_first_response_minutes",
+   "fieldtype": "Int",
+   "label": "First response target (minutes)"
+  },
+  {
+   "fieldname": "conversations_tab",
+   "fieldtype": "Tab Break",
+   "label": "Conversations"
+  },
+  {
+   "fieldname": "resolve_section",
+   "fieldtype": "Section Break",
+   "label": "Resolving Chats"
+  },
+  {
+   "default": "0",
+   "fieldname": "resolve_require_reason",
+   "fieldtype": "Check",
+   "label": "Ask for a reason when resolving"
+  },
+  {
+   "default": "0",
+   "description": "Agents must write what was done before resolving a chat",
+   "fieldname": "resolve_require_note",
+   "fieldtype": "Check",
+   "label": "Require A Note When Resolving"
+  },
+  {
+   "default": "0",
+   "fieldname": "resolve_only_owner",
+   "fieldtype": "Check",
+   "label": "Only the assigned agent or an admin can resolve"
+  },
+  {
+   "default": "Pending",
+   "description": "Status of a chat created by your own message, like a broadcast or notification to a new number. A reply makes it Open.",
+   "fieldname": "outgoing_new_status",
+   "fieldtype": "Select",
+   "label": "New Chats From Templates Start As",
+   "options": "Pending\nOpen\nResolved"
+  },
+  {
+   "fieldname": "resolving_chats_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Allow",
+   "fieldname": "resolve_when_waiting",
+   "fieldtype": "Select",
+   "label": "When the customer is waiting for a reply",
+   "options": "Allow\nAsk to confirm\nBlock"
+  },
+  {
+   "default": "Question answered\nOrder placed\nNot interested\nSpam or wrong number\nDuplicate chat",
+   "description": "One per line",
+   "fieldname": "resolve_reasons",
+   "fieldtype": "Small Text",
+   "label": "Resolution reasons"
+  },
+  {
+   "fieldname": "csat_section",
+   "fieldtype": "Section Break",
+   "label": "Satisfaction Survey"
+  },
+  {
+   "default": "0",
+   "fieldname": "csat_enabled",
+   "fieldtype": "Check",
+   "label": "Ask for a rating when a conversation is resolved"
+  },
+  {
+   "fieldname": "satisfaction_survey_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "How did we do today? Tap a rating below.",
+   "fieldname": "csat_message",
+   "fieldtype": "Small Text",
+   "label": "Survey message"
+  },
+  {
+   "fieldname": "duplicates_section",
+   "fieldtype": "Section Break",
+   "label": "Duplicate Contacts"
+  },
+  {
+   "default": "Manual",
+   "description": "Manual lists possible duplicates for someone to review. Automatic merges contacts that share a phone number; other matches still wait for review.",
+   "fieldname": "duplicate_merge",
+   "fieldtype": "Select",
+   "label": "Merge Duplicates",
+   "options": "Manual\nAutomatic"
+  },
+  {
+   "fieldname": "duplicate_contacts_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ignored_duplicates",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Ignored Duplicates",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assistant_tab",
+   "fieldtype": "Tab Break",
+   "label": "Assistant"
+  },
+  {
+   "default": "0",
+   "fieldname": "assistant_enabled",
+   "fieldtype": "Check",
+   "label": "Enable the assistant"
+  },
+  {
+   "default": "Claude",
+   "fieldname": "assistant_provider",
+   "fieldtype": "Select",
+   "label": "AI provider",
+   "options": "Claude\nOpenAI\nOther"
+  },
+  {
+   "default": "16000",
+   "description": "1,024 to 64,000",
+   "fieldname": "assistant_max_tokens",
+   "fieldtype": "Int",
+   "label": "Max tokens per reply"
+  },
+  {
+   "fieldname": "assistant_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "depends_on": "assistant_enabled",
+   "description": "When FAC runs on another site, each agent signs in there with their own account, so their own permissions apply",
+   "fieldname": "assistant_agent_signin",
+   "fieldtype": "Check",
+   "label": "Agents Sign In Themselves"
+  },
+  {
+   "fieldname": "claude_section",
+   "fieldtype": "Section Break",
+   "label": "Claude"
+  },
+  {
+   "fieldname": "assistant_anthropic_key",
+   "fieldtype": "Password",
+   "label": "Claude API key"
+  },
+  {
+   "fieldname": "claude_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Defaults to claude-opus-5",
+   "fieldname": "assistant_claude_model",
+   "fieldtype": "Data",
+   "label": "Claude model"
+  },
+  {
+   "fieldname": "openai_section",
+   "fieldtype": "Section Break",
+   "label": "OpenAI"
+  },
+  {
+   "fieldname": "assistant_openai_key",
+   "fieldtype": "Password",
+   "label": "OpenAI API key"
+  },
+  {
+   "fieldname": "openai_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Defaults to gpt-5",
+   "fieldname": "assistant_openai_model",
+   "fieldtype": "Data",
+   "label": "OpenAI model"
+  },
+  {
+   "fieldname": "other_provider_section",
+   "fieldtype": "Section Break",
+   "label": "Other Provider"
+  },
+  {
+   "depends_on": "eval:doc.assistant_provider=='Other'",
+   "description": "Shown in the Assistant, for example Gemini",
+   "fieldname": "assistant_other_name",
+   "fieldtype": "Data",
+   "label": "Other Provider Name"
+  },
+  {
+   "depends_on": "eval:doc.assistant_provider=='Other'",
+   "description": "OpenAI-compatible base URL, for example https://generativelanguage.googleapis.com/v1beta/openai/",
+   "fieldname": "assistant_other_url",
+   "fieldtype": "Data",
+   "label": "Other Provider URL"
+  },
+  {
+   "fieldname": "other_provider_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.assistant_provider=='Other'",
+   "fieldname": "assistant_other_key",
+   "fieldtype": "Password",
+   "label": "Other Provider API Key"
+  },
+  {
+   "depends_on": "eval:doc.assistant_provider=='Other'",
+   "description": "For example gemini-2.5-flash",
+   "fieldname": "assistant_other_model",
+   "fieldtype": "Data",
+   "label": "Other Provider Model"
+  },
+  {
+   "fieldname": "access_section",
+   "fieldtype": "Section Break",
+   "label": "Access"
+  },
+  {
+   "fieldname": "assistant_roles",
+   "fieldtype": "Table",
+   "label": "Access by role",
+   "options": "OneChat Assistant Role"
+  },
+  {
+   "fieldname": "payments_tab",
+   "fieldtype": "Tab Break",
+   "label": "Payments"
+  },
+  {
+   "description": "Used when the chat is closed. Values: 1 name, 2 amount, 3 document, 4 link",
+   "fieldname": "payment_template",
+   "fieldtype": "Link",
+   "label": "Payment link template",
+   "options": "WhatsApp Templates"
+  },
+  {
+   "default": "1",
+   "fieldname": "payment_receipts",
+   "fieldtype": "Check",
+   "label": "Send a receipt when paid"
+  },
+  {
+   "fieldname": "payments_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Used when the chat is closed. Values: 1 name, 2 amount, 3 document, 4 date, 5 mode",
+   "fieldname": "receipt_template",
+   "fieldtype": "Link",
+   "label": "Receipt template",
+   "options": "WhatsApp Templates"
+  },
+  {
+   "default": "1",
+   "description": "Adds Send payment link on WhatsApp to submitted Sales Orders and Sales Invoices for anyone who can create Payment Requests",
+   "fieldname": "desk_payment_links",
+   "fieldtype": "Check",
+   "label": "Desk Users Can Send Payment Links"
+  },
+  {
+   "fieldname": "data_app_tab",
+   "fieldtype": "Tab Break",
+   "label": "Data & App"
+  },
+  {
+   "fieldname": "retention_section",
+   "fieldtype": "Section Break",
+   "label": "Data Retention"
+  },
+  {
+   "default": "0",
+   "fieldname": "retention_enabled",
+   "fieldtype": "Check",
+   "label": "Delete old data automatically"
+  },
+  {
+   "default": "365",
+   "fieldname": "message_retention_days",
+   "fieldtype": "Int",
+   "label": "Keep messages for (days)"
+  },
+  {
+   "default": "90",
+   "fieldname": "media_retention_days",
+   "fieldtype": "Int",
+   "label": "Keep media files for (days)"
+  },
+  {
+   "fieldname": "data_retention_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Days to keep other OneChat records, as JSON. Missing or 0 keeps them forever.",
+   "fieldname": "retention_records",
+   "fieldtype": "Small Text",
+   "label": "Keep Other Records"
+  },
+  {
+   "fieldname": "retention_last_run",
+   "fieldtype": "Datetime",
+   "label": "Last cleanup",
+   "read_only": 1
+  },
+  {
+   "fieldname": "retention_last_summary",
+   "fieldtype": "Small Text",
+   "label": "Last cleanup result",
+   "read_only": 1
+  },
+  {
+   "fieldname": "app_section",
+   "fieldtype": "Section Break",
+   "label": "App"
+  },
+  {
+   "default": "OneChat",
+   "fieldname": "app_name",
+   "fieldtype": "Data",
+   "label": "App Name"
+  },
+  {
+   "default": "OneChat",
+   "fieldname": "app_short_name",
+   "fieldtype": "Data",
+   "label": "Short Name",
+   "length": 12
+  },
+  {
+   "default": "1",
+   "fieldname": "app_install_button",
+   "fieldtype": "Check",
+   "label": "Show Install App Button"
+  },
+  {
+   "fieldname": "app_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "app_icon",
+   "fieldtype": "Attach Image",
+   "label": "App Icon"
+  },
+  {
+   "default": "#1f8a5b",
+   "fieldname": "app_theme_color",
+   "fieldtype": "Color",
+   "label": "Theme Colour"
+  },
+  {
+   "fieldname": "instagram_tab",
+   "fieldtype": "Tab Break",
+   "label": "Instagram"
+  },
+  {
+   "fieldname": "ig_comments_section",
+   "fieldtype": "Section Break",
+   "label": "Comments"
+  },
+  {
+   "default": "Matched or replied",
+   "fieldname": "ig_comments_in_inbox",
+   "fieldtype": "Select",
+   "label": "Show comments in the inbox",
+   "options": "Matched or replied\nAll comments\nNone"
+  },
+  {
+   "default": "1",
+   "fieldname": "ig_comment_unread",
+   "fieldtype": "Check",
+   "label": "Count comments as unread"
+  },
+  {
+   "default": "0",
+   "fieldname": "ig_comment_replies",
+   "fieldtype": "Check",
+   "label": "Include replies to comments"
+  },
+  {
+   "fieldname": "ig_comments_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ig_comment_hide_words",
+   "fieldtype": "Small Text",
+   "label": "Hide comments containing"
+  },
+  {
+   "default": "0",
+   "fieldname": "ig_comment_hide_links",
+   "fieldtype": "Check",
+   "label": "Hide comments with links"
+  },
+  {
+   "fieldname": "ig_comment_label",
+   "fieldtype": "Link",
+   "label": "Label commenters",
+   "options": "OneChat Label"
+  },
+  {
+   "default": "0",
+   "description": "Uses the AI assistant set up in Settings → Assistant.",
+   "fieldname": "ig_comment_hide_negative",
+   "fieldtype": "Check",
+   "label": "Hide negative comments with AI"
+  },
+  {
+   "default": "Abusive only",
+   "depends_on": "ig_comment_hide_negative",
+   "fieldname": "ig_comment_negative_level",
+   "fieldtype": "Select",
+   "label": "Hide",
+   "options": "Abusive only\nAbusive and complaints"
+  },
+  {
+   "fieldname": "ig_stories_section",
+   "fieldtype": "Section Break",
+   "label": "Story mentions"
+  },
+  {
+   "default": "0",
+   "fieldname": "ig_story_thanks",
+   "fieldtype": "Check",
+   "label": "Thank people who mention you in a story"
+  },
+  {
+   "depends_on": "ig_story_thanks",
+   "fieldname": "ig_story_thanks_message",
+   "fieldtype": "Small Text",
+   "label": "Thank you message"
+  },
+  {
+   "default": "24",
+   "depends_on": "ig_story_thanks",
+   "fieldname": "ig_story_thanks_hours",
+   "fieldtype": "Int",
+   "label": "Thank the same person at most once every (hours)"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-10 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "OneChat Agent",
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

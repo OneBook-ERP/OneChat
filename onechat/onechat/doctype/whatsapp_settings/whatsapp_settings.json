@@ -1,0 +1,141 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2022-10-27 17:51:09.426813",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "default_incoming_account",
+  "default_outgoing_account",
+  "whatsapp_settings_0_column_1",
+  "default_team",
+  "integrations_section",
+  "disable_auto_link",
+  "create_customer_on_win",
+  "integrations_column_1",
+  "disabled_integrations",
+  "costs_section",
+  "monthly_budget",
+  "costs_column_1",
+  "budget_alerts"
+ ],
+ "fields": [
+  {
+   "fieldname": "default_incoming_account",
+   "fieldtype": "Link",
+   "label": "Default Incoming Account",
+   "options": "OneChat Account"
+  },
+  {
+   "fieldname": "default_outgoing_account",
+   "fieldtype": "Link",
+   "label": "Default Outgoing Account",
+   "options": "OneChat Account"
+  },
+  {
+   "fieldname": "whatsapp_settings_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "New conversations join this team when their WhatsApp number does not belong to exactly one team",
+   "fieldname": "default_team",
+   "fieldtype": "Link",
+   "label": "Default Team",
+   "options": "OneChat Team"
+  },
+  {
+   "fieldname": "integrations_section",
+   "fieldtype": "Section Break",
+   "label": "Integrations"
+  },
+  {
+   "default": "0",
+   "description": "By default new WhatsApp contacts are linked to a matching record (customer, lead…) in installed apps by phone number",
+   "fieldname": "disable_auto_link",
+   "fieldtype": "Check",
+   "label": "Don't auto-link contacts"
+  },
+  {
+   "default": "0",
+   "description": "When a Frappe CRM deal is won and no ERPNext customer has the chat's phone number, create one and link it",
+   "fieldname": "create_customer_on_win",
+   "fieldtype": "Check",
+   "label": "Create ERPNext customer when a deal is won"
+  },
+  {
+   "fieldname": "integrations_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "disabled_integrations",
+   "fieldtype": "Small Text",
+   "hidden": 1,
+   "label": "Disabled Integrations"
+  },
+  {
+   "fieldname": "costs_section",
+   "fieldtype": "Section Break",
+   "label": "Costs"
+  },
+  {
+   "description": "Get a notification when spend this month passes 80% and 100% of this amount",
+   "fieldname": "monthly_budget",
+   "fieldtype": "Float",
+   "label": "Monthly Budget"
+  },
+  {
+   "fieldname": "costs_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "budget_alerts",
+   "fieldtype": "Small Text",
+   "hidden": 1,
+   "label": "Budget Alerts Sent"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "WhatsApp Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

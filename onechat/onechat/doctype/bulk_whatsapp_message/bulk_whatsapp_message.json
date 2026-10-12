@@ -1,0 +1,388 @@
+{
+ "actions": [],
+ "beta": 1,
+ "creation": "2023-05-10 12:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "message_tab",
+  "title",
+  "whatsapp_account",
+  "from_number",
+  "scheduled_time",
+  "smart_send",
+  "smart_queue",
+  "follow_up_of",
+  "follow_up_audience",
+  "message_0_column_1",
+  "status",
+  "sent_count",
+  "skipped_count",
+  "amended_from",
+  "template_section",
+  "use_template",
+  "template",
+  "template_column_1",
+  "template_variables",
+  "recipients_tab",
+  "recipient_type",
+  "recipient_list",
+  "segment",
+  "recipients_0_column_1",
+  "recipient_count",
+  "recipients_1_section",
+  "recipients",
+  "a_b_test_tab",
+  "ab_test",
+  "template_b",
+  "ab_test_percent",
+  "a_b_test_0_column_1",
+  "ab_metric",
+  "ab_wait_hours",
+  "result_section",
+  "ab_status",
+  "ab_decide_at",
+  "result_column_1",
+  "ab_winner",
+  "ab_remaining"
+ ],
+ "fields": [
+  {
+   "fieldname": "message_tab",
+   "fieldtype": "Tab Break",
+   "label": "Message"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "description": "The WhatsApp number this broadcast is sent from. Empty uses the default outgoing number.",
+   "fieldname": "whatsapp_account",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Send From",
+   "options": "OneChat Account"
+  },
+  {
+   "fieldname": "from_number",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "in_list_view": 1,
+   "label": "From WhatsApp Number"
+  },
+  {
+   "description": "Leave empty to send immediately after submission",
+   "fieldname": "scheduled_time",
+   "fieldtype": "Datetime",
+   "label": "Scheduled Time"
+  },
+  {
+   "default": "0",
+   "description": "Send each person at the hour they usually message you, within the next 24 hours. People with no history get it right away.",
+   "fieldname": "smart_send",
+   "fieldtype": "Check",
+   "label": "Smart send time"
+  },
+  {
+   "fieldname": "smart_queue",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Smart Send Queue",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "follow_up_of",
+   "fieldtype": "Link",
+   "label": "Follow-up Of",
+   "no_copy": 1,
+   "options": "Bulk WhatsApp Message",
+   "read_only": 1
+  },
+  {
+   "fieldname": "follow_up_audience",
+   "fieldtype": "Data",
+   "label": "Follow-up Audience",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "message_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nQueued\nIn Progress\nCompleted\nPartially Failed",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "sent_count",
+   "fieldtype": "Int",
+   "label": "Sent Count",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "description": "Recipients skipped because they opted out of marketing messages",
+   "fieldname": "skipped_count",
+   "fieldtype": "Int",
+   "label": "Skipped (Opted Out)",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Bulk WhatsApp Message",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "template_section",
+   "fieldtype": "Section Break",
+   "label": "Template"
+  },
+  {
+   "default": "1",
+   "fieldname": "use_template",
+   "fieldtype": "Check",
+   "label": "Use Template"
+  },
+  {
+   "depends_on": "eval:doc.use_template==1",
+   "description": "Make sure that Template variables are same as Recipient data fields",
+   "fieldname": "template",
+   "fieldtype": "Link",
+   "label": "Template",
+   "options": "WhatsApp Templates"
+  },
+  {
+   "fieldname": "template_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.use_template==1",
+   "fieldname": "template_variables",
+   "fieldtype": "Code",
+   "hidden": 1,
+   "label": "Template Variables",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "recipients_tab",
+   "fieldtype": "Tab Break",
+   "label": "Recipients"
+  },
+  {
+   "default": "Individual",
+   "fieldname": "recipient_type",
+   "fieldtype": "Select",
+   "label": "Recipient Type",
+   "options": "\nIndividual\nRecipient List\nSegment"
+  },
+  {
+   "depends_on": "eval:doc.recipient_type=='Recipient List'",
+   "fieldname": "recipient_list",
+   "fieldtype": "Link",
+   "label": "Recipient List",
+   "options": "WhatsApp Recipient List"
+  },
+  {
+   "depends_on": "eval:doc.recipient_type=='Segment'",
+   "fieldname": "segment",
+   "fieldtype": "Link",
+   "label": "Segment",
+   "options": "OneChat Segment"
+  },
+  {
+   "fieldname": "recipients_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "recipient_count",
+   "fieldtype": "Int",
+   "label": "Recipient Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "recipients_1_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.recipient_type=='Individual'",
+   "fieldname": "recipients",
+   "fieldtype": "Table",
+   "label": "Recipients",
+   "options": "WhatsApp Recipient"
+  },
+  {
+   "fieldname": "a_b_test_tab",
+   "fieldtype": "Tab Break",
+   "label": "A/B Test"
+  },
+  {
+   "default": "0",
+   "fieldname": "ab_test",
+   "fieldtype": "Check",
+   "label": "A/B Test"
+  },
+  {
+   "depends_on": "ab_test",
+   "fieldname": "template_b",
+   "fieldtype": "Link",
+   "label": "Template B",
+   "options": "WhatsApp Templates"
+  },
+  {
+   "default": "20",
+   "depends_on": "ab_test",
+   "description": "Share of recipients in the test, split evenly between A and B.",
+   "fieldname": "ab_test_percent",
+   "fieldtype": "Int",
+   "label": "Test Group (%)"
+  },
+  {
+   "fieldname": "a_b_test_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Replies",
+   "depends_on": "ab_test",
+   "fieldname": "ab_metric",
+   "fieldtype": "Select",
+   "label": "Pick the Winner By",
+   "options": "Replies\nReads"
+  },
+  {
+   "default": "4",
+   "depends_on": "ab_test",
+   "fieldname": "ab_wait_hours",
+   "fieldtype": "Int",
+   "label": "Decide After (Hours)"
+  },
+  {
+   "fieldname": "result_section",
+   "fieldtype": "Section Break",
+   "label": "Result"
+  },
+  {
+   "depends_on": "ab_test",
+   "fieldname": "ab_status",
+   "fieldtype": "Select",
+   "label": "Test Status",
+   "options": "\nTesting\nDone",
+   "read_only": 1
+  },
+  {
+   "depends_on": "ab_test",
+   "fieldname": "ab_decide_at",
+   "fieldtype": "Datetime",
+   "label": "Decides At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "result_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "ab_test",
+   "fieldname": "ab_winner",
+   "fieldtype": "Select",
+   "label": "Winner",
+   "options": "\nA\nB",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ab_remaining",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Waiting for the Winner",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-10-10 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "Bulk WhatsApp Message",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "WhatsApp Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

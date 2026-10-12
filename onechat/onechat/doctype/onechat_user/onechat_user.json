@@ -1,0 +1,228 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:user",
+ "creation": "2025-12-02 12:09:11.291383",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "enabled",
+  "availability",
+  "onechat_user_0_column_1",
+  "profile_image",
+  "name_section",
+  "first_name",
+  "middle_name",
+  "name_column_1",
+  "last_name",
+  "full_name",
+  "assignment_section",
+  "user_owner",
+  "assignment_column_1",
+  "last_assigned_at",
+  "schedule_section",
+  "use_shift",
+  "schedule_column_1",
+  "shift_state",
+  "away_by_shift",
+  "shifts_section",
+  "shifts",
+  "leave_section",
+  "leaves"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "default": "Available",
+   "fieldname": "availability",
+   "fieldtype": "Select",
+   "label": "Availability",
+   "options": "Available\nAway"
+  },
+  {
+   "fieldname": "onechat_user_0_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "profile_image",
+   "fieldtype": "Attach Image",
+   "label": "Profile Image"
+  },
+  {
+   "fieldname": "name_section",
+   "fieldtype": "Section Break",
+   "label": "Name"
+  },
+  {
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "label": "First Name"
+  },
+  {
+   "fieldname": "middle_name",
+   "fieldtype": "Data",
+   "label": "Middle Name"
+  },
+  {
+   "fieldname": "name_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "label": "Last Name"
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "label": "Full Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assignment_section",
+   "fieldtype": "Section Break",
+   "label": "Assignment"
+  },
+  {
+   "fieldname": "user_owner",
+   "fieldtype": "Link",
+   "label": "Owner",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assignment_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_assigned_at",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Last Assigned At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "schedule_section",
+   "fieldtype": "Section Break",
+   "label": "Schedule"
+  },
+  {
+   "default": "0",
+   "description": "Set this agent Away outside their hours and skip them for auto-assign.",
+   "fieldname": "use_shift",
+   "fieldtype": "Check",
+   "label": "Use Working Hours"
+  },
+  {
+   "fieldname": "schedule_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "shift_state",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Shift State",
+   "options": "\nOn\nOff",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "away_by_shift",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Away by Schedule",
+   "read_only": 1
+  },
+  {
+   "fieldname": "shifts_section",
+   "fieldtype": "Section Break",
+   "label": "Shifts"
+  },
+  {
+   "depends_on": "use_shift",
+   "fieldname": "shifts",
+   "fieldtype": "Table",
+   "label": "Working Hours",
+   "options": "OneChat Business Hour"
+  },
+  {
+   "fieldname": "leave_section",
+   "fieldtype": "Section Break",
+   "label": "Leave"
+  },
+  {
+   "fieldname": "leaves",
+   "fieldtype": "Table",
+   "label": "Leave",
+   "options": "OneChat Leave"
+  }
+ ],
+ "grid_page_length": 50,
+ "image_field": "profile_image",
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat User",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
