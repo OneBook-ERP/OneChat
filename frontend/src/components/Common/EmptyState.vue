@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="flex flex-col items-center gap-2 text-center"
-    :class="compact ? 'px-3 py-6' : 'px-6 py-10'"
-  >
+  <div class="flex flex-col items-center gap-2 text-center" :class="compact ? 'px-3 py-6' : 'px-6 py-10'">
     <span v-if="compact" :class="icon" class="size-5 text-ink-gray-4" aria-hidden="true" />
     <EmptyStateIllustration v-else :name="scene" :size="128" class="-mb-1" />
     <div>

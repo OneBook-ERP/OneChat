@@ -27,14 +27,14 @@
             <span class="min-w-0 truncate">{{ __('Reply window closed until they message again') }}</span>
           </Tooltip>
         </span>
-        <span
-          v-else-if="instagram && !windowOpen"
-          class="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-ink-gray-6"
-          role="status"
-        >
+        <span v-else-if="instagram && !windowOpen" class="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-ink-gray-6" role="status">
           <span class="lucide-user-round-check size-3.5 shrink-0" aria-hidden="true" />
           <Tooltip
-            :text="__('More than 24 hours since their last message. Your reply is sent with Instagram’s Human Agent tag, allowed for 7 days. Bots and auto-replies stop at 24 hours.')"
+            :text="
+              __(
+                'More than 24 hours since their last message. Your reply is sent with Instagram’s Human Agent tag, allowed for 7 days. Bots and auto-replies stop at 24 hours.',
+              )
+            "
           >
             <span class="min-w-0 truncate">{{ __('Replying as a human agent') }}</span>
           </Tooltip>

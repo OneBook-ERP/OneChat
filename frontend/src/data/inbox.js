@@ -843,8 +843,8 @@ function onReminder({ contact, contact_name, kind, text }) {
     kind === 'snooze'
       ? __('{0} is back').format(contact_name)
       : kind === 'sla'
-        ? __('Reply overdue: {0}').format(contact_name)
-        : __('Follow up with {0}').format(contact_name)
+      ? __('Reply overdue: {0}').format(contact_name)
+      : __('Follow up with {0}').format(contact_name)
   alertUser({ key: `reminder-${contact}-${kind}-${text}`, kind: 'reminders', title, body: text, onOpen: () => openConversation(contact) })
   followups.version += 1
   refreshCounts()

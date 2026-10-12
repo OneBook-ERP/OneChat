@@ -361,7 +361,13 @@ function noticeHtml(item, index, total) {
           ${close}
         </div>
         <div class="onechat-notice-actions">
-          ${action ? `<a class="btn btn-primary btn-sm" href="${escape(action.url)}" target="_blank" rel="noopener">${escape(action.label || __('Learn more'))}</a>` : ''}
+          ${
+            action
+              ? `<a class="btn btn-primary btn-sm" href="${escape(action.url)}" target="_blank" rel="noopener">${escape(
+                  action.label || __('Learn more'),
+                )}</a>`
+              : ''
+          }
           <button type="button" class="btn btn-link btn-sm" data-notice="later">${__('Later')}</button>
           ${pager}
         </div>

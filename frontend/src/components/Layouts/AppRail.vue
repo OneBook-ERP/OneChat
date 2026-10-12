@@ -4,9 +4,7 @@
       <button
         type="button"
         class="relative flex size-9 items-center justify-center rounded-4 hover:bg-surface-gray-3"
-        :title="
-          numbers.scoped ? __('Some accounts or teams are hidden') : __('Accounts and teams')
-        "
+        :title="numbers.scoped ? __('Some accounts or teams are hidden') : __('Accounts and teams')"
       >
         <Avatar :image="appLogo" :label="appName" size="lg" shape="square" class="size-7" />
         <span

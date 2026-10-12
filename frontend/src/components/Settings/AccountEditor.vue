@@ -341,8 +341,8 @@
                     doc.webhook_verified_at
                       ? __('Verified {0}').format(timeAgo(doc.webhook_verified_at))
                       : doc.webhook_last_event_at
-                        ? __('Working')
-                        : __('Not verified yet')
+                      ? __('Working')
+                      : __('Not verified yet')
                   }}
                 </span>
                 <span class="inline-flex items-center gap-1.5" :class="doc.webhook_last_event_at ? 'text-ink-green-6' : 'text-ink-gray-5'">

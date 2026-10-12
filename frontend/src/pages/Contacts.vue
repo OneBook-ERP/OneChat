@@ -42,11 +42,7 @@
               <ChannelIcon :channel="row.channel" show-whatsapp class="size-3.5 shrink-0" />
               <Badge v-if="row.opted_out" theme="red" size="sm" :label="__('Opted out')" />
             </div>
-            <TruncatedText
-              as="p"
-              class="truncate text-sm tabular-nums text-ink-gray-5"
-              :text="subtitle(row)"
-            />
+            <TruncatedText as="p" class="truncate text-sm tabular-nums text-ink-gray-5" :text="subtitle(row)" />
           </div>
         </div>
       </template>

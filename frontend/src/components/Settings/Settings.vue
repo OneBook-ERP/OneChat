@@ -301,9 +301,7 @@ const open = defineModel('open', { type: Boolean, default: false })
 const languages = ref([])
 const language = ref(session.user.language || 'en')
 const savingLanguage = ref(false)
-const languageOptions = computed(() =>
-  languages.value.map((row) => ({ label: row.language_name, value: row.name })),
-)
+const languageOptions = computed(() => languages.value.map((row) => ({ label: row.language_name, value: row.name })))
 
 async function loadLanguages() {
   if (languages.value.length) return

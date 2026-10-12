@@ -80,7 +80,12 @@ const OPTIONS = [
     icon: 'lucide-eye',
   },
   { value: 'not_read', label: 'Didn’t read it', description: 'Delivered but never opened.', icon: 'lucide-eye-off' },
-  { value: 'no_reply', label: 'Everyone who didn’t reply', description: 'Everyone it was sent to who hasn’t replied yet.', icon: 'lucide-users' },
+  {
+    value: 'no_reply',
+    label: 'Everyone who didn’t reply',
+    description: 'Everyone it was sent to who hasn’t replied yet.',
+    icon: 'lucide-users',
+  },
 ]
 
 const counts = ref({})

@@ -1,8 +1,5 @@
 <template>
-  <SettingsHeader
-    :title="__('Defaults')"
-    :description="__('Shared settings for every channel')"
-  />
+  <SettingsHeader :title="__('Defaults')" :description="__('Shared settings for every channel')" />
 
   <SettingsBody>
     <ErrorMessage :message="error" class="pt-4" />

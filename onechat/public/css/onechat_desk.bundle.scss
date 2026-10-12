@@ -41,9 +41,7 @@
   box-shadow: var(--shadow-2xl, 0 10px 40px rgba(0, 0, 0, 0.18));
   transform: translateX(100%);
   visibility: hidden;
-  transition:
-    transform 0.2s ease,
-    visibility 0.2s;
+  transition: transform 0.2s ease, visibility 0.2s;
 
   &.is-open {
     transform: translateX(0);
