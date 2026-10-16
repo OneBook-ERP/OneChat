@@ -64,7 +64,8 @@ def load(doctype, name):
 		record = connection.source_for(doctype).get_doc(doctype, name)
 	except Exception:
 		return None
-	record = dict(record.as_dict() if hasattr(record, "as_dict") else record or {})
+	as_dict = getattr(record, "as_dict", None)
+	record = dict(as_dict() if callable(as_dict) else record or {})
 	return record or None
 
 
