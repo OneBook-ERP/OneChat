@@ -1,6 +1,7 @@
 <template>
   <div
     v-if="!isDesktop"
+    ref="root"
     class="flex items-center gap-1 border-t border-outline-gray-1"
     :class="
       inline ? 'pt-2' : ['sticky bottom-0 z-10 bg-surface-base py-2', { 'pb-[calc(0.5rem+env(safe-area-inset-bottom))]': ui.fullScreen }]
@@ -27,6 +28,7 @@
 
   <div
     v-else
+    ref="root"
     class="flex flex-col gap-3 border-t border-outline-gray-1 sm:flex-row sm:items-center sm:justify-between"
     :class="inline ? 'pt-2.5' : 'sticky bottom-0 z-10 bg-surface-base px-2 py-2.5'"
   >
@@ -67,7 +69,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Button, Select } from 'frappe-ui'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useUI } from '@/stores/ui'
@@ -115,7 +117,27 @@ const pages = computed(() => {
   return out
 })
 
+const root = ref(null)
+
 function go(to) {
-  page.value = Math.min(Math.max(1, to), totalPages.value)
+  const next = Math.min(Math.max(1, to), totalPages.value)
+  if (next === page.value) return
+  page.value = next
+  scrollBack()
+}
+
+// The rows scroll in a container the pager sits beside, not inside, so reset
+// whatever is actually scrolled in the nearest block around the pager.
+function scrollBack() {
+  let node = root.value?.parentElement
+  while (node && node !== document.body) {
+    const scrolled = [node, ...node.querySelectorAll('*')].filter((el) => el.scrollTop > 0)
+    if (scrolled.length) {
+      scrolled.forEach((el) => el.scrollTo({ top: 0 }))
+      return
+    }
+    node = node.parentElement
+  }
+  if (window.scrollY > 0) window.scrollTo({ top: 0 })
 }
 </script>

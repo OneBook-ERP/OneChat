@@ -71,6 +71,8 @@ MESSAGE_FIELDS = [
 	"message_type",
 	"message",
 	"attach",
+	"latitude",
+	"longitude",
 	"template",
 	"template_parameters",
 	"template_header_parameters",

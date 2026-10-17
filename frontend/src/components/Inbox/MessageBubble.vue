@@ -79,6 +79,21 @@
             <span v-if="message.link_url" class="lucide-external-link size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
           </component>
 
+          <a
+            v-else-if="location"
+            :href="location.url"
+            target="_blank"
+            rel="noopener"
+            class="flex items-start gap-2.5 rounded-4 bg-surface-gray-2 px-2.5 py-2 transition-colors hover:bg-surface-gray-3"
+          >
+            <span class="lucide-map-pin mt-0.5 size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
+            <span class="flex min-w-0 flex-col gap-0.5">
+              <span class="truncate text-sm font-medium text-ink-gray-9">{{ location.title }}</span>
+              <span class="truncate text-xs text-ink-gray-6">{{ location.subtitle }}</span>
+              <span class="text-xs text-ink-blue-6">{{ __('Open in Maps') }}</span>
+            </span>
+          </a>
+
           <p v-else-if="placeholder" class="flex items-center gap-1.5 px-0.5 py-1 text-sm italic text-ink-gray-6">
             <span :class="placeholder.icon" class="size-4" aria-hidden="true" />
             {{ placeholder.label }}
@@ -278,9 +293,25 @@ const media = computed(() => {
   return { kind: '', url: '' }
 })
 
+const location = computed(() => {
+  if (kind.value !== 'location') return null
+  const lat = Number(props.message.latitude)
+  const lng = Number(props.message.longitude)
+  if (!lat && !lng) return null
+  const [title, ...rest] = String(props.message.message || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+  return {
+    title: title || __('Shared location'),
+    subtitle: rest.join(', ') || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+    url: `https://www.google.com/maps?q=${lat},${lng}`,
+  }
+})
+
 const text = computed(() => messageBody(props.message))
 
-const body = computed(() => (plainMessage(text.value) ? richText(text.value) : ''))
+const body = computed(() => (location.value || !plainMessage(text.value) ? '' : richText(text.value)))
 const copyText = computed(() => plainMessage(text.value))
 const inlineMeta = computed(() => !!body.value && !(template.value && props.message.template_footer) && !cta.value)
 
@@ -355,7 +386,7 @@ function cancelLink() {
 }
 
 const placeholder = computed(() => {
-  if (kind.value === 'text' || hasMedia.value || cta.value) return null
+  if (kind.value === 'text' || hasMedia.value || cta.value || location.value) return null
   if (
     ['location', 'contact', 'flow', 'interactive', 'button', 'product', 'product_list', 'order', 'order_details', 'order_status'].includes(
       kind.value,
