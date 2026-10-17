@@ -75,10 +75,10 @@ def validate_flow_graph(graph_json):
 @frappe.whitelist()
 def get_flow_statistics():
 	require_admin()
-	total_flows = frappe.db.count("Automation Flow")
-	active_flows = frappe.db.count("Automation Flow", {"is_active": 1})
+	total_flows = frappe.db.count("OneChat Flow")
+	active_flows = frappe.db.count("OneChat Flow", {"is_active": 1})
 
-	flow = frappe.qb.DocType("Automation Flow")
+	flow = frappe.qb.DocType("OneChat Flow")
 	trigger_types = (
 		frappe.qb.from_(flow)
 		.select(flow.trigger_type, Count("*").as_("count"))

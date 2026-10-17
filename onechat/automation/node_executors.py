@@ -71,7 +71,7 @@ def exec_send_whatsapp(node: dict, context: dict) -> dict:
 	from onechat.whatsapp.message import send_template_message
 
 	message_id = send_template_message(
-		reference_doctype=context.get("doctype", "Automation Flow"),
+		reference_doctype=context.get("doctype", "OneChat Flow"),
 		reference_name=context.get("docname", ""),
 		template=template_name,
 		to=to,

@@ -8,7 +8,7 @@ from onechat.automation.engine import TRIGGERS, clear_trigger_cache
 from onechat.integrations.remote_setup import schedule_sync
 
 
-class AutomationFlow(Document):
+class OneChatFlow(Document):
 	# begin: auto-generated types
 
 	from typing import TYPE_CHECKING

@@ -108,7 +108,7 @@ function openLog(name) {
 }
 
 call('frappe.client.get_list', {
-  doctype: 'Automation Flow',
+  doctype: 'OneChat Flow',
   fields: ['name', 'flow_name'],
   order_by: 'flow_name asc',
   limit_page_length: 500,
