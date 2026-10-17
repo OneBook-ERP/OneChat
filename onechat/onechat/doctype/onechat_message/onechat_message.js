@@ -1,10 +1,10 @@
 frappe.ui.form.on("OneChat Message", {
 	onload: function (frm) {
 		frappe.db
-			.get_value("OneChat Account", frm.doc.whatsapp_account, "allow_auto_read_receipt")
-			.then((value) => {
+			.get_value("OneChat Account", frm.doc.whatsapp_account, "read_receipts")
+			.then(({ message }) => {
 				if (
-					value &&
+					message?.read_receipts === "When an agent opens the chat" &&
 					frm.doc.type === "Incoming" &&
 					frm.doc.status !== "marked as read" &&
 					frm.doc.message_id
@@ -30,8 +30,8 @@ function add_mark_as_read(frm) {
 
 	frappe.db
 		.get_value("OneChat Account", frm.doc.whatsapp_account, "allow_auto_read_receipt")
-		.then((value) => {
-			if (value) return;
+		.then(({ message }) => {
+			if (message?.allow_auto_read_receipt) return;
 
 			frm.add_custom_button(__("Mark as read"), function () {
 				send_read_receipt(frm);

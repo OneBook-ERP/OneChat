@@ -3,7 +3,7 @@ import json
 import frappe
 from frappe.utils import cint, now_datetime
 
-FLOW = "Automation Flow"
+FLOW = "OneChat Flow"
 VERSION = "Automation Flow Version"
 DEFINITION = ("graph_json", "trigger_type")
 

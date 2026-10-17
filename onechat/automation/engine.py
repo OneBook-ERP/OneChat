@@ -13,7 +13,7 @@ from onechat.automation.node_executors import get_node_executor
 from onechat.automation.values import as_text, plain, rules_match
 from onechat.integrations import links
 
-FLOW = "Automation Flow"
+FLOW = "OneChat Flow"
 SESSION = "OneChat Flow Session"
 LOG = "Automation Execution Log"
 CONTACT = "OneChat Contact"

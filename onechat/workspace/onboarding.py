@@ -47,7 +47,7 @@ def status():
 		"teams": exists("OneChat Team"),
 		"quick_replies": exists("OneChat Quick Reply"),
 		"labels": exists("OneChat Label"),
-		"chatbot": exists("Automation Flow", {"is_active": 1}),
+		"chatbot": exists("OneChat Flow", {"is_active": 1}),
 		"auto_replies": exists("OneChat Auto Reply", {"enabled": 1}),
 		"chat_link": exists("OneChat Chat Link"),
 		"first_message": exists("OneChat Message", {"type": "Outgoing"}),

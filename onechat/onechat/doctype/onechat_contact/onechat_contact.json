@@ -362,7 +362,7 @@
    "fieldtype": "Link",
    "label": "Bot flow",
    "no_copy": 1,
-   "options": "Automation Flow",
+   "options": "OneChat Flow",
    "read_only": 1
   },
   {

@@ -30,6 +30,20 @@
           @update:model-value="(value) => update('default_outgoing_account', value)"
         />
       </SettingsRow>
+      <SettingsRow
+        :title="__('Default country code')"
+        :description="__('Added in front of mobile numbers saved without one, such as contacts created through the API')"
+      >
+        <FormControl
+          class="w-56"
+          type="text"
+          inputmode="numeric"
+          placeholder="91"
+          :model-value="settings.default_country_code || ''"
+          :disabled="saving === 'default_country_code'"
+          @change="(event) => update('default_country_code', event.target.value.replace(/\D/g, ''))"
+        />
+      </SettingsRow>
     </div>
 
     <p v-if="!loading && !accounts.length" class="mt-4 text-sm text-ink-gray-5">
@@ -41,7 +55,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { Button, ErrorMessage, Select, SettingsBody, SettingsHeader, SettingsRow, Skeleton, call, toast } from 'frappe-ui'
+import { Button, ErrorMessage, FormControl, Select, SettingsBody, SettingsHeader, SettingsRow, Skeleton, call, toast } from 'frappe-ui'
 import { useUI } from '@/stores/ui'
 import { errorMessage } from '@/utils/format'
 import { translate as __ } from '@/translation'

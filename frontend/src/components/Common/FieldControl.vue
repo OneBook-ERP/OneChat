@@ -29,6 +29,7 @@
 
     <Password
       v-else-if="field.type === 'password'"
+      autocomplete="new-password"
       :placeholder="field.placeholder ? __(field.placeholder) : undefined"
       :disabled="field.readOnly"
       :model-value="modelValue || ''"

@@ -178,7 +178,7 @@ def save_team(
 
 def rename_in_flows(old, new):
 	for flow in frappe.get_all(
-		"Automation Flow", filters={"graph_json": ["like", f"%{old}%"]}, fields=["name", "graph_json"]
+		"OneChat Flow", filters={"graph_json": ["like", f"%{old}%"]}, fields=["name", "graph_json"]
 	):
 		try:
 			graph = json.loads(flow.graph_json or "{}")
@@ -192,14 +192,14 @@ def rename_in_flows(old, new):
 				changed = True
 		if changed:
 			frappe.db.set_value(
-				"Automation Flow", flow.name, "graph_json", json.dumps(graph, ensure_ascii=False, indent=2)
+				"OneChat Flow", flow.name, "graph_json", json.dumps(graph, ensure_ascii=False, indent=2)
 			)
 
 
 def flows_using(team):
 	names = []
 	for flow in frappe.get_all(
-		"Automation Flow",
+		"OneChat Flow",
 		filters={"graph_json": ["like", f"%{team}%"]},
 		fields=["name", "flow_name", "graph_json"],
 	):

@@ -255,8 +255,8 @@
                     :fieldtypes="['Attach', 'Attach Image']"
                     :label="__('Or take the file from a field')"
                   />
-                  <FormControl v-model="doc.file_name" type="text" :label="__('File name')" placeholder="invoice.pdf" />
                 </template>
+                <FormControl v-model="doc.file_name" type="text" :label="__('File name')" placeholder="invoice.pdf" />
               </template>
 
               <FormControl

@@ -55,6 +55,17 @@ class TestChannelMatching(IntegrationTestCase):
 
 		self.assertIsNone(conversations.find_contact("919811122233"))
 
+	def test_profile_name_replaces_a_number_used_as_the_name(self):
+		number = "919811100001"
+		name = conversations.ensure_contact(incoming(WHATSAPP, number, profile=None))
+		self.assertEqual(frappe.db.get_value("OneChat Contact", name, "contact_name"), number)
+
+		conversations.refresh_name(name, "Aadhi")
+		self.assertEqual(frappe.db.get_value("OneChat Contact", name, "contact_name"), "Aadhi")
+
+		conversations.refresh_name(name, "Someone Else")
+		self.assertEqual(frappe.db.get_value("OneChat Contact", name, "contact_name"), "Aadhi")
+
 	def test_channel_follows_the_account(self):
 		self.assertEqual(conversations.channel_of(frappe._dict(whatsapp_account=INSTAGRAM)), "Instagram")
 		self.assertEqual(conversations.channel_of(frappe._dict(whatsapp_account=WHATSAPP)), "WhatsApp")

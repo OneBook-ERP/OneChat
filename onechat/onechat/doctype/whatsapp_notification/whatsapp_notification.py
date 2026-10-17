@@ -176,7 +176,7 @@ class WhatsAppNotification(Document):
 					print_format = default_print_format if default_print_format else print_format
 				link = get_pdf_link(doc_data["doctype"], doc_data["name"], print_format=print_format)
 
-				filename = f"{doc_data['name']}.pdf"
+				filename = self.file_name or f"{doc_data['name']}.pdf"
 				media = {"link": f"{frappe.utils.get_url()}{link}&key={key}"}
 				self.header_file = media["link"]
 

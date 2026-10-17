@@ -158,7 +158,7 @@ watch(
 async function loadLabels(flow) {
   try {
     const data = await call('frappe.client.get_value', {
-      doctype: 'Automation Flow',
+      doctype: 'OneChat Flow',
       filters: flow,
       fieldname: 'graph_json',
     })

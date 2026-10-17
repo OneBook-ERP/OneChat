@@ -117,7 +117,7 @@ const lastRuns = ref({})
 const gallery = ref(false)
 
 const list = useDocList({
-  doctype: 'Automation Flow',
+  doctype: 'OneChat Flow',
   fields: ['name', 'flow_name', 'description', 'trigger_type', 'category', 'is_active', 'modified'],
   searchFields: ['flow_name', 'description'],
   quickFilters: [
@@ -245,7 +245,7 @@ async function toggle(row, active) {
 
   try {
     await call('frappe.client.set_value', {
-      doctype: 'Automation Flow',
+      doctype: 'OneChat Flow',
       name: row.name,
       fieldname: 'is_active',
       value: active ? 1 : 0,
@@ -261,7 +261,7 @@ async function toggle(row, active) {
 
 async function duplicate(row) {
   try {
-    const flow = await call('frappe.client.get', { doctype: 'Automation Flow', name: row.name })
+    const flow = await call('frappe.client.get', { doctype: 'OneChat Flow', name: row.name })
     const saved = await call('onechat.automation.flows.save_flow', {
       flow_name: null,
       flow_data: {

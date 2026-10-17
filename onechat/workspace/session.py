@@ -47,7 +47,7 @@ READ_DOCTYPES = (
 	"WhatsApp Templates",
 	"WhatsApp Recipient List",
 	"WhatsApp Flow",
-	"Automation Flow",
+	"OneChat Flow",
 	"OneChat Chat Link",
 	"OneChat Media",
 )
