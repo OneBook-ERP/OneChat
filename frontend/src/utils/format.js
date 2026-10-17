@@ -42,6 +42,12 @@ export function formatDateTime(value) {
   return value ? dayjs(value).format('D MMM YYYY, h:mm a') : ''
 }
 
+export function formatPhone(value) {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (digits.length <= 10) return value || ''
+  return `+${digits.slice(0, -10)} ${digits.slice(-10, -5)} ${digits.slice(-5)}`
+}
+
 export function formatNumber(value) {
   return new Intl.NumberFormat().format(Number(value) || 0)
 }

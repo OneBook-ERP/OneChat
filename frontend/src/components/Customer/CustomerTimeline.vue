@@ -23,9 +23,15 @@
 
     <ErrorMessage v-else-if="error" :message="error" />
 
-    <p v-else-if="!events.length" class="rounded-4 bg-surface-gray-1 px-3 py-4 text-center text-sm text-ink-gray-5">
-      {{ kind === 'all' ? __('Nothing has happened with this customer yet.') : __('Nothing of this kind yet.') }}
-    </p>
+    <EmptyState
+      v-else-if="!events.length"
+      :compact="compact"
+      :icon="kind === 'all' ? 'lucide-history' : kindMeta(kind).icon"
+      :title="
+        kind === 'all' ? __('Nothing has happened with this customer yet') : __('No {0} yet').format(__(kindMeta(kind).label).toLowerCase())
+      "
+      :description="compact ? '' : __(EMPTY_HINTS[kind] || EMPTY_HINTS.all)"
+    />
 
     <template v-else>
       <section v-for="group in groups" :key="group.day" class="flex flex-col">
@@ -79,11 +85,24 @@
 </template>
 
 <script setup>
+import EmptyState from '@/components/Common/EmptyState.vue'
 import TruncatedText from '@/components/Common/TruncatedText.vue'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Badge, Button, ErrorMessage, Skeleton } from 'frappe-ui'
 import { TIMELINE_KINDS, customerTimeline, kindMeta } from '@/data/customer'
+
+const EMPTY_HINTS = {
+  all: 'Chats, notes, orders, campaigns and consent changes show up here as they happen.',
+  conversation: 'Conversations with this customer are listed here.',
+  record: 'Orders, invoices and payments from linked records appear here.',
+  note: 'Notes your team adds about this customer appear here.',
+  campaign: 'Broadcasts and notifications sent to this customer appear here.',
+  form: 'Forms this customer submits appear here.',
+  flow: 'Chatbot runs for this customer appear here.',
+  link: 'When this customer arrives through a chat link, it shows here.',
+  consent: 'Marketing opt-ins and opt-outs appear here.',
+}
 import { hasRecords } from '@/data/integrations'
 import { clock, dayLabel, errorMessage, timeAgo } from '@/utils/format'
 import { translate as __ } from '@/translation'
