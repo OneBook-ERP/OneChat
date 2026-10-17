@@ -1,4 +1,5 @@
 from bisect import bisect_right
+from datetime import date
 
 import frappe
 from frappe.query_builder.functions import Count, IfNull, Lower, Max
@@ -93,23 +94,25 @@ def stats(template: str, days: int | str = 30):
 	sent = frappe.get_all(
 		MESSAGE,
 		filters=filters,
-		fields=["whatsapp_contact", "to", "creation"],
+		fields=["name", "status", "whatsapp_contact", "to", "creation"],
 		order_by="creation desc",
 		limit_page_length=LIMIT,
 	)
 	replied = replies(sent)
+	rows = timeline(sent, replied, days)
 
 	return {
 		**counts,
-		"replied": replied,
+		"replied": len(replied),
 		"sampled": len(sent),
 		"truncated": len(sent) >= LIMIT,
 		"days": days,
 		"delivered_rate": rate(counts["delivered"], counts["sent"]),
 		"read_rate": rate(counts["read"], counts["sent"]),
-		"replied_rate": rate(replied, len(sent)),
+		"replied_rate": rate(len(replied), len(sent)),
 		"failed_rate": rate(counts["failed"], counts["sent"]),
-		"series": series(sent, days),
+		"series": [row["sent"] for row in rows],
+		"timeline": rows,
 		"last_sent": last_sent(template),
 	}
 
@@ -125,15 +128,15 @@ def last_sent(template):
 	return rows[0].at if rows else None
 
 
-def series(rows, days):
-	if days and days <= DAILY_UP_TO:
-		return daily(rows, days)
-
-	return monthly(rows, days)
+def is_daily(days):
+	return bool(days and days <= DAILY_UP_TO)
 
 
-def monthly(rows, days):
+def buckets(rows, days):
 	today = getdate(now_datetime())
+	if is_daily(days):
+		return [add_days(today, offset - days + 1) for offset in range(days)]
+
 	if days:
 		months = 12
 	elif rows:
@@ -142,17 +145,37 @@ def monthly(rows, days):
 	else:
 		months = 1
 
-	counts = {}
-	for row in rows:
-		day = getdate(row.creation)
-		counts[(day.year, day.month)] = counts.get((day.year, day.month), 0) + 1
-
 	out = []
 	for offset in range(months - 1, -1, -1):
 		index = today.year * 12 + today.month - 1 - offset
-		out.append(counts.get((index // 12, index % 12 + 1), 0))
+		out.append(date(index // 12, index % 12 + 1, 1))
 
 	return out
+
+
+def timeline(rows, replied, days):
+	daily = is_daily(days)
+	out = {
+		start: {"date": start.isoformat(), "sent": 0, "delivered": 0, "read": 0, "replied": 0, "failed": 0}
+		for start in buckets(rows, days)
+	}
+	for row in rows:
+		day = getdate(row.creation)
+		bucket = out.get(day if daily else day.replace(day=1))
+		if not bucket:
+			continue
+		status = (row.status or "").lower()
+		bucket["sent"] += 1
+		if status in ("delivered", "read"):
+			bucket["delivered"] += 1
+		if status == "read":
+			bucket["read"] += 1
+		if status == "failed":
+			bucket["failed"] += 1
+		if row.name in replied:
+			bucket["replied"] += 1
+
+	return list(out.values())
 
 
 def key(contact, number):
@@ -161,7 +184,7 @@ def key(contact, number):
 
 def replies(sent):
 	if not sent:
-		return 0
+		return set()
 
 	contacts = list({row.whatsapp_contact for row in sent if row.whatsapp_contact})
 	numbers = list({digits(row.to) for row in sent if not row.whatsapp_contact and digits(row.to)})
@@ -190,7 +213,7 @@ def replies(sent):
 	for times in incoming.values():
 		times.sort()
 
-	count = 0
+	out = set()
 	for row in sent:
 		times = incoming.get(key(row.whatsapp_contact, row.to))
 		if not times:
@@ -198,16 +221,6 @@ def replies(sent):
 		at = get_datetime(row.creation)
 		index = bisect_right(times, at)
 		if index < len(times) and times[index] <= add_to_date(at, hours=24):
-			count += 1
+			out.add(row.name)
 
-	return count
-
-
-def daily(rows, days):
-	today = getdate(now_datetime())
-	counts = {}
-	for row in rows:
-		day = getdate(row.creation)
-		counts[day] = counts.get(day, 0) + 1
-
-	return [counts.get(add_days(today, offset - days + 1), 0) for offset in range(days)]
+	return out

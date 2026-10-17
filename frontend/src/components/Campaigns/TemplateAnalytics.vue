@@ -20,6 +20,19 @@
       <NumberCard :title="__('Failed')" :value="data ? data.failed : null" :loading="stats.loading && !data" />
     </div>
 
+    <LineChart
+      v-if="(stats.loading && !data) || data?.sent"
+      :title="__('Delivery over time')"
+      :data="data?.timeline || []"
+      x="date"
+      :y="['sent', 'delivered', 'read', 'replied', 'failed']"
+      :series-config="seriesConfig"
+      palette="categorical"
+      :loading="stats.loading && !data"
+      :x-axis="{ title: days && days <= 90 ? __('Day') : __('Month') }"
+      :y-axis="{ title: __('Messages') }"
+    />
+
     <div v-if="data && !data.sent && days" class="flex flex-wrap items-center justify-between gap-3 rounded-5 bg-surface-gray-1 px-4 py-3">
       <div class="flex min-w-0 items-center gap-2.5">
         <span class="lucide-calendar-search size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
@@ -46,7 +59,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { Button, ErrorMessage, TabButtons, createResource } from 'frappe-ui'
-import { NumberCard } from 'frappe-ui/charts'
+import { LineChart, NumberCard } from 'frappe-ui/charts'
 import { errorMessage, formatNumber, timeAgo } from '@/utils/format'
 import { translate as __ } from '@/translation'
 
@@ -63,6 +76,14 @@ const ranges = [
   { label: __('1 year'), value: 365 },
   { label: __('All time'), value: 0 },
 ]
+
+const seriesConfig = {
+  sent: { label: __('Sent') },
+  delivered: { label: __('Delivered') },
+  read: { label: __('Read') },
+  replied: { label: __('Replied') },
+  failed: { label: __('Failed'), lineType: 'dashed' },
+}
 
 const caption = computed(() => {
   if (!days.value) return __('All template messages sent, by month')

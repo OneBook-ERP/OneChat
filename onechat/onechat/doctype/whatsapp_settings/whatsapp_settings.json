@@ -10,6 +10,7 @@
   "default_outgoing_account",
   "whatsapp_settings_0_column_1",
   "default_team",
+  "default_country_code",
   "integrations_section",
   "disable_auto_link",
   "create_customer_on_win",
@@ -43,6 +44,12 @@
    "fieldtype": "Link",
    "label": "Default Team",
    "options": "OneChat Team"
+  },
+  {
+   "description": "Added in front of mobile numbers saved without one, e.g. 91 for India or 1 for the US",
+   "fieldname": "default_country_code",
+   "fieldtype": "Int",
+   "label": "Default Country Code"
   },
   {
    "fieldname": "integrations_section",
