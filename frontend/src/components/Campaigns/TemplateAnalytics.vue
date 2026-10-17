@@ -20,18 +20,19 @@
       <NumberCard :title="__('Failed')" :value="data ? data.failed : null" :loading="stats.loading && !data" />
     </div>
 
-    <LineChart
-      v-if="(stats.loading && !data) || data?.sent"
-      :title="__('Delivery over time')"
-      :data="data?.timeline || []"
-      x="date"
-      :y="['sent', 'delivered', 'read', 'replied', 'failed']"
-      :series-config="seriesConfig"
-      palette="categorical"
-      :loading="stats.loading && !data"
-      :x-axis="{ title: days && days <= 90 ? __('Day') : __('Month') }"
-      :y-axis="{ title: __('Messages') }"
-    />
+    <div v-if="(stats.loading && !data) || data?.sent" class="h-80 w-full">
+      <LineChart
+        :title="__('Delivery over time')"
+        :data="data?.timeline || []"
+        x="date"
+        :y="['sent', 'delivered', 'read', 'replied', 'failed']"
+        :series-config="seriesConfig"
+        palette="categorical"
+        :loading="stats.loading && !data"
+        :x-axis="{ title: days && days <= 90 ? __('Day') : __('Month') }"
+        :y-axis="{ title: __('Messages') }"
+      />
+    </div>
 
     <div v-if="data && !data.sent && days" class="flex flex-wrap items-center justify-between gap-3 rounded-5 bg-surface-gray-1 px-4 py-3">
       <div class="flex min-w-0 items-center gap-2.5">
