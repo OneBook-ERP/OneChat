@@ -1,5 +1,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestAutomationFlow(FrappeTestCase):
+class TestOneChatFlow(FrappeTestCase):
 	pass

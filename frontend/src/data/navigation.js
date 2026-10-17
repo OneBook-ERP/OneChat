@@ -94,7 +94,7 @@ export const SECTIONS = [
       {
         items: [
           { label: 'Notification rules', icon: 'lucide-bell-ring', to: { name: 'Rules' } },
-          { label: 'Flows', icon: 'lucide-git-fork', to: { name: 'Flows' }, doctype: 'Automation Flow' },
+          { label: 'Flows', icon: 'lucide-git-fork', to: { name: 'Flows' }, doctype: 'OneChat Flow' },
           { label: 'Auto replies', icon: 'lucide-message-square-reply', to: { name: 'AutoReplies' } },
         ],
       },

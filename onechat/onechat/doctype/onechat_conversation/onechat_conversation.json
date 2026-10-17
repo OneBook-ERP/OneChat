@@ -100,7 +100,7 @@
    "fieldname": "bot_flow",
    "fieldtype": "Link",
    "label": "Handled By Flow",
-   "options": "Automation Flow",
+   "options": "OneChat Flow",
    "read_only": 1
   },
   {

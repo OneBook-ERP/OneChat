@@ -269,7 +269,7 @@ def flow_events(contact, before, limit):
 	names = (
 		dict(
 			frappe.get_all(
-				"Automation Flow",
+				"OneChat Flow",
 				filters={"name": ["in", list(flows)]},
 				fields=["name", "flow_name"],
 				as_list=True,

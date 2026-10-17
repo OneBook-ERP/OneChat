@@ -18,7 +18,7 @@ from onechat.workspace.session import (
 	require_read,
 )
 
-FLOW = "Automation Flow"
+FLOW = "OneChat Flow"
 LOG = "Automation Execution Log"
 SESSION = "OneChat Flow Session"
 STEP = "Automation Execution Step"

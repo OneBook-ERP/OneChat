@@ -95,7 +95,7 @@ function kindOf(item) {
   if (item.type === 'Mention') return KINDS.mention
   if (item.type === 'Assignment') return KINDS.assigned
   if (item.document_type === 'OneChat Contact') return /overdue/i.test(item.subject) ? KINDS.overdue : KINDS.reminder
-  if (item.document_type === 'Automation Flow') return KINDS.flow
+  if (item.document_type === 'OneChat Flow') return KINDS.flow
   if (item.document_type === 'Bulk WhatsApp Message') return KINDS.broadcast
   if (item.document_type === 'OneChat Settings') return KINDS.budget
   if (item.document_type === 'Webhook') return KINDS.webhook
@@ -111,7 +111,7 @@ function open(item) {
   emit('close')
   const { document_type: doctype, document_name: name } = item
   if (doctype === 'OneChat Contact' && name) return router.push({ name: 'Inbox', params: { contact: name } })
-  if (doctype === 'Automation Flow' && name) return router.push({ name: 'FlowBuilder', params: { name } })
+  if (doctype === 'OneChat Flow' && name) return router.push({ name: 'FlowBuilder', params: { name } })
   if (doctype === 'Bulk WhatsApp Message') return router.push({ name: 'Broadcasts' })
   if (doctype === 'OneChat Settings') return router.push({ name: 'Insights', query: { tab: 'costs' } })
   if (doctype === 'Webhook') return ui.openSettings('developers')
