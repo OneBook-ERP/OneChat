@@ -1048,6 +1048,29 @@ def ensure_instagram_contact(message, instagram_id):
 	return contact.name
 
 
+def placeholder_name(name, instagram_id=None):
+	name = (name or "").strip()
+	if not name or name == instagram_id:
+		return True
+	# A name made only of digits and phone punctuation is the number standing in for one.
+	return bool(digits(name)) and not re.search(r"[^\d\s+().-]", name)
+
+
+def refresh_name(contact, profile_name):
+	profile_name = (profile_name or "").strip()
+	if not profile_name:
+		return
+
+	row = frappe.db.get_value(CONTACT, contact, ["contact_name", "instagram_id"], as_dict=True)
+	if not row or not placeholder_name(row.contact_name, row.instagram_id):
+		return
+
+	frappe.db.set_value(CONTACT, contact, "contact_name", profile_name)
+	from onechat.workspace.audit import track
+
+	track(CONTACT, contact, [("contact_name", row.contact_name, profile_name)])
+
+
 def outgoing_status():
 	settings = frappe.get_cached_doc("OneChat Settings")
 	value = settings.get("outgoing_new_status") if settings.meta.has_field("outgoing_new_status") else None
@@ -1062,6 +1085,9 @@ def on_message(doc, method=None):
 	)
 	if not contact:
 		return
+
+	if doc.type == "Incoming":
+		refresh_name(contact, doc.get("profile_name"))
 
 	from onechat.integrations import frappe_crm
 
