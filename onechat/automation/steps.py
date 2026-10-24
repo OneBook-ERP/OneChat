@@ -15,6 +15,7 @@ from onechat.automation.values import (
 )
 
 CONTACT = "OneChat Contact"
+MESSAGE = "OneChat Message"
 NOTE = "OneChat Note"
 BUTTON_LIMIT = 3
 LIST_LIMIT = 10
@@ -571,6 +572,7 @@ def create_record(run, node_id, config):
 		else:
 			action = "existing"
 		run.context.setdefault("records", {})[key] = plain(source.get_doc(doctype, existing))
+		link_chat(run, config, doctype, existing)
 		return Result(output={"name": existing, "action": action})
 
 	try:
@@ -591,7 +593,21 @@ def create_record(run, node_id, config):
 
 	doc = source.insert({"doctype": doctype, **values}, ignore_permissions=True)
 	run.context.setdefault("records", {})[key] = plain(doc)
+	link_chat(run, config, doctype, doc.get("name"))
 	return Result(output={"name": doc.get("name"), "action": "created"})
+
+
+def link_chat(run, config, doctype, name):
+	if not cint(config.get("link_contact")) or not run.contact or run.simulate:
+		return
+
+	from onechat.inbox.conversations import publish
+	from onechat.integrations import links
+
+	if links.owner(doctype):
+		integration = links.add(run.contact, doctype, name, main=True)
+		publish(run.contact)
+		run.context["contact"].setdefault("links", {})[integration] = {"doctype": doctype, "name": name}
 
 
 def existing_record(source, doctype, config, values):
@@ -694,6 +710,202 @@ def send_payment_link(run, node_id, config):
 	return Result(output={"document": name, "result": message})
 
 
+def keep_record(run, key, doctype, name):
+	run.context.setdefault("records", {})[key] = plain(records_of(doctype).get_doc(doctype, name))
+
+
+def filled_values(run, config, key):
+	from onechat.automation.safety import empty
+
+	values = {field: resolve(value, run.context) for field, value in (config.get(key) or {}).items() if field}
+	return {field: value for field, value in values.items() if not empty(value)}
+
+
+def create_sales_order(run, node_id, config):
+	key = config.get("save_as") or "order"
+	order = run.context.get("order") or {}
+	if not run.effect(_("Create a Sales Order for this WhatsApp order")):
+		run.context.setdefault("records", {})[key] = {"name": _("(test)"), "grand_total": order.get("total")}
+		return Result(handle="done")
+
+	if not order.get("message"):
+		frappe.throw(_("Start this flow with Customer places an order to create its Sales Order."))
+
+	from onechat.integrations import erpnext_commerce as commerce
+
+	if not commerce.enabled():
+		frappe.throw(_("Connect ERPNext in Settings → Integrations first."))
+
+	message = frappe.get_doc(MESSAGE, order["message"])
+	submit = cint(config.get("submit"))
+	name = commerce.order_of(message)
+	if not name:
+		with commerce.elevated():
+			name = commerce.create_sales_order(
+				message,
+				extra=filled_values(run, config, "fields"),
+				item_extra=filled_values(run, config, "item_fields"),
+				submit=submit,
+				days=config.get("delivery_days"),
+			)
+		if not name:
+			return Result(handle="no_items", output={"unknown": order.get("unknown")})
+		commerce.mark_order(message, name, submitted=submit)
+
+	keep_record(run, key, "Sales Order", name)
+	return Result(handle="done", output={"name": name, "unknown": order.get("unknown")})
+
+
+MAKERS = {
+	("Quotation", "Sales Order"): "erpnext.selling.doctype.quotation.quotation.make_sales_order",
+	("Sales Order", "Sales Invoice"): "erpnext.selling.doctype.sales_order.sales_order.make_sales_invoice",
+	("Sales Order", "Delivery Note"): "erpnext.selling.doctype.sales_order.sales_order.make_delivery_note",
+	(
+		"Delivery Note",
+		"Sales Invoice",
+	): "erpnext.stock.doctype.delivery_note.delivery_note.make_sales_invoice",
+}
+
+
+def make_record(run, node_id, config):
+	source_doctype, target = config.get("from_doctype") or "Sales Order", config.get("doctype")
+	name = as_text(resolve(config.get("name"), run.context)).strip()
+	method = MAKERS.get((source_doctype, target))
+	if not method:
+		frappe.throw(_("A {0} cannot be made from a {1}.").format(_(target or ""), _(source_doctype)))
+	if not name:
+		frappe.throw(_("Pick the {0} to make it from.").format(_(source_doctype)))
+
+	key = config.get("save_as") or "invoice"
+	submit = cint(config.get("submit"))
+	if not run.effect(_("Make a {0} from {1} {2}").format(_(target), _(source_doctype), name)):
+		run.context.setdefault("records", {})[key] = {"name": _("(test)")}
+		return Result(handle="done")
+
+	from onechat.integrations.erpnext_commerce import elevated
+
+	source = records_of(target)
+	values = record_values(run, config)
+	with elevated():
+		if source.remote:
+			doc = source.call(method, source_name=name)
+			doc.update(values)
+			doc = source.insert(doc)
+			if submit:
+				doc = source.submit(doc)
+		else:
+			doc = frappe.get_attr(method)(name)
+			doc.update(values)
+			doc.insert(ignore_permissions=True)
+			if submit:
+				doc.submit()
+
+	keep_record(run, key, target, doc.get("name"))
+	return Result(handle="done", output={"name": doc.get("name")})
+
+
+def change_status(source, doc, cancel):
+	if source.remote and cancel:
+		source.call("frappe.client.cancel", doctype=doc.doctype, name=doc.name)
+	elif source.remote:
+		source.submit(doc)
+	else:
+		record = frappe.get_doc(doc.doctype, doc.name)
+		record.flags.ignore_permissions = True
+		if cancel:
+			record.cancel()
+		else:
+			record.submit()
+
+
+def submit_record(run, node_id, config):
+	doctype = config.get("doctype")
+	name = as_text(resolve(config.get("name"), run.context)).strip()
+	cancel = config.get("action") == "cancel"
+	if not doctype or not name:
+		frappe.throw(_("Pick the record to submit or cancel."))
+	label = _("Cancel {0} {1}") if cancel else _("Submit {0} {1}")
+	if not run.effect(label.format(_(doctype), name)):
+		return Result(handle="done")
+
+	from onechat.integrations.erpnext_commerce import elevated
+
+	source = records_of(doctype)
+	with elevated():
+		doc = source.get_doc(doctype, name)
+		status = cint(doc.get("docstatus"))
+		draft = cancel and status == 0
+		if draft and source.remote:
+			source.call("frappe.client.delete", doctype=doctype, name=name)
+		elif draft:
+			frappe.delete_doc(doctype, name, ignore_permissions=True)
+		elif status != (2 if cancel else 1):
+			change_status(source, doc, cancel)
+
+	action = "delete" if draft else "cancel" if cancel else "submit"
+	if config.get("save_as") and not draft:
+		keep_record(run, config["save_as"], doctype, name)
+	return Result(handle="done", output={"name": name, "action": action})
+
+
+ADDRESS_FIELDS = {
+	"Shipping": ("shipping_address_name", "shipping_address"),
+	"Billing": ("customer_address", "address_display"),
+}
+
+
+def save_address(run, node_id, config):
+	kind = config.get("address_type") or "Shipping"
+	values = record_values(run, config)
+	key = config.get("save_as") or "address"
+	if not run.effect(_("Save the customer's {0} address").format(_(kind).lower())):
+		run.context.setdefault("records", {})[key] = {"name": _("(test)"), **values}
+		return Result(handle="done")
+	if not run.contact:
+		frappe.throw(_("This flow has no customer to save the address for."))
+
+	from onechat.automation import safety
+	from onechat.integrations import erpnext_commerce as commerce
+
+	source = records_of("Address")
+	customer = commerce.customer_for(frappe.get_doc(CONTACT, run.contact))
+	values.setdefault("country", source.single_value("System Settings", "country"))
+	values.setdefault("phone", (run.context.get("contact") or {}).get("mobile_no"))
+	values.setdefault("is_shipping_address" if kind == "Shipping" else "is_primary_address", 1)
+	values = {
+		"address_title": customer,
+		"address_type": kind,
+		**{field: value for field, value in values.items() if not safety.empty(value)},
+	}
+	fields = safety.fields_of("Address", source)
+	missing = safety.missing_required(fields, values)
+	if missing:
+		frappe.throw(
+			_("The address needs {0}. Map them in this step.").format(
+				", ".join(safety.label_of(fields, name) for name in missing)
+			)
+		)
+
+	with commerce.elevated():
+		address = source.insert(
+			{"doctype": "Address", **values, "links": [{"link_doctype": "Customer", "link_name": customer}]},
+			ignore_permissions=True,
+		)
+		document = as_text(resolve(config.get("document"), run.context)).strip()
+		if document:
+			doctype = config.get("doctype") or "Sales Order"
+			name_field, display_field = ADDRESS_FIELDS.get(kind, ADDRESS_FIELDS["Shipping"])
+			display = records_of(doctype).call(
+				"frappe.contacts.doctype.address.address.get_address_display", address_dict=address.name
+			)
+			records_of(doctype).update(
+				doctype, document, {name_field: address.name, display_field: display}, ignore_permissions=True
+			)
+
+	run.context.setdefault("records", {})[key] = plain(address)
+	return Result(handle="done", output={"name": address.name, "customer": customer})
+
+
 STEPS = {
 	"message_received": trigger,
 	"button_clicked": trigger,
@@ -731,6 +943,10 @@ STEPS = {
 	"update_record": update_record,
 	"send_to_records": send_to_records,
 	"send_payment_link": send_payment_link,
+	"create_sales_order": create_sales_order,
+	"make_record": make_record,
+	"submit_record": submit_record,
+	"save_address": save_address,
 }
 
 RESUME = {

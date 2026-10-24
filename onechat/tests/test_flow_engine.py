@@ -127,6 +127,34 @@ class TestSimulation(UnitTestCase):
 		self.assertEqual(result["messages"], [{"from": "system", "text": "Add the label VIP"}])
 		self.assertTrue(result["done"])
 
+	def test_order_flow_sees_the_order_and_routes_on_the_result(self):
+		graph = {
+			"nodes": [
+				node("start", "order_placed"),
+				node("order", "create_sales_order", save_as="order"),
+				node("ok", "send_message", text="{{order.count}} items, total {{records.order.grand_total}}"),
+				node("none", "send_message", text="No items"),
+				node("submit", "submit_record", doctype="Sales Order", name="{{records.order.name}}"),
+			],
+			"edges": [
+				edge("start", "order"),
+				edge("order", "ok", "done"),
+				edge("order", "none", "no_items"),
+				edge("ok", "submit"),
+			],
+		}
+		result = engine.simulate(json.dumps(graph))
+
+		self.assertEqual(
+			self.texts(result),
+			[
+				"Create a Sales Order for this WhatsApp order",
+				"2 items, total 900",
+				"Submit Sales Order (test)",
+			],
+		)
+		self.assertTrue(result["done"])
+
 
 class TestSchedule(UnitTestCase):
 	def test_cron_from_friendly_settings(self):

@@ -228,6 +228,98 @@ export const RECIPES = [
     },
   },
   {
+    key: 'catalog_order',
+    title: 'Catalog order to ERPNext',
+    description:
+      'Check the customer, sign up new ones, create a draft Sales Order, ask them to confirm, submit it and collect payment or cash on delivery.',
+    icon: 'lucide-shopping-cart',
+    category: 'Sales',
+    needs: 'ERPNext',
+    build: () => {
+      const nodes = [
+        step('start', 'order_placed'),
+        step('known', 'condition', {
+          rules: { match: 'all', rules: [{ field: '{{contact.links.erpnext.doctype}}', operator: 'equals', value: 'Customer' }] },
+        }),
+        step('name', 'ask_question', {
+          text: 'Thanks for your order! You are new here, so may I have your full name?',
+          save_as: 'full_name',
+        }),
+        step('email', 'ask_question', {
+          text: 'Thanks {{answers.full_name}}! What is your email address?',
+          answer_type: 'email',
+          save_as: 'email',
+          error_text: 'That does not look like an email address, please send it again.',
+        }),
+        step('address', 'ask_question', { text: 'Where should we deliver? Please send the full address.', save_as: 'address' }),
+        step('city', 'ask_question', { text: 'Which city?', save_as: 'city' }),
+        step('pincode', 'ask_question', { text: 'And the PIN code?', answer_type: 'number', save_as: 'pincode' }),
+        step('customer', 'create_record', {
+          doctype: 'Customer',
+          fields: {
+            customer_name: '{{answers.full_name}}',
+            customer_type: 'Individual',
+            email_id: '{{answers.email}}',
+            mobile_no: '{{phone}}',
+          },
+          if_exists: 'create',
+          save_as: 'customer',
+          link_contact: true,
+        }),
+        step('save', 'save_address', {
+          fields: { address_line1: '{{answers.address}}', city: '{{answers.city}}', pincode: '{{answers.pincode}}' },
+        }),
+        step('order', 'create_sales_order', { save_as: 'order' }),
+        step('confirm', 'send_buttons', {
+          text: 'Here is your order {{records.order.name}}:\n\n{{order.summary}}\n\nTotal: {{records.order.grand_total}}\n\nShall we confirm it?',
+          buttons: [option('yes', 'Confirm order'), option('no', 'Cancel')],
+          timeout: 24,
+        }),
+        step('submit', 'submit_record', { doctype: 'Sales Order', name: '{{records.order.name}}', save_as: 'order' }),
+        step('pay', 'send_buttons', {
+          text: 'Order {{records.order.name}} is confirmed ✅ How would you like to pay?',
+          buttons: [option('online', 'Pay now'), option('cod', 'Cash on delivery')],
+        }),
+        step('invoice', 'make_record', {
+          from_doctype: 'Sales Order',
+          doctype: 'Sales Invoice',
+          name: '{{records.order.name}}',
+          submit: true,
+        }),
+        step('link', 'send_payment_link', { doctype: 'Sales Invoice', document: '{{records.invoice.name}}' }),
+        step('cod', 'send_message', { text: 'Great, please keep {{records.order.grand_total}} ready at delivery. Thank you!' }),
+        step('cancel', 'submit_record', { action: 'cancel', doctype: 'Sales Order', name: '{{records.order.name}}' }),
+        step('cancelled', 'send_message', { text: 'No problem, your order has been cancelled.' }),
+        step('human', 'handover', { text: 'Thanks for your order! Our team will confirm it with you shortly.', mode: 'round_robin' }),
+      ]
+      const edges = [
+        link('start', 'known'),
+        link('known', 'order', 'true'),
+        link('known', 'name', 'false'),
+        link('name', 'email', 'answered'),
+        link('email', 'address', 'answered'),
+        link('address', 'city', 'answered'),
+        link('city', 'pincode', 'answered'),
+        link('pincode', 'customer', 'answered'),
+        link('customer', 'save', 'done'),
+        link('customer', 'human', 'error'),
+        link('save', 'order', 'done'),
+        link('order', 'confirm', 'done'),
+        link('order', 'human', 'no_items'),
+        link('order', 'human', 'error'),
+        link('confirm', 'submit', 'yes'),
+        link('confirm', 'cancel', 'no'),
+        link('confirm', 'cancel', 'no_reply'),
+        link('submit', 'pay', 'done'),
+        link('pay', 'invoice', 'online'),
+        link('invoice', 'link', 'done'),
+        link('pay', 'cod', 'cod'),
+        link('cancel', 'cancelled', 'done'),
+      ]
+      return flow(layout(nodes, edges))
+    },
+  },
+  {
     key: 'payment_reminder',
     title: 'Payment reminders',
     description: 'Every morning, send a reminder template to customers with overdue invoices.',

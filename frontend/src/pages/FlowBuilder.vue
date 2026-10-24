@@ -341,7 +341,28 @@ const testing = ref(false)
 const recipesOpen = ref(false)
 const docFields = ref([])
 const recordFields = ref({})
-const RECORD_STEPS = ['find_record', 'create_record']
+const RECORD_STEPS = ['find_record', 'create_record', 'create_sales_order', 'make_record', 'save_address']
+const SAVED_RECORDS = {
+  find_record: { key: 'record', group: 'Found' },
+  create_record: { key: 'created', group: 'Created' },
+  create_sales_order: { key: 'order', group: 'Created', doctype: 'Sales Order' },
+  make_record: { key: 'invoice', group: 'Made' },
+  save_address: { key: 'address', group: 'Saved', doctype: 'Address' },
+}
+const ORDER_VARIABLES = [
+  { group: 'Order', label: 'Items (one per line)', token: '{{order.summary}}' },
+  { group: 'Order', label: 'Total', token: '{{order.total}}' },
+  { group: 'Order', label: 'Number of items', token: '{{order.count}}' },
+  { group: 'Order', label: 'Total quantity', token: '{{order.quantity}}' },
+  { group: 'Order', label: 'Currency', token: '{{order.currency}}' },
+  { group: 'Order', label: 'Customer note', token: '{{order.note}}' },
+  { group: 'Order', label: 'Items not in ERPNext', token: '{{order.unknown}}' },
+]
+
+function savedRecord(type, config) {
+  const saved = SAVED_RECORDS[type]
+  return { key: config.save_as || saved.key, group: saved.group, doctype: saved.doctype || config.doctype }
+}
 
 const BASE_VARIABLES = [
   { group: 'Customer', label: 'Name', token: '{{name}}' },
@@ -350,11 +371,13 @@ const BASE_VARIABLES = [
   { group: 'Customer', label: 'Email', token: '{{email}}' },
   { group: 'Customer', label: 'Their last reply', token: '{{last_reply}}' },
   { group: 'Customer', label: 'Linked ERPNext record', token: '{{contact.links.erpnext.name}}' },
+  { group: 'Customer', label: 'Linked ERPNext record type', token: '{{contact.links.erpnext.doctype}}' },
   { group: 'Customer', label: 'Linked CRM record', token: '{{contact.links.crm.name}}' },
 ]
 
 const variables = computed(() => {
   const list = [...BASE_VARIABLES]
+  if (triggerNode.value?.data?.nodeType === 'order_placed') list.push(...ORDER_VARIABLES)
   for (const node of nodes.value) {
     const type = node.data?.nodeType
     const config = node.data?.config || {}
@@ -362,10 +385,10 @@ const variables = computed(() => {
       list.push({ group: 'Their answers', label: config.save_as.replace(/_/g, ' '), token: `{{answers.${config.save_as}}}` })
     }
     if (RECORD_STEPS.includes(type)) {
-      const key = config.save_as || (type === 'find_record' ? 'record' : 'created')
-      const group = `${type === 'find_record' ? 'Found' : 'Created'} ${config.doctype || key}`
+      const { key, doctype, group: verb } = savedRecord(type, config)
+      const group = `${verb} ${doctype || key}`
       list.push({ group, label: 'ID', token: `{{records.${key}.name}}` })
-      for (const field of recordFields.value[config.doctype] || []) {
+      for (const field of recordFields.value[doctype] || []) {
         if (NO_VALUE_TYPES.includes(field.fieldtype) || field.fieldname === 'name') continue
         list.push({ group, label: field.label || field.fieldname, token: `{{records.${key}.${field.fieldname}}}` })
       }
@@ -387,7 +410,7 @@ watch(
       ...new Set(
         nodes.value
           .filter((node) => RECORD_STEPS.includes(node.data?.nodeType))
-          .map((node) => node.data?.config?.doctype)
+          .map((node) => savedRecord(node.data.nodeType, node.data.config || {}).doctype)
           .filter(Boolean),
       ),
     ].join('|'),

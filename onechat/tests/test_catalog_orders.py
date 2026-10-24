@@ -101,6 +101,67 @@ class TestCreateSalesOrder(UnitTestCase):
 		self.assertEqual(name, "SAL-ORD-R-0001")
 		self.assertEqual(source.insert.call_args.args[0]["po_no"], "wamid.order-1")
 
+	def test_flow_values_delivery_days_and_submit(self):
+		saved = MagicMock()
+		saved.name = "SAL-ORD-T-0002"
+		captured = {}
+
+		def fake_get_doc(*args, **kwargs):
+			captured.update(args[0])
+			return saved
+
+		source = MagicMock(remote=False)
+		source.exists.return_value = True
+		with (
+			patch.object(erpnext_commerce.ERP, "source", return_value=source),
+			patch.object(erpnext_commerce, "item_names", return_value={"CHAIR": "Chair"}),
+			patch.object(erpnext_commerce, "customer_for", return_value="Leo Daniel A"),
+			patch.object(erpnext_commerce, "gst_rates", return_value={}),
+			patch.object(erpnext_commerce, "price_list_for", return_value=None),
+			patch.object(erpnext_commerce, "company", return_value="OneBook"),
+			patch.object(frappe, "get_doc", side_effect=fake_get_doc),
+		):
+			erpnext_commerce.create_sales_order(
+				order_message(), extra={"order_type": "Shopping Cart"}, submit=True, days=2
+			)
+
+		self.assertEqual(captured["order_type"], "Shopping Cart")
+		self.assertEqual(captured["delivery_date"], frappe.utils.add_days(frappe.utils.nowdate(), 2))
+		saved.submit.assert_called_once()
+
+	def test_order_handled_by_a_flow_is_left_to_it(self):
+		message = order_message(flags=frappe._dict(onechat_order_flow=True))
+		with (
+			patch.object(erpnext_commerce, "enabled", return_value=True),
+			patch.object(erpnext_commerce, "create_sales_order") as create,
+		):
+			erpnext_commerce.handle_order(message)
+
+		create.assert_not_called()
+
+	def test_order_details_name_items_and_total(self):
+		with patch.object(erpnext_commerce, "item_names", return_value={"CHAIR": "Chair", "TABLE": "Table"}):
+			details = erpnext_commerce.order_details(ORDER)
+
+		self.assertEqual(details["count"], 3)
+		self.assertEqual(details["total"], 2 * 1180 + 500 + 10)
+		self.assertEqual(details["items"][0]["item_name"], "Chair")
+		self.assertEqual(details["unknown"], ["GHOST"])
+
+	def test_long_orders_keep_the_summary_short(self):
+		rows = [
+			{"product_retailer_id": f"ITEM-{index}", "quantity": 1, "item_price": 10, "currency": "INR"}
+			for index in range(30)
+		]
+		names = {f"ITEM-{index}": "A very long product name " * 4 for index in range(30)}
+		with patch.object(erpnext_commerce, "item_names", return_value=names):
+			details = erpnext_commerce.order_details({"product_items": rows})
+
+		lines = details["summary"].split("\n")
+		self.assertEqual(len(lines), erpnext_commerce.SUMMARY_ITEMS + 1)
+		self.assertEqual(lines[-1], "+ 18 more items")
+		self.assertLess(len(details["summary"]), 800)
+
 
 class TestOrderHelpers(UnitTestCase):
 	def test_lines_ignore_bad_json_and_blank_items(self):

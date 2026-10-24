@@ -1,5 +1,6 @@
 import json
 import time
+from contextlib import contextmanager
 
 import frappe
 import requests
@@ -25,6 +26,8 @@ from onechat.workspace.session import is_admin
 
 ACCOUNT = "OneChat Account"
 MAX_PRODUCTS = 30
+SUMMARY_ITEMS = 12
+NAME_LIMIT = 40
 DELIVERY_DAYS = 7
 BATCH_SIZE = 1000
 OPEN_REQUESTS = ["Requested", "Initiated", "Partially Paid"]
@@ -966,20 +969,56 @@ def order_cards(messages):
 	return cards
 
 
-def order_summary(order):
+def order_details(order):
 	rows = (order or {}).get("product_items") or []
 	names = item_names([row.get("product_retailer_id") for row in rows if row.get("product_retailer_id")])
-	lines = [_("New order ({0} items)").format(len(rows))]
-	total, currency = 0, None
+	items, total, currency = [], 0, None
 	for row in rows:
-		qty, price = flt(row.get("quantity")), flt(row.get("item_price"))
+		qty, price = flt(row.get("quantity")) or 1, flt(row.get("item_price"))
 		currency = row.get("currency") or currency
 		total += qty * price
 		code = row.get("product_retailer_id")
-		lines.append(f"{qty:g} × {names.get(code) or code} · {fmt_money(price, currency=currency)}")
-	lines.append(_("Total: {0}").format(fmt_money(total, currency=currency)))
-	if (order or {}).get("text"):
-		lines.append(_("Note: {0}").format(order["text"]))
+		items.append(
+			{
+				"item_code": code,
+				"item_name": names.get(code) or code,
+				"known": code in names,
+				"qty": qty,
+				"rate": price,
+				"amount": qty * price,
+			}
+		)
+
+	lines = [item_line(row, currency, NAME_LIMIT) for row in items[:SUMMARY_ITEMS]]
+	if len(items) > SUMMARY_ITEMS:
+		lines.append(_("+ {0} more items").format(len(items) - SUMMARY_ITEMS))
+	return {
+		"items": items,
+		"summary": "\n".join(lines),
+		"count": len(items),
+		"quantity": sum(row["qty"] for row in items),
+		"total": total,
+		"currency": currency,
+		"note": (order or {}).get("text") or "",
+		"unknown": [row["item_code"] for row in items if names and not row["known"]],
+	}
+
+
+def item_line(row, currency, limit=None):
+	name = row["item_name"] or ""
+	if limit and len(name) > limit:
+		name = name[: limit - 1] + "…"
+	return f"{row['qty']:g} × {name} · {fmt_money(row['rate'], currency=currency)}"
+
+
+def order_summary(order):
+	details = order_details(order)
+	currency = details["currency"]
+	lines = [_("New order ({0} items)").format(details["count"])]
+	lines += [item_line(row, currency) for row in details["items"]]
+	lines.append(_("Total: {0}").format(fmt_money(details["total"], currency=currency)))
+	if details["note"]:
+		lines.append(_("Note: {0}").format(details["note"]))
 
 	return "\n".join(lines)
 
@@ -1006,7 +1045,7 @@ def customer_for(contact):
 	return name
 
 
-def create_sales_order(message):
+def create_sales_order(message, extra=None, submit=False, days=None, item_extra=None):
 	order = frappe.parse_json(message.products or "{}") or {}
 	source = ERP.source()
 	codes = [
@@ -1024,7 +1063,7 @@ def create_sales_order(message):
 	currency = next((row.get("currency") for row in rows if row.get("currency")), None)
 	gst = gst_rates(message.whatsapp_account, [row["product_retailer_id"] for row in rows])
 	price_list = price_list_for(message.whatsapp_account)
-	delivery = add_days(nowdate(), DELIVERY_DAYS)
+	delivery = add_days(nowdate(), DELIVERY_DAYS if days in (None, "") else cint(days))
 	values = frappe._dict(
 		{
 			"doctype": "Sales Order",
@@ -1044,6 +1083,7 @@ def create_sales_order(message):
 						2,
 					),
 					"delivery_date": delivery,
+					**(item_extra or {}),
 				}
 				for row in rows
 			],
@@ -1053,40 +1093,60 @@ def create_sales_order(message):
 		values.currency = currency
 	if price_list:
 		values.selling_price_list = price_list
+	values.update(extra or {})
 	if source.remote:
-		return source.insert(values).name
+		doc = source.insert(values)
+		return source.submit(doc).name if submit else doc.name
 
 	so = frappe.get_doc(values)
 	so.set_missing_values()
 	so.insert(ignore_permissions=True)
+	if submit:
+		so.submit()
 
 	return so.name
 
 
+def order_of(message):
+	if not message.get("message_id"):
+		return None
+	return ERP.source().get_value("Sales Order", {"po_no": message.message_id, "docstatus": ["<", 2]}, "name")
+
+
+@contextmanager
+def elevated():
+	user = frappe.session.user
+	if not ERP.is_remote():
+		frappe.set_user("Administrator")
+	try:
+		yield
+	finally:
+		frappe.set_user(user)
+
+
+def mark_order(message, order, submitted=False):
+	label = _("Sales Order {0} created") if submitted else _("Draft Sales Order {0} created")
+	text = "\n".join([message.message or "", label.format(order)])
+	frappe.db.set_value(MESSAGE, message.name, "message", text, update_modified=False)
+	if message.get("whatsapp_contact"):
+		publish(message.whatsapp_contact, message.name)
+
+
 def handle_order(message):
-	if not enabled():
+	if not enabled() or (message.get("flags") or {}).get("onechat_order_flow"):
 		return
 
-	user = frappe.session.user
 	frappe.db.savepoint("onechat_order")
 	try:
-		if not ERP.is_remote():
-			frappe.set_user("Administrator")
-		order = create_sales_order(message)
+		with elevated():
+			order = create_sales_order(message)
 	except Exception:
 		frappe.db.rollback(save_point="onechat_order")
 		frappe.log_error(title="OneChat WhatsApp order")
 		return
-	finally:
-		frappe.set_user(user)
 
-	if not order:
-		return
-
-	text = "\n".join([message.message or "", _("Draft Sales Order {0} created").format(order)])
-	frappe.db.set_value(MESSAGE, message.name, "message", text, update_modified=False)
-	if message.get("whatsapp_contact"):
-		publish(message.whatsapp_contact, message.name)
+	if order:
+		mark_order(message, order)
 
 
 def can_request_payment(contact, doctype, name):
