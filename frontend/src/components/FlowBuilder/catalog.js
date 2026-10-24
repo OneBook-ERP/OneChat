@@ -325,6 +325,16 @@ export const CATALOG = [
     fields: [
       { key: 'text', label: 'Message', type: 'message', placeholder: 'Hi {{first_name}}, thanks for reaching out!' },
       { key: 'attach', label: 'Attachment', type: 'file' },
+      { section: 'More' },
+      {
+        key: 'to',
+        label: 'Send to another number',
+        type: 'message',
+        compact: true,
+        placeholder: '919876543210',
+        description:
+          'Leave empty to reply in this chat. Plain messages only reach a number that wrote to you in the last 24 hours, so use Send template for alerts.',
+      },
     ],
     required: (config) => (config.text || config.attach ? [] : ['text']),
   },
@@ -423,8 +433,17 @@ export const CATALOG = [
     fields: [
       { key: 'template', label: 'Template', type: 'template', required: true },
       { key: 'parameters', label: 'Values', type: 'template_params', templateKey: 'template' },
+      { section: 'More' },
+      {
+        key: 'to',
+        label: 'Send to another number',
+        type: 'message',
+        compact: true,
+        placeholder: '919876543210',
+        description: 'Leave empty to send to this chat. Use it for alerts to an owner or a team number.',
+      },
     ],
-    summary: (config) => config.template,
+    summary: (config) => (config.to ? `${config.template || ''} → ${config.to}` : config.template),
   },
   {
     type: 'send_form',
@@ -660,6 +679,48 @@ export const CATALOG = [
       },
     ],
     summary: (config) => (config.mode === 'business_hours' ? 'Until business hours' : `${config.duration || 0} ${config.unit || 'hours'}`),
+  },
+  {
+    type: 'summarize_list',
+    label: 'Build a summary',
+    description: 'One line per record, with count and total',
+    icon: 'lucide-list-collapse',
+    color: 'amber',
+    category: 'logic',
+    hint: 'Use it after Find records. The result is {{vars.NAME.text}}, {{vars.NAME.count}} and {{vars.NAME.total}}. Template values cannot hold line breaks, so pick a separator other than New line when sending a template.',
+    fields: [
+      { key: 'list', label: 'List', type: 'message', compact: true, required: true, placeholder: '{{records.list}}' },
+      {
+        key: 'line',
+        label: 'Line for each record',
+        type: 'message',
+        compact: true,
+        required: true,
+        placeholder: '{{row.customer_name}}: {{row.outstanding_amount}} ({{row.name}})',
+        description: 'Use {{row.field}} for the current record.',
+      },
+      {
+        key: 'separator',
+        label: 'Join lines with',
+        type: 'select',
+        default: 'newline',
+        options: [
+          { label: 'New line', value: 'newline' },
+          { label: 'Semicolon', value: 'semicolon' },
+          { label: 'Comma', value: 'comma' },
+          { label: 'Dot (·)', value: 'dot' },
+        ],
+      },
+      { key: 'total_field', label: 'Add up', type: 'text', placeholder: 'outstanding_amount', description: 'A number field to total.' },
+      { key: 'limit', label: 'At most', type: 'number', default: 20, description: 'Extra records are counted as "+ N more".' },
+      { key: 'empty_text', label: 'If the list is empty, say', type: 'text', placeholder: 'Nothing outstanding today 🎉' },
+      { key: 'save_as', label: 'Save it as', type: 'variable', default: 'summary', placeholder: 'summary' },
+    ],
+    outputs: [
+      { id: 'found', label: 'Has records' },
+      { id: 'empty', label: 'Empty', muted: true },
+    ],
+    summary: (config) => config.list,
   },
   {
     type: 'end',
@@ -950,7 +1011,15 @@ export const CATALOG = [
     hint: 'Use {{record.field_name}} in the values for each record. Opted-out contacts are skipped for marketing templates.',
     fields: [
       { key: 'doctype', label: 'Records', type: 'doctype', required: true },
-      { key: 'filters', label: 'Where', type: 'keyvalue', doctypeKey: 'doctype' },
+      {
+        key: 'filters',
+        label: 'Where',
+        type: 'keyvalue',
+        doctypeKey: 'doctype',
+        prefilled: true,
+        valuePlaceholder: '> 0',
+        description: 'A value can start with >, <, >=, <=, !=, in, not in, like, or be "is set" / "is not set".',
+      },
       { key: 'phone_field', label: 'Phone field', type: 'field', doctypeKey: 'doctype', required: true },
       { key: 'template', label: 'Template', type: 'template', required: true },
       { key: 'parameters', label: 'Values', type: 'template_params', templateKey: 'template', scope: 'record' },
@@ -1054,7 +1123,15 @@ export const CATALOG = [
     hint: 'The records are available as {{records.NAME}}, a list you can use in Create a record table rows.',
     fields: [
       { key: 'doctype', label: 'Find', type: 'doctype', required: true },
-      { key: 'filters', label: 'Where', type: 'keyvalue', doctypeKey: 'doctype', prefilled: true },
+      {
+        key: 'filters',
+        label: 'Where',
+        type: 'keyvalue',
+        doctypeKey: 'doctype',
+        prefilled: true,
+        valuePlaceholder: '> 0',
+        description: 'A value can start with >, <, >=, <=, !=, in, not in, like, or be "is set" / "is not set".',
+      },
       {
         key: 'fields',
         label: 'Fields',

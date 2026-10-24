@@ -187,6 +187,55 @@ class TestAdvancedSteps(UnitTestCase):
 		self.assertEqual(steps.addresses("a@x.com, b@x.com;c@x.com"), ["a@x.com", "b@x.com", "c@x.com"])
 
 
+class TestSummaries(UnitTestCase):
+	def test_filter_values_understand_operators(self):
+		self.assertEqual(steps.filter_value("> 0"), [">", "0"])
+		self.assertEqual(steps.filter_value("!= Paid"), ["!=", "Paid"])
+		self.assertEqual(steps.filter_value("in Overdue, Unpaid"), ["in", ["Overdue", "Unpaid"]])
+		self.assertEqual(steps.filter_value("like %acme%"), ["like", "%acme%"])
+		self.assertEqual(steps.filter_value("is not set"), ["is", "not set"])
+		self.assertEqual(steps.filter_value("Paid"), "Paid")
+		self.assertEqual(steps.filter_value(5), 5)
+
+	def test_summary_lines_count_total_and_overflow(self):
+		rows = [{"name": f"INV-{n}", "customer_name": "Acme", "outstanding_amount": 100} for n in range(4)]
+		graph = {
+			"nodes": [
+				node("start", "manual_trigger"),
+				node(
+					"sum",
+					"summarize_list",
+					list="{{records.unpaid}}",
+					line="{{row.customer_name}} {{row.outstanding_amount}} ({{row.name}})",
+					separator="semicolon",
+					total_field="outstanding_amount",
+					limit=2,
+				),
+				node(
+					"say",
+					"send_message",
+					text="{{vars.summary.count}} unpaid, {{vars.summary.total}}: {{vars.summary.text}}",
+				),
+			],
+			"edges": [edge("start", "sum"), edge("sum", "say", "found")],
+		}
+		context = {
+			"records": {"unpaid": rows},
+			"contact": {"first_name": "T", "mobile_no": "1"},
+			"answers": {},
+			"vars": {},
+		}
+		run = engine.Run(frappe._dict(name="t"), engine.Graph(json.dumps(graph)), context, simulate=True)
+		run.execute(["start"])
+
+		self.assertEqual(
+			run.outbox[-1]["text"], "4 unpaid, 400: Acme 100 (INV-0); Acme 100 (INV-1); + 2 more"
+		)
+
+	def test_template_values_have_no_line_breaks(self):
+		self.assertEqual(steps.param_text("a\n b\n\nc"), "a · b · c")
+
+
 class TestTableRows(UnitTestCase):
 	def rows(self, context, **config):
 		return steps.table_rows(frappe._dict(context=context), {"rows_field": "items", **config})

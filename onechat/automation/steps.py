@@ -3,7 +3,7 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import cint, now_datetime, strip_html, time_diff_in_seconds
+from frappe.utils import cint, flt, now_datetime, strip_html, time_diff_in_seconds
 
 from onechat.automation.values import (
 	as_text,
@@ -86,17 +86,39 @@ def trigger(run, node_id, config):
 	return Result()
 
 
+def other_number(run, config):
+	from onechat.integrations.phone import frappe_phone
+
+	raw = as_text(resolve(config.get("to"), run.context)).strip()
+	if not raw:
+		return None
+	digits = re.sub(r"\D", "", frappe_phone(raw))
+	if len(digits) < 7:
+		frappe.throw(_("{0} is not a phone number.").format(raw))
+	return digits
+
+
+def deliver(run, config, **values):
+	to = other_number(run, config)
+	if not to:
+		return run.send(**values)
+	if run.simulate:
+		run.note(_("Sent to {0} instead of this chat").format(to))
+		return run.send(**values)
+	return run.send_to(to, **values)
+
+
 def send_message(run, node_id, config):
 	text = render(config.get("text"), run.context)
 	attach = config.get("attach")
 	if attach:
 		from onechat.onechat.doctype.onechat_media.onechat_media import media_type_of
 
-		run.send(content_type=media_type_of(attach), message=text, attach=attach)
+		deliver(run, config, content_type=media_type_of(attach), message=text, attach=attach)
 	else:
 		if not text.strip():
 			frappe.throw(_("Write the message to send."))
-		run.send(content_type="text", message=text)
+		deliver(run, config, content_type="text", message=text)
 	return Result(output={"sent": text[:200]})
 
 
@@ -198,14 +220,20 @@ def resume_question(run, node_id, config, event):
 	return retry_or(run, node_id, "invalid", nudge)
 
 
+def param_text(value):
+	return re.sub(r"[ \t]{4,}", "   ", re.sub(r"\s*\n\s*", " · ", as_text(value))).strip()
+
+
 def send_template(run, node_id, config):
 	template = config.get("template")
 	if not template:
 		frappe.throw(_("Pick a template."))
 
-	values = [as_text(resolve(value, run.context)) for value in config.get("parameters") or []]
+	values = [param_text(resolve(value, run.context)) for value in config.get("parameters") or []]
 	body = json.dumps({str(index): value for index, value in enumerate(values, start=1)}) if values else None
-	run.send(
+	deliver(
+		run,
+		config,
 		message_type="Template",
 		use_template=1,
 		template=template,
@@ -672,9 +700,7 @@ def send_to_records(run, node_id, config):
 	if not doctype or not phone_field or not template:
 		frappe.throw(_("Pick the records, their phone field and a template."))
 
-	filters = {
-		key: resolve(value, run.context) for key, value in (config.get("filters") or {}).items() if key
-	}
+	filters = filter_values(run, config.get("filters"))
 	limit = min(cint(config.get("limit")) or 100, SEND_LIMIT)
 	records = records_of(doctype).get_all(doctype, filters=filters, fields=["*"], limit=limit)
 
@@ -1019,6 +1045,75 @@ def values_of(run, mapping):
 	return {key: value_of(run, value) for key, value in (mapping or {}).items() if key}
 
 
+FILTER_OPERATORS = (">=", "<=", "!=", ">", "<", "=")
+
+
+def filter_value(value):
+	if not isinstance(value, str):
+		return value
+	text = value.strip()
+	lower = text.lower()
+	if lower in ("is set", "set"):
+		return ["is", "set"]
+	if lower in ("is not set", "not set", "empty"):
+		return ["is", "not set"]
+	for word, operator in (
+		("not in ", "not in"),
+		("in ", "in"),
+		("not like ", "not like"),
+		("like ", "like"),
+	):
+		if lower.startswith(word):
+			rest = text[len(word) :].strip()
+			if operator.endswith("in"):
+				return [operator, [part.strip() for part in rest.split(",") if part.strip()]]
+			return [operator, rest]
+	for operator in FILTER_OPERATORS:
+		if text.startswith(operator):
+			return [operator, text[len(operator) :].strip()]
+	return value
+
+
+def filter_values(run, mapping):
+	return {key: filter_value(value) for key, value in values_of(run, mapping).items()}
+
+
+def summarize_list(run, node_id, config):
+	entries = value_of(run, config.get("list"))
+	if isinstance(entries, str):
+		entries = frappe.parse_json(entries) if entries.strip().startswith("[") else None
+	entries = entries if isinstance(entries, list) else []
+	line = config.get("line") or "{{row.name}}"
+	limit = cint(config.get("limit")) or 20
+	separator = {"comma": ", ", "semicolon": "; ", "dot": " · "}.get(
+		config.get("separator") or "newline", "\n"
+	)
+	total_field = config.get("total_field")
+	key = config.get("save_as") or "summary"
+
+	lines, total = [], 0
+	for entry in entries:
+		if len(lines) < limit:
+			lines.append(render(line, {**run.context, "row": entry}).strip())
+		if total_field and isinstance(entry, dict):
+			total += flt(entry.get(total_field))
+	if len(entries) > limit:
+		lines.append(_("+ {0} more").format(len(entries) - limit))
+
+	text = separator.join(part for part in lines if part)
+	if not entries:
+		text = render(config.get("empty_text"), run.context) or ""
+	summary = {
+		"text": text,
+		"count": len(entries),
+		"total": flt(total, 2) if total_field else None,
+		"lines": lines,
+	}
+	run.context.setdefault("vars", {})[key] = summary
+	handle = outcome(run, node_id, "found" if entries else "empty", "found", "empty")
+	return Result(handle=handle, output={"count": len(entries), "total": summary["total"]})
+
+
 def addresses(text):
 	return [part.strip() for part in re.split(r"[,;\s]+", text or "") if part.strip()]
 
@@ -1100,7 +1195,7 @@ def get_list(run, node_id, config):
 	)
 	rows = records_of(doctype).get_all(
 		doctype,
-		filters=values_of(run, config.get("filters")),
+		filters=filter_values(run, config.get("filters")),
 		fields=fields or ["name"],
 		order_by="modified desc",
 		limit=min(cint(config.get("limit")) or 20, 500),
@@ -1225,6 +1320,7 @@ STEPS = {
 	"submit_record": submit_record,
 	"save_address": save_address,
 	"send_email": send_email,
+	"summarize_list": summarize_list,
 	"http_request": http_request,
 	"set_variable": set_variable,
 	"get_list": get_list,

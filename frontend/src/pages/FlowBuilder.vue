@@ -389,6 +389,12 @@ const variables = computed(() => {
         if (name) list.push({ group: 'Saved values', label: name.replace(/_/g, ' '), token: `{{vars.${name}}}` })
       }
     }
+    if (type === 'summarize_list') {
+      const key = config.save_as || 'summary'
+      list.push({ group: 'Summary', label: `${key} text`, token: `{{vars.${key}.text}}` })
+      list.push({ group: 'Summary', label: `${key} count`, token: `{{vars.${key}.count}}` })
+      list.push({ group: 'Summary', label: `${key} total`, token: `{{vars.${key}.total}}` })
+    }
     if (type === 'http_request') {
       list.push({ group: 'API reply', label: 'Reply', token: '{{http.response}}' })
       list.push({ group: 'API reply', label: 'Status code', token: '{{http.status_code}}' })
