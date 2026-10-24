@@ -649,6 +649,18 @@ def enrich(rows):
 		for row in orders:
 			row.order = cards.get(row.name)
 
+	shown = [row for row in rows if row.content_type in ("product", "product_list") and row.products]
+	if shown:
+		from onechat.integrations.erpnext_commerce import product_cards
+
+		try:
+			cards = product_cards(shown)
+		except Exception:
+			frappe.log_error(title="OneChat product card")
+			cards = {}
+		for row in shown:
+			row.catalog = cards.get(row.name)
+
 	for row in rows:
 		row.pop("products", None)
 

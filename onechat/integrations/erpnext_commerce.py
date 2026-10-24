@@ -897,7 +897,7 @@ def catalog_items(orders, codes):
 			"GET",
 			f"{catalog_id}/products",
 			{
-				"fields": "retailer_id,name,image_url",
+				"fields": "retailer_id,name,image_url,price",
 				"filter": json.dumps({"retailer_id": {"is_any": missing}}),
 				"limit": len(missing),
 			},
@@ -905,7 +905,11 @@ def catalog_items(orders, codes):
 		if error:
 			continue
 		rows = {
-			row.get("retailer_id"): {"name": row.get("name"), "image": row.get("image_url")}
+			row.get("retailer_id"): {
+				"name": row.get("name"),
+				"image": row.get("image_url"),
+				"price": row.get("price"),
+			}
 			for row in body.get("data") or []
 		}
 		for code in missing:
@@ -968,6 +972,47 @@ def order_cards(messages):
 			"note": order.get("text"),
 			"journey": flows.get(message.message_id),
 		}
+	return cards
+
+
+def product_cards(messages):
+	sent = {}
+	for message in messages:
+		try:
+			data = frappe.parse_json(message.products) or {}
+		except ValueError:
+			continue
+		codes = list(dict.fromkeys(code for code in data.get("items") or [] if code))
+		if codes:
+			sent[message.name] = (data, codes, catalog_of(message.get("whatsapp_account")))
+
+	codes = list({code for _data, items, _catalog in sent.values() for code in items})
+	items = item_rows(codes)
+	wanted = [
+		{"catalog_id": catalog, "product_items": [{"product_retailer_id": code} for code in rows]}
+		for _data, rows, catalog in sent.values()
+		if catalog
+	]
+	try:
+		listed = catalog_items(wanted, set(codes)) if wanted else {}
+	except Exception:
+		frappe.log_error(title="OneChat product card: catalog items")
+		listed = {}
+
+	cards = {}
+	for name, (data, rows, _catalog) in sent.items():
+		lines = []
+		for code in rows:
+			item, listing = items.get(code) or {}, listed.get(code) or {}
+			lines.append(
+				{
+					"code": code,
+					"name": item.get("item_name") or listing.get("name") or code,
+					"image": public_image(item) or listing.get("image"),
+					"price": listing.get("price"),
+				}
+			)
+		cards[name] = {"header": data.get("header") or "", "body": data.get("body") or "", "items": lines}
 	return cards
 
 
