@@ -265,7 +265,7 @@ import { Avatar, Button, Dropdown, ScrollArea, Select, TabButtons, Textarea, Too
 import ResponsiveDialog from '@/components/Common/ResponsiveDialog.vue'
 import MediaPicker from '@/components/Media/MediaPicker.vue'
 import { embedded } from '@/data/embed'
-import { notifyTyping, stopTyping, useTypers, useViewers } from '@/data/typing'
+import { notifyTyping, stopTyping, useTypers } from '@/data/typing'
 import AttachmentPreview from './AttachmentPreview.vue'
 import ReplyPreview from './ReplyPreview.vue'
 import {
@@ -421,7 +421,6 @@ const suggest = reactive({ open: false, kind: 'reply', start: 0, query: '', inde
 const mentioned = new Map()
 const ui = useUI()
 const typers = useTypers(() => props.contact)
-const viewers = useViewers(() => props.contact)
 let seen = null
 
 let upload = null
@@ -456,9 +455,6 @@ const collision = computed(() => {
   }
   if (claimable) {
     return { urgent: false, icon: 'lucide-user-check', text: __('Assigned to {0}').format(personName(owner)), claim: true }
-  }
-  if (viewers.value.length) {
-    return { urgent: false, icon: 'lucide-eye', text: __('{0} is also viewing this chat').format(namesOf(viewers.value)) }
   }
   return null
 })

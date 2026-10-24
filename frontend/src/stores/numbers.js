@@ -67,7 +67,8 @@ export const useNumbers = defineStore('numbers', () => {
   }
 
   function toggle(name, shown) {
-    return hideIn(hidden.value, rows.value.length, name, shown, __('Keep at least one account shown.'), saveAccounts)
+    const others = rows.value.map((row) => row.name).filter((item) => item !== name)
+    return persist(saveAccounts(shown ? others : []))
   }
 
   function toggleTeam(name, shown) {

@@ -143,6 +143,21 @@
                 @update:model-value="setPlain"
               />
 
+              <Select
+                v-model="doc.send_from"
+                :label="__('Send from')"
+                :options="sendFromOptions"
+                :description="__('The customer’s account is the number this customer last wrote to. Templates must exist on that account.')"
+              />
+              <LinkField
+                v-if="doc.send_from === 'Specific account'"
+                v-model="doc.send_account"
+                doctype="OneChat Account"
+                :filters="{ status: 'Active', channel: ['!=', 'Instagram'] }"
+                :label="__('Account')"
+                required
+              />
+
               <template v-if="!doc.send_plain_message">
                 <LinkField v-model="doc.template" doctype="WhatsApp Templates" :label="__('Template')" required />
                 <div v-if="template" class="rounded-4 border border-outline-gray-2 p-3">
@@ -374,6 +389,12 @@ const DATE_EXTRAS = [
   { label: 'Last modified', value: 'modified', description: 'modified' },
 ]
 
+const sendFromOptions = [
+  { label: __('Default outgoing account'), value: 'Default outgoing' },
+  { label: __('A specific account'), value: 'Specific account' },
+  { label: __('The customer’s account'), value: "Customer's account" },
+]
+
 const EVENT_PHRASES = {
   'After Insert': 'created',
   'After Save': 'saved',
@@ -401,6 +422,8 @@ const FIELDS = [
   'condition',
   'field_name',
   'mobile_numbers',
+  'send_from',
+  'send_account',
   'send_plain_message',
   'message_body',
   'template',
@@ -439,6 +462,8 @@ function blank() {
     condition: '',
     field_name: '',
     mobile_numbers: '',
+    send_from: 'Default outgoing',
+    send_account: '',
     send_plain_message: 0,
     message_body: '',
     template: '',

@@ -1028,8 +1028,20 @@ def doc_event(doctype, name, method, data):
 			flow=row["flow"],
 			context=context,
 			phone_field=row["config"].get("phone_field"),
+			send_from=row["config"].get("send_from"),
+			account=row["config"].get("account"),
 			enqueue_after_commit=True,
 		)
+
+
+def flow_account(send_from, account, contact):
+	if send_from == "account" and account:
+		return account
+	if send_from == "customer" and contact:
+		current = frappe.db.get_value(CONTACT, contact, "whatsapp_account")
+		if current and frappe.db.get_value("OneChat Account", current, "status") != "Inactive":
+			return current
+	return None
 
 
 def contact_for_phone(phone, name=None):
@@ -1048,7 +1060,7 @@ def contact_for_phone(phone, name=None):
 	)
 
 
-def run_doc_event(flow, context, phone_field=None):
+def run_doc_event(flow, context, phone_field=None, send_from=None, account=None):
 	doc = context.get("doc") or {}
 	phone = doc.get(phone_field) if phone_field else None
 	contact = None
@@ -1059,7 +1071,7 @@ def run_doc_event(flow, context, phone_field=None):
 		contact = contact_for_phone(phone, name)
 
 	try:
-		start(flow, context, contact=contact, phone=phone)
+		start(flow, context, contact=contact, phone=phone, account=flow_account(send_from, account, contact))
 	except Exception:
 		frappe.log_error(title=f"OneChat flow {flow}")
 

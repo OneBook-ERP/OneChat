@@ -317,7 +317,11 @@ def counts(channel: str | None = None):
 
 
 def active_channels():
-	return sorted(set(frappe.get_all(ACCOUNT, filters={"status": "Active"}, pluck="channel")) - {None, ""})
+	filters = {"status": "Active"}
+	hidden = numbers.hidden()
+	if hidden:
+		filters["name"] = ["not in", hidden]
+	return sorted(set(frappe.get_all(ACCOUNT, filters=filters, pluck="channel")) - {None, ""})
 
 
 def followup_count(user):

@@ -267,6 +267,19 @@ export const CATALOG = [
         doctypeKey: 'doctype',
         description: 'The mobile number to message. Needed for WhatsApp steps.',
       },
+      {
+        key: 'send_from',
+        label: 'Send from',
+        type: 'select',
+        default: 'default',
+        options: [
+          { label: 'Default outgoing account', value: 'default' },
+          { label: 'The customer’s account', value: 'customer' },
+          { label: 'A specific account', value: 'account' },
+        ],
+        description: 'The customer’s account is the number they last wrote to.',
+      },
+      { key: 'account', label: 'Account', type: 'account', required: true, depends: (config) => config.send_from === 'account' },
       { key: 'rules', label: 'Only when', type: 'rules', scope: 'doc' },
     ],
     summary: (config) =>

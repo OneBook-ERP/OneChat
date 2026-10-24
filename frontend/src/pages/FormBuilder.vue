@@ -173,6 +173,7 @@ import {
   writeDoc,
 } from '@/components/Forms/formSchema'
 import { useUI } from '@/stores/ui'
+import { useNumbers } from '@/stores/numbers'
 import { errorMessage } from '@/utils/format'
 import { translate as __ } from '@/translation'
 
@@ -185,6 +186,7 @@ const DOCTYPE = 'WhatsApp Flow'
 const route = useRoute()
 const router = useRouter()
 const ui = useUI()
+const numbers = useNumbers()
 
 const form = ref(blankForm())
 const screens = ref([])
@@ -521,6 +523,12 @@ const moreMenu = computed(() => [
     onClick: deleteFromWhatsApp,
   },
   {
+    label: __('Copy to another account'),
+    icon: 'lucide-copy-plus',
+    condition: () => !!form.value.name,
+    onClick: copyToAccount,
+  },
+  {
     label: __('Delete form'),
     icon: 'lucide-trash-2',
     theme: 'red',
@@ -528,6 +536,41 @@ const moreMenu = computed(() => [
     onClick: deleteForm,
   },
 ])
+
+async function copyToAccount() {
+  if (dirty.value && !(await save())) return
+  try {
+    const rows = await call('frappe.client.get_list', {
+      doctype: 'OneChat Account',
+      fields: ['name'],
+      filters: { status: 'Active', channel: ['!=', 'Instagram'], name: ['!=', form.value.whatsapp_account] },
+      order_by: 'account_name asc',
+      limit_page_length: 0,
+    })
+    const target = rows.find((row) => !numbers.isHidden(row.name)) || rows[0]
+    if (!target) {
+      toast.error(__('There is no other active WhatsApp account to copy to.'))
+      return
+    }
+    const { name: _name, flow_id: _flow, preview_url: _url, ...doc } = writeDoc(form.value, screens.value, orphans.value)
+    const strip = (rowsOf) => (rowsOf || []).map(({ name: _name, parent: _parent, ...row }) => row)
+    const saved = await call('frappe.client.insert', {
+      doc: {
+        ...doc,
+        flow_name: __('{0} (copy)').format(form.value.flow_name),
+        whatsapp_account: target.name,
+        status: 'Draft',
+        screens: strip(doc.screens),
+        fields: strip(doc.fields),
+      },
+    })
+    toast.success(__('Copied to {0}. Check Settings, then create it on WhatsApp.').format(target.name))
+    panel.value = 'settings'
+    await router.push({ name: 'FormBuilder', params: { name: saved.name } })
+  } catch (err) {
+    toast.error(errorMessage(err))
+  }
+}
 
 function selectScreen(key) {
   selectedKey.value = key

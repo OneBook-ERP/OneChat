@@ -888,11 +888,16 @@ def costs(span):
 	)
 	broadcasts = [dict(row, name=titles.get(row["key"]) or row["key"]) for row in broadcasts if row["key"]]
 
-	accounts = frappe.get_all(
-		ACCOUNT,
-		filters={"business_id": ["is", "set"]},
-		fields=["name", "account_name", "spend_synced_at", "spend_sync_error"],
-	)
+	off = set(numbers.hidden())
+	accounts = [
+		row
+		for row in frappe.get_all(
+			ACCOUNT,
+			filters={"business_id": ["is", "set"]},
+			fields=["name", "account_name", "spend_synced_at", "spend_sync_error"],
+		)
+		if row.name not in off
+	]
 	return {
 		"currency": currency(),
 		"summary": {

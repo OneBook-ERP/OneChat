@@ -225,7 +225,6 @@
             <template v-if="inlineMeta">
               <span class="inline-block h-3" :class="mine ? 'w-[4.5rem]' : 'w-14'" aria-hidden="true" />
               <span class="absolute bottom-0 right-0.5 inline-flex items-center gap-1 text-xs tabular-nums text-ink-gray-5">
-                <span v-if="accountLabel" class="max-w-24 truncate" :title="accountLabel">{{ accountLabel }} ·</span>
                 {{ clock(message.creation) }}
                 <MessageStatus v-if="mine" :tick="tick" :error="deliveryError" />
               </span>
@@ -266,7 +265,6 @@
           </p>
 
           <div v-if="!inlineMeta" class="flex items-center justify-end gap-1 px-0.5 pt-1 text-xs tabular-nums text-ink-gray-5">
-            <span v-if="accountLabel" class="max-w-24 truncate" :title="accountLabel">{{ accountLabel }} ·</span>
             {{ clock(message.creation) }}
             <MessageStatus v-if="mine" :tick="tick" :error="deliveryError" />
           </div>
@@ -346,7 +344,6 @@ import ReplyPreview from './ReplyPreview.vue'
 import PaymentChip from './PaymentChip.vue'
 import { REACTIONS, contentLabel, copyMessage, fileName, messageBody, plainMessage, richText } from '@/data/inbox'
 import { useUI } from '@/stores/ui'
-import { useNumbers } from '@/stores/numbers'
 import { session } from '@/data/session'
 import { clock, errorMessage } from '@/utils/format'
 import { translate as __ } from '@/translation'
@@ -397,14 +394,6 @@ const emit = defineEmits(['reply', 'react', 'retry', 'discard', 'open', 'select'
 const picker = ref(false)
 
 const mine = computed(() => props.message.type === 'Outgoing')
-
-const numbers = useNumbers()
-const accountLabel = computed(() => {
-  const shown = numbers.rows.filter((row) => row.shown)
-  if (shown.length < 2 || !props.message.whatsapp_account) return ''
-  const row = numbers.rows.find((item) => item.name === props.message.whatsapp_account)
-  return row?.label || props.message.whatsapp_account
-})
 const template = computed(() => props.message.message_type === 'Template')
 const kind = computed(() => props.message.content_type || 'text')
 const INSTAGRAM_CARDS = {
