@@ -269,16 +269,23 @@
                     :label="__(row.availability || 'unknown')"
                   />
                   <Badge
+                    v-if="REVIEW[row.review_status]"
                     size="sm"
                     variant="subtle"
-                    :theme="REVIEW[row.review_status]?.theme || 'gray'"
-                    :label="__(REVIEW[row.review_status]?.label || 'In review')"
+                    :theme="REVIEW[row.review_status].theme"
+                    :label="__(REVIEW[row.review_status].label)"
                   />
+                  <Tooltip
+                    v-if="row.visibility === 'staging'"
+                    :text="__('Meta keeps this product hidden, so customers do not see it on WhatsApp')"
+                  >
+                    <Badge size="sm" variant="subtle" theme="red" :label="__('Hidden')" />
+                  </Tooltip>
                 </div>
               </div>
             </div>
           </div>
-          <div v-if="after" class="flex justify-center">
+          <div v-if="more" class="flex justify-center">
             <Button variant="subtle" :label="__('Load more')" :loading="productsLoading" @click="loadProducts(true)" />
           </div>
         </template>
@@ -481,6 +488,7 @@ const REVIEW = {
   rejected: { label: 'Rejected', theme: 'red' },
   pending: { label: 'In review', theme: 'amber' },
   outdated: { label: 'Outdated', theme: 'gray' },
+  '': { label: 'Not reviewed', theme: 'amber' },
 }
 
 const ui = useUI()
@@ -524,6 +532,7 @@ const productsLoading = ref(false)
 const picked = ref([])
 const sets = ref([])
 const setsLoading = ref(false)
+const setsLoaded = ref(false)
 const productOpen = ref(false)
 const productError = ref('')
 const productForm = reactive(blankProduct())
@@ -534,6 +543,9 @@ const renameOpen = ref(false)
 const renameValue = ref('')
 
 const erpnext = computed(() => activeIntegrations.value.some((row) => row.name === 'erpnext'))
+const more = computed(
+  () => Boolean(after.value) && (Boolean(search.value) || products.value.length < (state.value?.catalog?.product_count || 0)),
+)
 const productOptions = computed(() => {
   const known = products.value.map((row) => ({ label: `${row.name} (${row.retailer_id})`, value: row.retailer_id }))
   const extra = setForm.ids.filter((id) => !known.some((row) => row.value === id)).map((id) => ({ label: id, value: id }))
@@ -585,10 +597,11 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    state.value = await call(`${API}state`, { account: account.value })
+    state.value = await call(`${API}state`, { account: account.value, with_products: props.setup ? 0 : 1 })
     if (state.value.catalog && !props.setup) {
-      loadProducts()
-      loadSets()
+      if (state.value.products && !search.value) showProducts(state.value.products)
+      else loadProducts()
+      refreshSets()
     }
   } catch (err) {
     error.value = errorMessage(err)
@@ -605,9 +618,10 @@ async function loadProducts(more = false) {
       search: search.value || undefined,
       after: more ? after.value : undefined,
     })
-    products.value = more ? [...products.value, ...data.rows] : data.rows
-    after.value = data.after
-    if (!more) picked.value = []
+    if (more) {
+      products.value = [...products.value, ...data.rows]
+      after.value = data.rows.length ? data.after : null
+    } else showProducts(data)
   } catch (err) {
     error.value = errorMessage(err)
   } finally {
@@ -615,10 +629,22 @@ async function loadProducts(more = false) {
   }
 }
 
+function showProducts(data) {
+  products.value = data.rows
+  after.value = data.after
+  picked.value = []
+}
+
+function refreshSets() {
+  setsLoaded.value = false
+  if (tab.value === 'sets') loadSets()
+}
+
 async function loadSets() {
   setsLoading.value = true
   try {
     sets.value = await call(`${API}product_sets`, { account: account.value })
+    setsLoaded.value = true
   } catch (err) {
     error.value = errorMessage(err)
   } finally {
@@ -636,7 +662,7 @@ async function createCatalog() {
     state.value = result
     newName.value = ''
     loadProducts()
-    loadSets()
+    refreshSets()
   }
 }
 
@@ -649,7 +675,7 @@ async function connectCatalog(id) {
   if (result) {
     state.value = result
     loadProducts()
-    loadSets()
+    refreshSets()
   }
 }
 
@@ -845,12 +871,17 @@ watch(
   debounce(() => loadProducts(), 300),
 )
 
+watch(tab, (value) => {
+  if (value === 'sets' && !setsLoaded.value && state.value?.catalog) loadSets()
+})
+
 watch(
   () => props.account,
   () => {
     state.value = null
     products.value = []
     sets.value = []
+    setsLoaded.value = false
     load()
   },
 )

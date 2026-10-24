@@ -63,6 +63,14 @@ def since(period):
 	return getdate(add_days(now_datetime(), -RANGES[period])) if period in RANGES else None
 
 
+def bounds(period, from_date=None, to_date=None):
+	if period == "custom":
+		if not (from_date and to_date):
+			return None, None
+		return getdate(from_date), add_days(getdate(to_date), 1)
+	return since(period), None
+
+
 def matching_contacts(search):
 	pattern = f"%{search}%"
 	return frappe.get_all(
@@ -73,7 +81,7 @@ def matching_contacts(search):
 	)
 
 
-def version_events(field, actor, contacts, start_date, limit):
+def version_events(field, actor, contacts, start_date, end_date, limit):
 	filters = [[VERSION, "ref_doctype", "=", CONTACT]]
 	if actor:
 		filters.append([VERSION, "owner", "=", actor])
@@ -81,6 +89,8 @@ def version_events(field, actor, contacts, start_date, limit):
 		filters.append([VERSION, "docname", "in", contacts or [""]])
 	if start_date:
 		filters.append([VERSION, "creation", ">=", start_date])
+	if end_date:
+		filters.append([VERSION, "creation", "<", end_date])
 
 	fields = [field] if field else TRACKED
 	or_filters = [[VERSION, "data", "like", f'%"{name}"%'] for name in fields]
@@ -132,7 +142,7 @@ def describe(field, old, new):
 	return None
 
 
-def message_events(action, actor, contacts, start_date, limit):
+def message_events(action, actor, contacts, start_date, end_date, limit):
 	filters = [
 		[MESSAGE, "type", "=", "Outgoing"],
 		[MESSAGE, "content_type", "!=", "reaction"],
@@ -148,6 +158,8 @@ def message_events(action, actor, contacts, start_date, limit):
 		filters.append([MESSAGE, "whatsapp_contact", "in", contacts or [""]])
 	if start_date:
 		filters.append([MESSAGE, "creation", ">=", start_date])
+	if end_date:
+		filters.append([MESSAGE, "creation", "<", end_date])
 
 	rows = frappe.get_all(
 		MESSAGE,
@@ -186,7 +198,7 @@ def message_events(action, actor, contacts, start_date, limit):
 	return events, frappe.db.count(MESSAGE, filters)
 
 
-def note_events(actor, contacts, start_date, limit):
+def note_events(actor, contacts, start_date, end_date, limit):
 	filters = [[NOTE, "reference_doctype", "=", CONTACT]]
 	if actor:
 		filters.append([NOTE, "owner", "=", actor])
@@ -194,6 +206,8 @@ def note_events(actor, contacts, start_date, limit):
 		filters.append([NOTE, "reference_docname", "in", contacts or [""]])
 	if start_date:
 		filters.append([NOTE, "creation", ">=", start_date])
+	if end_date:
+		filters.append([NOTE, "creation", "<", end_date])
 
 	rows = frappe.get_all(
 		NOTE,
@@ -227,10 +241,14 @@ def feed(
 	start: int | str = 0,
 	limit: int | str = 20,
 	category: str | None = None,
+	from_date: str | None = None,
+	to_date: str | None = None,
 ):
 	admin_only()
 
-	return collect(action, actor, contact, period, cint(start), min(cint(limit) or 20, 100), category)
+	return collect(
+		action, actor, contact, period, cint(start), min(cint(limit) or 20, 100), category, from_date, to_date
+	)
 
 
 @frappe.whitelist()
@@ -240,13 +258,15 @@ def export_feed(
 	contact: str | None = None,
 	period: int | str = "30d",
 	category: str | None = None,
+	from_date: str | None = None,
+	to_date: str | None = None,
 ):
 	admin_only()
 
-	return collect(action, actor, contact, period, 0, MAX_SCAN, category)["rows"]
+	return collect(action, actor, contact, period, 0, MAX_SCAN, category, from_date, to_date)["rows"]
 
 
-def collect(action, actor, contact, period, start, limit, category):
+def collect(action, actor, contact, period, start, limit, category, from_date=None, to_date=None):
 	allowed = CATEGORIES.get(category)
 	if allowed and action not in allowed:
 		action = None
@@ -254,7 +274,7 @@ def collect(action, actor, contact, period, start, limit, category):
 		action = allowed[0]
 
 	window = min(start + limit, MAX_SCAN)
-	start_date = since(period)
+	start_date, end_date = bounds(period, from_date, to_date)
 	contacts = matching_contacts(contact.strip()) if contact and contact.strip() else None
 	source, field = ACTIONS.get(action or (allowed[0] if allowed else None), (None, None))
 	wanted = [action] if action else allowed
@@ -262,17 +282,17 @@ def collect(action, actor, contact, period, start, limit, category):
 	events = []
 	total = 0
 	if source in (None, "version"):
-		rows, count = version_events(field, actor, contacts, start_date, window)
+		rows, count = version_events(field, actor, contacts, start_date, end_date, window)
 		if wanted:
 			rows = [row for row in rows if row["action"] in wanted]
 		events += rows
 		total += count
 	if source in (None, "message"):
-		rows, count = message_events(action, actor, contacts, start_date, window)
+		rows, count = message_events(action, actor, contacts, start_date, end_date, window)
 		events += rows
 		total += count
 	if source in (None, "note"):
-		rows, count = note_events(actor, contacts, start_date, window)
+		rows, count = note_events(actor, contacts, start_date, end_date, window)
 		events += rows
 		total += count
 

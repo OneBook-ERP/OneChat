@@ -32,10 +32,29 @@
               <Combobox
                 class="sm:w-48"
                 :model-value="rule.field"
-                :options="fieldOptions"
+                :options="optionsFor(rule)"
                 :placeholder="__('Field')"
+                @update:query="(value) => (rule.query = value)"
                 @update:model-value="(value) => value && setField(rule, value)"
-              />
+              >
+                <template #group-label="{ group }">
+                  <button
+                    v-if="collapsible.has(group.group)"
+                    type="button"
+                    class="flex w-full items-center justify-between gap-2 text-left"
+                    @pointerdown.prevent
+                    @click.stop="toggleGroup(group.group)"
+                  >
+                    <span class="truncate">{{ group.group }}</span>
+                    <span
+                      :class="expanded.has(group.group) ? 'lucide-chevron-up' : 'lucide-chevron-down'"
+                      class="size-3.5 shrink-0"
+                      aria-hidden="true"
+                    />
+                  </button>
+                  <template v-else>{{ group.group }}</template>
+                </template>
+              </Combobox>
               <Select
                 v-if="rule.field"
                 class="sm:w-40"
@@ -235,6 +254,43 @@ const fieldOptions = computed(() => {
   }
   return [...groups].map(([group, options]) => ({ group, options }))
 })
+const collapsible = computed(() => new Set(fields.value.filter((row) => row.document).map((row) => row.group || __('Other'))))
+const expanded = reactive(new Set())
+
+function toggleGroup(group) {
+  if (expanded.has(group)) expanded.delete(group)
+  else expanded.add(group)
+}
+
+function searching(rule) {
+  const query = (rule.query || '').trim()
+  return !!query && query !== (byKey.value[rule.field]?.label || '')
+}
+
+function optionsFor(rule) {
+  const all = searching(rule)
+  return fieldOptions.value.map((group) => {
+    const open =
+      all || !collapsible.value.has(group.group) || expanded.has(group.group) || group.options.some((option) => option.value === rule.field)
+    if (open) return group
+    return {
+      group: group.group,
+      hideLabel: true,
+      options: [
+        {
+          type: 'custom',
+          key: `show:${group.group}`,
+          label: group.group,
+          description: __('{0} fields').format(group.options.length),
+          icon: 'lucide-chevron-right',
+          keepOpen: true,
+          condition: ({ query }) => !query,
+          onClick: () => expanded.add(group.group),
+        },
+      ],
+    }
+  })
+}
 const presetOptions = computed(() =>
   PRESETS.filter((preset) => !preset.purchases || byKey.value.value_group).map((preset) => ({
     label: __(preset.label),

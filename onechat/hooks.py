@@ -146,16 +146,40 @@ doc_events = {
 	"Contact": {
 		"on_update": "onechat.integrations.autolink.record_created",
 	},
+	"Sales Order": {
+		"on_update": "onechat.integrations.erpnext_commerce.refresh_order_cards",
+		"on_submit": "onechat.integrations.erpnext_commerce.refresh_order_cards",
+		"on_cancel": "onechat.integrations.erpnext_commerce.refresh_order_cards",
+	},
+	"Sales Invoice": {
+		"on_submit": "onechat.integrations.erpnext_commerce.refresh_order_cards",
+		"on_cancel": "onechat.integrations.erpnext_commerce.refresh_order_cards",
+	},
 	"Delivery Note": {
-		"on_submit": "onechat.whatsapp.pay.delivered",
+		"on_submit": [
+			"onechat.whatsapp.pay.delivered",
+			"onechat.integrations.erpnext_commerce.refresh_order_cards",
+		],
+		"on_cancel": "onechat.integrations.erpnext_commerce.refresh_order_cards",
 	},
 	"Payment Entry": {
-		"on_submit": "onechat.integrations.erpnext_commerce.entry_submitted",
+		"on_submit": [
+			"onechat.integrations.erpnext_commerce.entry_submitted",
+			"onechat.integrations.erpnext_commerce.refresh_order_cards",
+		],
+		"on_cancel": "onechat.integrations.erpnext_commerce.refresh_order_cards",
 	},
 	"Payment Request": {
+		"on_submit": "onechat.integrations.erpnext_commerce.refresh_order_cards",
 		"on_payment_authorized": "onechat.integrations.erpnext_commerce.payment_update",
 		"on_update_after_submit": "onechat.integrations.erpnext_commerce.payment_update",
-		"on_cancel": "onechat.integrations.payments.request_changed",
+		"on_cancel": [
+			"onechat.integrations.payments.request_changed",
+			"onechat.integrations.erpnext_commerce.refresh_order_cards",
+		],
+	},
+	"OneChat WhatsApp Payment": {
+		"on_update": "onechat.integrations.erpnext_commerce.refresh_order_cards",
 	},
 	"User": {
 		"after_insert": "onechat.onechat.doctype.onechat_user.onechat_user.add_user_to_onechat",

@@ -10,7 +10,7 @@ from onechat.inbox import visibility
 from onechat.inbox.conversations import CONTACT, CONTACT_LABEL, LABEL, guard
 from onechat.inbox.scores import GROUPS
 from onechat.inbox.visibility import check as check_visible
-from onechat.integrations import links
+from onechat.integrations import documents, links
 from onechat.workspace import numbers
 from onechat.workspace.session import require, require_admin
 
@@ -104,11 +104,12 @@ def fields():
 	meta = frappe.get_meta(CONTACT)
 	commerce = integrations.has_purchases()
 	out = []
-	for key, spec in FIELDS.items():
-		if key not in ("labels", "creation") and not meta.has_field(key):
-			continue
-		if key in PURCHASE_FIELDS and not commerce:
-			continue
+	for key, spec in catalog().items():
+		if not spec.get("document"):
+			if key not in ("labels", "creation") and not meta.has_field(key):
+				continue
+			if key in PURCHASE_FIELDS and not commerce:
+				continue
 		row = {
 			"key": key,
 			**spec,
@@ -116,18 +117,23 @@ def fields():
 			"group": _(spec["group"]),
 			"ops": OPS[spec["type"]],
 		}
-		if spec["type"] in ("choice", "labels"):
+		if spec["type"] in ("choice", "labels") and not spec.get("document"):
 			row["options"] = choices(key)
 		out.append(row)
 	return out
 
 
+def catalog():
+	return {**FIELDS, **documents.catalog()}
+
+
 def parse_rules(rules):
 	rules = frappe.parse_json(rules) if isinstance(rules, str) else rules
+	known = catalog()
 	return [
 		rule
 		for rule in rules or []
-		if isinstance(rule, dict) and rule.get("field") in FIELDS and rule.get("op")
+		if isinstance(rule, dict) and rule.get("field") in known and rule.get("op")
 	]
 
 
@@ -137,39 +143,23 @@ def as_list(value):
 	return [item for item in value or [] if item not in (None, "")]
 
 
-def criterion(contact, rule):
-	field, op, value = rule["field"], rule["op"], rule.get("value")
-	kind = FIELDS[field]["type"]
-	column = contact[field]
+def between(value):
+	low, high = ([*list(value), None, None])[:2] if isinstance(value, list | tuple) else (None, None)
+	if low in (None, "") or high in (None, ""):
+		return None, None
+	return flt(low), flt(high)
 
-	if kind == "labels":
-		names = as_list(value)
-		if not names:
-			return None
-		link = frappe.qb.DocType(CONTACT_LABEL)
-		tagged = (
-			frappe.qb.from_(link)
-			.select(link.parent)
-			.where((link.parenttype == CONTACT) & (link.parentfield == "labels") & link.label.isin(names))
-		)
-		return contact.name.isin(tagged) if op == "has_any" else contact.name.notin(tagged)
 
+def date_edge(value, date_only):
+	days = cint(value)
+	if days <= 0:
+		return None
+	return add_days(nowdate() if date_only else now_datetime(), -days)
+
+
+def column_criterion(column, kind, op, value, date_only=False):
 	if kind == "flag":
 		return column == (1 if op == "yes" else 0)
-
-	if field == "reference_doctype":
-		names = as_list(value)
-		if not names:
-			return None
-		table = frappe.qb.DocType(links.LINK)
-		sub = (
-			frappe.qb.from_(table)
-			.select(table.parent)
-			.where((table.parenttype == CONTACT) & table.link_doctype.isin(names))
-		)
-		if op == "in":
-			return column.isin(names) | contact.name.isin(sub)
-		return (column.notin(names) | column.isnull()) & contact.name.notin(sub)
 
 	if kind == "choice":
 		names = as_list(value)
@@ -188,10 +178,10 @@ def criterion(contact, rule):
 
 	if kind == "number":
 		if op == "between":
-			low, high = ([*list(value), None, None])[:2] if isinstance(value, list | tuple) else (None, None)
-			if low in (None, "") or high in (None, ""):
+			low, high = between(value)
+			if low is None:
 				return None
-			return column.between(flt(low), flt(high))
+			return column.between(low, high)
 		if value in (None, ""):
 			return None
 		number = flt(value)
@@ -206,13 +196,131 @@ def criterion(contact, rule):
 	if kind == "date":
 		if op == "never":
 			return column.isnull()
-		days = cint(value)
-		if days <= 0:
+		edge = date_edge(value, date_only)
+		if edge is None:
 			return None
-		edge = add_days(nowdate() if field.endswith("_on") else now_datetime(), -days)
 		return column >= edge if op == "within" else (column < edge)
 
 	return None
+
+
+def filter_criterion(fieldname, kind, op, value, date_only=False):
+	if kind == "flag":
+		return [[fieldname, "=", 1 if op == "yes" else 0]]
+
+	if kind == "choice":
+		names = as_list(value)
+		if not names:
+			return None
+		return [[fieldname, "in" if op == "in" else "not in", names]]
+
+	if kind == "text":
+		if op == "set":
+			return [[fieldname, "is", "set"]]
+		if op == "not_set":
+			return [[fieldname, "is", "not set"]]
+		if not value:
+			return None
+		return [[fieldname, "like", f"%{value}%"]] if op == "contains" else [[fieldname, "=", value]]
+
+	if kind == "number":
+		if op == "between":
+			low, high = between(value)
+			return [[fieldname, "between", [low, high]]] if low is not None else None
+		if value in (None, ""):
+			return None
+		return [[fieldname, {"gt": ">", "gte": ">=", "lt": "<", "lte": "<=", "eq": "="}[op], flt(value)]]
+
+	if kind == "date":
+		if op == "never":
+			return [[fieldname, "is", "not set"]]
+		edge = date_edge(value, date_only)
+		if edge is None:
+			return None
+		return [[fieldname, ">=" if op == "within" else "<", str(edge)]]
+
+	return None
+
+
+def document_criterion(contact, spec, op, value):
+	kind, fieldname, date_only = spec["type"], spec["fieldname"], spec.get("date_only", False)
+	# "is none of" means no such document at all, so it is the "is any of" match turned inside out.
+	anti = kind == "choice" and op == "not_in"
+	inner = "in" if anti else op
+	filters = filter_criterion(fieldname, kind, inner, value, date_only)
+	if filters is None:
+		return None
+
+	link = frappe.qb.DocType(links.LINK)
+	ref = frappe.qb.DocType(CONTACT).as_("ref")
+	matched = []
+	for party_type in documents.SOURCES[spec["document"]]["parties"]:
+		names = documents.parties_with(
+			spec["document"],
+			party_type,
+			lambda table: column_criterion(table[fieldname], kind, inner, value, date_only),
+			filters,
+		)
+		if isinstance(names, list) and not names:
+			continue
+		matched.append(
+			frappe.qb.from_(ref)
+			.select(ref.name)
+			.where((ref.reference_doctype == party_type) & ref.reference_docname.isin(names))
+		)
+		matched.append(
+			frappe.qb.from_(link)
+			.select(link.parent)
+			.where(
+				(link.parenttype == CONTACT) & (link.link_doctype == party_type) & link.link_name.isin(names)
+			)
+		)
+
+	if not matched:
+		return contact.name.isnotnull() if anti else contact.name.isnull()
+
+	parts = [contact.name.notin(sub) if anti else contact.name.isin(sub) for sub in matched]
+	joined = parts[0]
+	for part in parts[1:]:
+		joined = (joined & part) if anti else (joined | part)
+	return joined
+
+
+def criterion(contact, rule):
+	field, op, value = rule["field"], rule["op"], rule.get("value")
+	spec = catalog()[field]
+	if spec.get("document"):
+		return document_criterion(contact, spec, op, value)
+	kind = spec["type"]
+	column = contact[field]
+
+	if kind == "labels":
+		names = as_list(value)
+		if not names:
+			return None
+		link = frappe.qb.DocType(CONTACT_LABEL)
+		tagged = (
+			frappe.qb.from_(link)
+			.select(link.parent)
+			.where((link.parenttype == CONTACT) & (link.parentfield == "labels") & link.label.isin(names))
+		)
+		return contact.name.isin(tagged) if op == "has_any" else contact.name.notin(tagged)
+
+	if field == "reference_doctype":
+		names = as_list(value)
+		if not names:
+			return None
+		table = frappe.qb.DocType(links.LINK)
+		sub = (
+			frappe.qb.from_(table)
+			.select(table.parent)
+			.where((table.parenttype == CONTACT) & table.link_doctype.isin(names))
+		)
+		if op == "in":
+			return column.isin(names) | contact.name.isin(sub)
+		return (column.notin(names) | column.isnull()) & contact.name.notin(sub)
+
+	return column_criterion(column, kind, op, value, field.endswith("_on"))
 
 
 def build(rules, match="all"):

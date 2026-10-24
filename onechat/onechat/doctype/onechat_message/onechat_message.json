@@ -30,6 +30,8 @@
   "content_section",
   "message",
   "attach",
+  "latitude",
+  "longitude",
   "template_section",
   "use_template",
   "template",
@@ -246,6 +248,22 @@
    "fieldname": "attach",
    "fieldtype": "Attach",
    "label": "Attach"
+  },
+  {
+   "depends_on": "eval:doc.content_type == 'location'",
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude",
+   "precision": "9",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.content_type == 'location'",
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude",
+   "precision": "9",
+   "read_only": 1
   },
   {
    "fieldname": "template_section",

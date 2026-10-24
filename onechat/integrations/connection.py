@@ -434,6 +434,9 @@ class Remote:
 				"reqd": row.get("reqd"),
 				"default": row.get("default"),
 				"read_only": row.get("read_only"),
+				"hidden": row.get("hidden"),
+				"in_standard_filter": row.get("in_standard_filter"),
+				"in_list_view": row.get("in_list_view"),
 			}
 			for row in meta.get("fields") or []
 			if row.get("fieldname")

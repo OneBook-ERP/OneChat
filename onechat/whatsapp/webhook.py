@@ -207,6 +207,16 @@ def receive(message, account, profile_name):
 			content_type="button",
 			buttons=json.dumps({"reply_id": button.get("payload")}),
 		)
+	elif kind == "location":
+		location = message.get("location") or {}
+		insert(
+			base,
+			message="\n".join(part for part in (location.get("name"), location.get("address")) if part)
+			or None,
+			content_type="location",
+			latitude=location.get("latitude"),
+			longitude=location.get("longitude"),
+		)
 	else:
 		body = message.get(kind)
 		insert(base, message=body.get(kind) if isinstance(body, dict) else None, content_type=kind)

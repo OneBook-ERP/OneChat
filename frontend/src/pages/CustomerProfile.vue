@@ -38,7 +38,7 @@
                   :href="`tel:${profile.mobile_no}`"
                   class="block text-sm tabular-nums text-ink-gray-6 hover:text-ink-gray-8"
                 >
-                  {{ profile.mobile_no }}
+                  {{ formatPhone(profile.mobile_no) }}
                 </a>
                 <a
                   v-if="profile.email"
@@ -51,15 +51,27 @@
             </div>
           </section>
 
-          <div v-if="profile" class="flex flex-wrap gap-1.5">
-            <Badge
-              v-if="profile.reference_doctype"
-              :theme="linkMeta(profile.reference_doctype).theme"
-              :label="__(profile.reference_doctype)"
-            />
-            <Badge v-if="profile.opted_out" theme="red" :label="__('Opted out')" />
-            <Badge v-if="profile.conversation_status" variant="outline" :label="__(profile.conversation_status)" />
-            <LabelBadges v-if="profile.labels?.length" :names="profile.labels" />
+          <div v-if="profile" class="flex flex-col gap-2.5">
+            <div class="flex flex-wrap gap-1.5">
+              <Badge
+                v-if="profile.reference_doctype"
+                :theme="linkMeta(profile.reference_doctype).theme"
+                :label="__(profile.reference_doctype)"
+              />
+              <Badge v-if="profile.opted_out" theme="red" :label="__('Opted out')" />
+              <Badge v-if="profile.conversation_status" variant="outline" :label="__(profile.conversation_status)" />
+              <LabelBadges v-if="profile.labels?.length" :names="profile.labels" />
+            </div>
+            <div v-if="profile.assigned_to || profile.team" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-gray-6">
+              <span v-if="profile.assigned_to" class="inline-flex items-center gap-1.5">
+                <span class="lucide-user-check size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
+                {{ __('Assigned to {0}').format(profile.assigned_name || profile.assigned_to) }}
+              </span>
+              <span v-if="profile.team" class="inline-flex items-center gap-1.5">
+                <span class="lucide-users size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
+                {{ profile.team }}
+              </span>
+            </div>
           </div>
 
           <div
@@ -87,7 +99,7 @@
             @updated="setScores"
           />
 
-          <CustomerStats :stats="stats" :loading="!profile" columns="grid-cols-2" />
+          <CustomerStats :stats="stats" :loading="!profile" columns="grid-cols-2 [&>*:last-child:nth-child(odd)]:col-span-2" />
 
           <div v-if="memberOf.length" class="flex flex-col gap-2">
             <p class="text-sm font-medium text-ink-gray-6">{{ __('In segments') }}</p>
@@ -103,11 +115,6 @@
               />
             </div>
           </div>
-
-          <p v-if="profile?.assigned_to" class="flex items-center gap-2 text-sm text-ink-gray-6">
-            <span class="lucide-user-check size-4 shrink-0" aria-hidden="true" />
-            {{ __('Assigned to {0}').format(profile.assigned_name || profile.assigned_to) }}
-          </p>
 
           <div v-if="profile" class="flex items-center justify-between gap-3 rounded-4 border border-outline-gray-1 px-3 py-2.5">
             <div class="min-w-0">
@@ -168,7 +175,7 @@ import { linkMeta } from '@/data/integrations'
 import { contactSegments } from '@/data/segments'
 import { session } from '@/data/session'
 import { useUI } from '@/stores/ui'
-import { errorMessage } from '@/utils/format'
+import { errorMessage, formatPhone } from '@/utils/format'
 import { recall, remember } from '@/utils/swr'
 import { translate as __ } from '@/translation'
 

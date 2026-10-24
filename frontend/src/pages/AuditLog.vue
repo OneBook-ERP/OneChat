@@ -40,6 +40,13 @@
           <FilterChips v-if="actionOptions.length > 2" v-model="filters.action" :label="__('Action')" :options="actionOptions" />
           <FilterChips v-model="filters.actor" :label="__('Who')" :options="peopleOptions" />
           <FilterChips v-model="filters.period" :label="__('Period')" :options="periods" />
+          <DateRangePicker
+            v-if="filters.period === 'custom'"
+            v-model="dateRange"
+            class="mt-2 w-full"
+            :placeholder="__('Pick a date range')"
+            :max="today"
+          />
         </template>
       </ResponsiveDialog>
     </div>
@@ -61,7 +68,14 @@
           :label="__('Clear')"
           @click="clearFilters"
         />
-        <div class="flex flex-1 justify-end pl-2">
+        <div class="flex flex-1 items-center justify-end gap-2 pl-2">
+          <DateRangePicker
+            v-if="filters.period === 'custom'"
+            v-model="dateRange"
+            class="w-60 shrink-0"
+            :placeholder="__('Pick a date range')"
+            :max="today"
+          />
           <TabButtons v-model="filters.period" class="shrink-0" :options="periods" />
         </div>
       </div>
@@ -157,6 +171,7 @@ import {
   Avatar,
   Badge,
   Button,
+  DateRangePicker,
   ErrorMessage,
   FormControl,
   ScrollArea,
@@ -206,7 +221,19 @@ const route = useRoute()
 const router = useRouter()
 const { isDesktop } = useBreakpoint()
 
-const filters = reactive({ action: '', actor: '', contact: '', period: '30d' })
+const filters = reactive({ action: '', actor: '', contact: '', period: '30d', dates: '' })
+const today = dayjs().format('YYYY-MM-DD')
+
+const dateRange = computed({
+  get: () => (filters.dates ? filters.dates.split(',').slice(0, 2) : []),
+  set: (value) => (filters.dates = value?.length === 2 ? value.join(',') : ''),
+})
+const rangeReady = computed(() => filters.period !== 'custom' || dateRange.value.length === 2)
+
+function rangeParams() {
+  if (filters.period !== 'custom' || !rangeReady.value) return {}
+  return { from_date: dateRange.value[0], to_date: dateRange.value[1] }
+}
 const page = ref(1)
 const rows = ref([])
 const total = ref(0)
@@ -222,6 +249,7 @@ const periods = [
   { label: __('30 days'), value: '30d' },
   { label: __('90 days'), value: '90d' },
   { label: __('All'), value: 'all' },
+  { label: __('Custom'), value: 'custom' },
 ]
 
 const category = computed(() => (CATEGORIES[route.query.category] ? route.query.category : ''))
@@ -304,6 +332,7 @@ async function load() {
       actor: filters.actor || undefined,
       contact: filters.contact.trim() || undefined,
       period: filters.period,
+      ...rangeParams(),
       start: (page.value - 1) * pageLength.value,
       limit: pageLength.value,
     })
@@ -323,6 +352,7 @@ const state = useQueryState(
     field('actor', filters, 'actor', ''),
     field('q', filters, 'contact', ''),
     field('period', filters, 'period', '30d'),
+    field('dates', filters, 'dates', ''),
     refField('page', page, 1),
   ],
   { size: true },
@@ -336,7 +366,7 @@ function reload() {
 const reloadSoon = debounce(reload, 300)
 
 function clearFilters() {
-  Object.assign(filters, { action: '', actor: '', contact: '', period: '30d' })
+  Object.assign(filters, { action: '', actor: '', contact: '', period: '30d', dates: '' })
 }
 
 function open(row) {
@@ -359,6 +389,7 @@ function feedParams(scope) {
     actor: filters.actor || undefined,
     contact: filters.contact.trim() || undefined,
     period: filters.period,
+    ...rangeParams(),
   }
 }
 
@@ -390,7 +421,10 @@ watch(category, () => {
   if (!state.restoring()) filters.action = ''
   reload()
 })
-watch(() => [filters.action, filters.actor, filters.period], reload)
+watch(
+  () => [filters.action, filters.actor, filters.period, filters.dates],
+  () => rangeReady.value && reload(),
+)
 watch(() => filters.contact, reloadSoon)
 watch(page, load)
 watch(pageLength, reload)

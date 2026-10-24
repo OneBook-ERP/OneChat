@@ -1,4 +1,5 @@
 const SCENES = {
+  timeline: ['history'],
   notifications: ['bell'],
   conversation: ['inbox', 'message', 'messages'],
   login: ['users', 'user', 'contact'],

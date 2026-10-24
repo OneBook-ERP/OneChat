@@ -79,6 +79,95 @@
             <span v-if="message.link_url" class="lucide-external-link size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
           </component>
 
+          <a
+            v-else-if="location"
+            :href="location.url"
+            target="_blank"
+            rel="noopener"
+            class="flex items-start gap-2.5 rounded-4 bg-surface-gray-2 px-2.5 py-2 transition-colors hover:bg-surface-gray-3"
+          >
+            <span class="lucide-map-pin mt-0.5 size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
+            <span class="flex min-w-0 flex-col gap-0.5">
+              <span class="truncate text-sm font-medium text-ink-gray-9">{{ location.title }}</span>
+              <span class="truncate text-xs text-ink-gray-6">{{ location.subtitle }}</span>
+              <span class="text-xs text-ink-blue-6">{{ __('Open in Maps') }}</span>
+            </span>
+          </a>
+
+          <div v-else-if="order" class="flex w-72 max-w-full flex-col gap-2 px-0.5 pt-0.5">
+            <div class="flex items-center gap-2">
+              <span
+                class="grid size-8 shrink-0 place-content-center rounded-full bg-surface-alpha-gray-2 text-ink-gray-7"
+                aria-hidden="true"
+              >
+                <span class="lucide-shopping-cart size-4" />
+              </span>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-ink-gray-9">{{ __('New order') }}</p>
+                <p class="text-xs text-ink-gray-5">
+                  {{ order.count === '1' ? __('1 item') : __('{0} items').format(order.count) }}
+                </p>
+              </div>
+            </div>
+            <ul class="flex flex-col divide-y divide-outline-gray-2 overflow-hidden rounded-4 bg-surface-alpha-gray-2">
+              <li v-for="item in order.items" :key="item.code" class="flex items-center gap-2.5 p-2">
+                <img
+                  v-if="item.image"
+                  :src="item.image"
+                  alt=""
+                  loading="lazy"
+                  class="size-10 shrink-0 rounded-3 bg-surface-gray-3 object-cover"
+                />
+                <span v-else class="grid size-10 shrink-0 place-content-center rounded-3 bg-surface-gray-3" aria-hidden="true">
+                  <span class="lucide-package size-4 text-ink-gray-5" />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <TruncatedText class="block truncate text-sm font-medium text-ink-gray-9" :text="item.name" />
+                  <span class="block truncate text-xs tabular-nums text-ink-gray-5">
+                    {{ [item.name !== item.code && item.code, `${item.qty} × ${item.price}`].filter(Boolean).join(' · ') }}
+                  </span>
+                </span>
+                <span class="shrink-0 text-sm font-medium tabular-nums text-ink-gray-8">{{ item.amount }}</span>
+              </li>
+            </ul>
+            <div class="flex items-center justify-between px-0.5">
+              <span class="text-sm text-ink-gray-6">{{ __('Total') }}</span>
+              <span class="text-base font-semibold tabular-nums text-ink-gray-9">{{ order.total }}</span>
+            </div>
+            <p v-if="order.note" class="rounded-3 bg-surface-alpha-gray-2 px-2 py-1.5 text-sm text-ink-gray-7">
+              <span class="lucide-message-square-text mr-1 inline-block size-3.5 align-[-2px] text-ink-gray-5" aria-hidden="true" />
+              {{ order.note }}
+            </p>
+            <ol v-if="order.journey?.length" class="flex flex-col border-t border-outline-gray-2 pt-1.5">
+              <li v-for="(step, index) in order.journey" :key="step.key" class="relative">
+                <span
+                  v-if="index < order.journey.length - 1"
+                  class="absolute left-[0.6875rem] top-6 h-[calc(100%-1.25rem)] w-px"
+                  :class="step.state === 'done' ? 'bg-surface-green-6' : 'bg-outline-gray-2'"
+                  aria-hidden="true"
+                />
+                <component
+                  :is="step.url ? 'a' : 'div'"
+                  :href="step.url || undefined"
+                  :target="step.url ? '_blank' : undefined"
+                  :rel="step.url ? 'noopener' : undefined"
+                  class="flex items-center gap-2 rounded-3 px-0.5 py-1 text-xs"
+                  :class="step.url && 'hover:bg-surface-alpha-gray-2'"
+                  @click.stop
+                >
+                  <span class="grid size-5 shrink-0 place-content-center" aria-hidden="true">
+                    <span :class="STEPS[step.state]?.icon || STEPS.todo.icon" class="size-4" />
+                  </span>
+                  <span class="shrink-0 font-medium" :class="step.state === 'todo' ? 'text-ink-gray-5' : 'text-ink-gray-8'">
+                    {{ step.label }}
+                  </span>
+                  <span class="ml-auto min-w-0 truncate text-right text-ink-gray-5">{{ step.detail }}</span>
+                  <span v-if="step.url" class="lucide-arrow-up-right size-3 shrink-0 text-ink-gray-4" aria-hidden="true" />
+                </component>
+              </li>
+            </ol>
+          </div>
+
           <p v-else-if="placeholder" class="flex items-center gap-1.5 px-0.5 py-1 text-sm italic text-ink-gray-6">
             <span :class="placeholder.icon" class="size-4" aria-hidden="true" />
             {{ placeholder.label }}
@@ -239,6 +328,13 @@ const ICONS = {
   order_status: 'lucide-package',
 }
 
+const STEPS = {
+  done: { icon: 'lucide-circle-check text-ink-green-6' },
+  partial: { icon: 'lucide-circle-dot text-ink-amber-6' },
+  failed: { icon: 'lucide-circle-x text-ink-red-6' },
+  todo: { icon: 'lucide-circle text-ink-gray-4' },
+}
+
 const TICKS = {
   pending: { icon: 'lucide-clock', class: 'text-ink-gray-5', label: 'Sending' },
   failed: { icon: 'lucide-circle-alert', class: 'text-ink-red-7', label: 'Not delivered' },
@@ -278,9 +374,27 @@ const media = computed(() => {
   return { kind: '', url: '' }
 })
 
+const location = computed(() => {
+  if (kind.value !== 'location') return null
+  const lat = Number(props.message.latitude)
+  const lng = Number(props.message.longitude)
+  if (!lat && !lng) return null
+  const [title, ...rest] = String(props.message.message || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+  return {
+    title: title || __('Shared location'),
+    subtitle: rest.join(', ') || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+    url: `https://www.google.com/maps?q=${lat},${lng}`,
+  }
+})
+
 const text = computed(() => messageBody(props.message))
 
-const body = computed(() => (plainMessage(text.value) ? richText(text.value) : ''))
+const order = computed(() => (kind.value === 'order' && props.message.order?.items?.length ? props.message.order : null))
+
+const body = computed(() => (location.value || order.value || !plainMessage(text.value) ? '' : richText(text.value)))
 const copyText = computed(() => plainMessage(text.value))
 const inlineMeta = computed(() => !!body.value && !(template.value && props.message.template_footer) && !cta.value)
 
@@ -355,7 +469,7 @@ function cancelLink() {
 }
 
 const placeholder = computed(() => {
-  if (kind.value === 'text' || hasMedia.value || cta.value) return null
+  if (kind.value === 'text' || hasMedia.value || cta.value || location.value || order.value) return null
   if (
     ['location', 'contact', 'flow', 'interactive', 'button', 'product', 'product_list', 'order', 'order_details', 'order_status'].includes(
       kind.value,
