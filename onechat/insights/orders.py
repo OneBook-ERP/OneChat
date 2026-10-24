@@ -62,6 +62,7 @@ def sales_orders(source, ids):
 				"grand_total",
 				"advance_paid",
 				"per_billed",
+				"per_delivered",
 				"currency",
 				"creation",
 			],
@@ -95,22 +96,35 @@ def invoice_items(source, names):
 	return rows
 
 
-def invoiced_paid(source, names):
-	try:
-		items = invoice_items(source, names)
-	except Exception:
-		frappe.log_error(title="OneChat catalog orders: invoices")
-		return {}
+def invoices_by_order(source, names):
 	by_order = defaultdict(set)
-	for row in items:
+	for row in invoice_items(source, names):
 		by_order[row.get("sales_order")].add(row.get("parent"))
 	invoices = {}
 	for chunk in chunks({name for names in by_order.values() for name in names}):
 		for row in source.get_all(
-			INVOICE, filters={"name": ["in", chunk]}, fields=["name", "grand_total", "outstanding_amount"]
+			INVOICE,
+			filters={"name": ["in", chunk]},
+			fields=["name", "status", "grand_total", "outstanding_amount"],
 		):
-			invoices[row.get("name")] = flt(row.get("grand_total")) - flt(row.get("outstanding_amount"))
-	return {order: sum(invoices.get(name, 0) for name in names) for order, names in by_order.items()}
+			invoices[row.get("name")] = row
+	return {
+		order: [invoices[name] for name in sorted(names) if name in invoices]
+		for order, names in by_order.items()
+	}
+
+
+def invoice_paid(rows):
+	return sum(flt(row.get("grand_total")) - flt(row.get("outstanding_amount")) for row in rows)
+
+
+def invoiced_paid(source, names):
+	try:
+		linked = invoices_by_order(source, names)
+	except Exception:
+		frappe.log_error(title="OneChat catalog orders: invoices")
+		return {}
+	return {order: invoice_paid(rows) for order, rows in linked.items()}
 
 
 def payment_state(order, paid):

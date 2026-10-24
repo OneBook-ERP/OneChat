@@ -77,6 +77,7 @@ MESSAGE_FIELDS = [
 	"template_parameters",
 	"template_header_parameters",
 	"buttons",
+	"products",
 	"message_id",
 	"is_reply",
 	"reply_to_message_id",
@@ -635,6 +636,21 @@ def enrich(rows):
 					"request": links_sent[row.name],
 					"status": statuses.get(links_sent[row.name]) or "",
 				}
+
+	orders = [row for row in rows if row.content_type == "order" and row.products]
+	if orders:
+		from onechat.integrations.erpnext_commerce import order_cards
+
+		try:
+			cards = order_cards(orders)
+		except Exception:
+			frappe.log_error(title="OneChat order card")
+			cards = {}
+		for row in orders:
+			row.order = cards.get(row.name)
+
+	for row in rows:
+		row.pop("products", None)
 
 	asks = [row.name for row in rows if row.content_type == "order_details"]
 	if asks:

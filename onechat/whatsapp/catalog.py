@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 import frappe
 import requests
@@ -85,6 +86,27 @@ def attempt(doc, method, path, params=None):
 		return {}, error
 
 
+def fetch(base, auth, path, params=None):
+	response = requests.get(f"{base}/{path}", params=params, headers=auth, timeout=TIMEOUT)
+	try:
+		body = response.json()
+	except ValueError:
+		body = {}
+	if response.ok:
+		return body, None
+	error = body.get("error") or {}
+	detail = error.get("error_user_msg") or error.get("message") or response.text[:300]
+	return {}, MetaError(detail, error.get("code"), detail)
+
+
+def gather(doc, calls):
+	base = f"{doc.url}/{doc.version}"
+	auth = {"Authorization": f"Bearer {token(doc)}"}
+	with ThreadPoolExecutor(max_workers=len(calls)) as pool:
+		futures = {key: pool.submit(fetch, base, auth, *call) for key, call in calls.items()}
+		return {key: future.result() for key, future in futures.items()}
+
+
 def problem(error):
 	if not error:
 		return None
@@ -98,17 +120,25 @@ def problem(error):
 
 
 @frappe.whitelist()
-def state(account: str):
+def state(account: str, with_products: bool | int | str | None = None):
 	doc = load(account)
-	body, blocked = attempt(
-		doc, "GET", f"{doc.business_id}/product_catalogs", {"fields": "id,name,product_count"}
-	)
+	calls = {
+		"catalogs": (f"{doc.business_id}/product_catalogs", {"fields": "id,name,product_count"}),
+		"info": (doc.business_id, {"fields": "owner_business_info"}),
+	}
+	if doc.phone_id:
+		calls["commerce"] = (f"{doc.phone_id}/whatsapp_commerce_settings",)
+	if cint(with_products) and doc.catalog_id:
+		calls["products"] = (f"{doc.catalog_id}/products", page_params())
+	results = gather(doc, calls)
+	body, blocked = results["catalogs"]
 	connected = body.get("data") or []
-	business, owned, limited = {}, [], None
+	current = connected[0] if connected else None
+	business, owned, limited, commerce, first = {}, [], None, {}, None
 	if not blocked:
-		info, limited = attempt(doc, "GET", doc.business_id, {"fields": "owner_business_info"})
+		info, limited = results["info"]
 		business = info.get("owner_business_info") or {}
-		if business.get("id"):
+		if business.get("id") and not current:
 			listing, limited = attempt(
 				doc,
 				"GET",
@@ -116,14 +146,15 @@ def state(account: str):
 				{"fields": "id,name,product_count,vertical", "limit": 100},
 			)
 			owned = listing.get("data") or []
-	commerce = {}
-	if doc.phone_id and not blocked:
-		settings, _ignored = attempt(doc, "GET", f"{doc.phone_id}/whatsapp_commerce_settings")
-		commerce = (settings.get("data") or [{}])[0]
-	current = connected[0] if connected else None
-	if not blocked and (current or {}).get("id") != doc.catalog_id:
-		save_catalog_id(doc, (current or {}).get("id"))
+		if "commerce" in results:
+			commerce = (results["commerce"][0].get("data") or [{}])[0]
+		if "products" in results and current and current.get("id") == doc.catalog_id:
+			page, failed = results["products"]
+			first = None if failed else page_of(page)
+		if (current or {}).get("id") != doc.catalog_id:
+			save_catalog_id(doc, (current or {}).get("id"))
 	return {
+		"products": first,
 		"business": business,
 		"blocked": problem(blocked),
 		"limited": problem(limited),
@@ -212,7 +243,7 @@ def products(account: str, search: str | None = None, after: str | None = None):
 	return catalog_page(load(account), search, after)
 
 
-def catalog_page(doc, search=None, after=None):
+def page_params(search=None, after=None):
 	params = {"fields": PRODUCT_FIELDS, "limit": PAGE}
 	if after:
 		params["after"] = after
@@ -221,7 +252,14 @@ def catalog_page(doc, search=None, after=None):
 		params["filter"] = json.dumps(
 			{"or": [{"name": {"i_contains": text}}, {"retailer_id": {"i_contains": text}}]}
 		)
-	body = meta(doc, "GET", f"{catalog_of(doc)}/products", params)
+	return params
+
+
+def catalog_page(doc, search=None, after=None):
+	return page_of(meta(doc, "GET", f"{catalog_of(doc)}/products", page_params(search, after)))
+
+
+def page_of(body):
 	cursors = (body.get("paging") or {}).get("cursors") or {}
 	return {
 		"rows": body.get("data") or [],

@@ -652,15 +652,251 @@ def sync_catalog(account, user=None):
 	frappe.publish_realtime("onechat_catalog_sync", {"account": account, "status": status}, user=user)
 
 
-def item_names(codes):
+def item_rows(codes):
 	if not codes or not ERP.ready():
 		return {}
 
 	try:
-		rows = ERP.source().get_all("Item", filters={"name": ["in", codes]}, fields=["name", "item_name"])
+		rows = ERP.source().get_all(
+			"Item", filters={"name": ["in", codes]}, fields=["name", "item_name", "image"]
+		)
 	except connection.RemoteError:
 		return {}
-	return {row.name: row.item_name for row in rows}
+	return {row.name: row for row in rows}
+
+
+def item_names(codes):
+	return {code: row.item_name for code, row in item_rows(codes).items()}
+
+
+PAY = "OneChat WhatsApp Payment"
+
+
+def payment_asks(source, orders, invoices):
+	owner = {name: name for name in orders}
+	for order, rows in invoices.items():
+		for row in rows:
+			owner[row.get("name")] = order
+	if not owner:
+		return {}
+	asked = {}
+	for row in source.get_all(
+		"Payment Request",
+		filters={"reference_name": ["in", list(owner)], "docstatus": 1, "status": ["in", OPEN_REQUESTS]},
+		fields=["reference_name"],
+	):
+		asked[owner.get(row.get("reference_name"))] = _("Payment link sent")
+	if frappe.db.table_exists(PAY):
+		for name in frappe.get_all(
+			PAY, filters={"reference_name": ["in", list(owner)], "status": "Pending"}, pluck="reference_name"
+		):
+			asked[owner.get(name)] = _("Asked on WhatsApp")
+	return asked
+
+
+def step(key, label, state, detail=None, url=None):
+	return {"key": key, "label": label, "state": state, "detail": detail, "url": url}
+
+
+def journey(source, order, invoices, asked):
+	from onechat.insights.orders import invoice_paid, payment_state
+
+	steps = [step("ordered", _("Order received"), "done")]
+	if not order:
+		steps.append(step("sales_order", _("Sales Order"), "todo", _("Not created")))
+		return steps
+
+	name, docstatus, currency = order.get("name"), cint(order.get("docstatus")), order.get("currency")
+	steps.append(
+		step(
+			"sales_order",
+			_("Sales Order"),
+			"failed" if docstatus == 2 else "done" if docstatus == 1 else "partial",
+			f"{name} · {_(order.get('status') or 'Draft')}",
+			source.absolute(f"/app/sales-order/{name}"),
+		)
+	)
+	if docstatus == 2:
+		return steps
+
+	rows = invoices.get(name) or []
+	total = flt(order.get("grand_total"))
+	paid = max(flt(order.get("advance_paid")), invoice_paid(rows))
+	state = payment_state(order, paid) if docstatus == 1 else "Unpaid"
+	if state == "Paid":
+		steps.append(
+			step("payment", _("Payment"), "done", _("{0} paid").format(fmt_money(paid, currency=currency)))
+		)
+	elif state == "Part paid":
+		steps.append(
+			step(
+				"payment",
+				_("Payment"),
+				"partial",
+				_("{0} of {1} paid").format(
+					fmt_money(paid, currency=currency), fmt_money(total, currency=currency)
+				),
+			)
+		)
+	else:
+		steps.append(step("payment", _("Payment"), "todo", asked.get(name) or _("Not paid")))
+
+	billed = flt(order.get("per_billed"))
+	steps.append(
+		step(
+			"invoice",
+			_("Invoice"),
+			"done" if billed >= 100 else "partial" if rows else "todo",
+			", ".join(row.get("name") for row in rows) or _("Not invoiced"),
+			source.absolute(f"/app/sales-invoice/{rows[0].get('name')}") if rows else None,
+		)
+	)
+
+	delivered = flt(order.get("per_delivered"))
+	steps.append(
+		step(
+			"delivery",
+			_("Delivery"),
+			"done" if delivered >= 100 else "partial" if delivered else "todo",
+			_("Delivered")
+			if delivered >= 100
+			else _("{0}% delivered").format(f"{delivered:g}")
+			if delivered
+			else _("Not delivered"),
+		)
+	)
+	return steps
+
+
+def journeys(message_ids):
+	if not message_ids or not enabled() or not ERP.ready():
+		return {}
+	from onechat.insights.orders import invoices_by_order, sales_orders
+
+	source = ERP.source()
+	try:
+		linked = sales_orders(source, message_ids)
+		live = [row.get("name") for row in linked.values() if cint(row.get("docstatus")) == 1]
+		invoices = invoices_by_order(source, live) if live else {}
+	except Exception:
+		frappe.log_error(title="OneChat order journey")
+		return {}
+	try:
+		asked = payment_asks(source, live, invoices)
+	except Exception:
+		frappe.log_error(title="OneChat order journey: payment requests")
+		asked = {}
+	return {key: journey(source, linked.get(key), invoices, asked) for key in message_ids}
+
+
+def linked_orders(doc):
+	refs = [(doc.get("reference_doctype"), doc.get("reference_name"))]
+	refs += [(row.get("reference_doctype"), row.get("reference_name")) for row in doc.get("references") or []]
+	names = {name for doctype, name in refs if doctype == "Sales Order" and name}
+	invoices = [name for doctype, name in refs if doctype == "Sales Invoice" and name]
+	if doc.doctype == "Sales Order":
+		names.add(doc.name)
+	elif doc.doctype == "Sales Invoice":
+		invoices.append(doc.name)
+	elif doc.doctype == "Delivery Note":
+		names |= {
+			row.get("against_sales_order") for row in doc.get("items") or [] if row.get("against_sales_order")
+		}
+	if invoices and frappe.db.table_exists("Sales Invoice Item"):
+		names |= set(
+			frappe.get_all(
+				"Sales Invoice Item",
+				filters={"parent": ["in", invoices], "sales_order": ["is", "set"]},
+				pluck="sales_order",
+			)
+		)
+	return names
+
+
+def refresh_order_cards(doc, method=None):
+	try:
+		orders = linked_orders(doc)
+		if not orders or not frappe.db.table_exists("Sales Order"):
+			return
+		ids = frappe.get_all(
+			"Sales Order", filters={"name": ["in", list(orders)], "po_no": ["is", "set"]}, pluck="po_no"
+		)
+		messages = (
+			frappe.get_all(
+				MESSAGE,
+				filters={
+					"message_id": ["in", ids],
+					"content_type": "order",
+					"whatsapp_contact": ["is", "set"],
+				},
+				fields=["name", "whatsapp_contact"],
+			)
+			if ids
+			else []
+		)
+		if messages:
+			frappe.enqueue(
+				"onechat.integrations.erpnext_commerce.publish_orders",
+				queue="short",
+				enqueue_after_commit=True,
+				messages=messages,
+			)
+	except Exception:
+		frappe.log_error(title=f"OneChat order card refresh: {doc.name}")
+
+
+def publish_orders(messages):
+	for row in messages:
+		publish(row["whatsapp_contact"], row["name"])
+
+
+def order_cards(messages):
+	orders = {}
+	for message in messages:
+		try:
+			orders[message.name] = frappe.parse_json(message.products) or {}
+		except ValueError:
+			continue
+	codes = list(
+		{
+			row.get("product_retailer_id")
+			for order in orders.values()
+			for row in order.get("product_items") or []
+			if row.get("product_retailer_id")
+		}
+	)
+	items = item_rows(codes)
+	flows = journeys([message.message_id for message in messages if message.message_id])
+	cards = {}
+	for message in messages:
+		if message.name not in orders:
+			continue
+		order, lines, total, count, currency = orders[message.name], [], 0, 0, None
+		for row in order.get("product_items") or []:
+			code = row.get("product_retailer_id")
+			qty, price = flt(row.get("quantity")) or 1, flt(row.get("item_price"))
+			currency = row.get("currency") or currency
+			total += qty * price
+			count += qty
+			item = items.get(code) or {}
+			lines.append(
+				{
+					"code": code,
+					"name": item.get("item_name") or code,
+					"image": absolute(item.get("image")) if item.get("image") else None,
+					"qty": f"{qty:g}",
+					"price": fmt_money(price, currency=currency),
+					"amount": fmt_money(qty * price, currency=currency),
+				}
+			)
+		cards[message.name] = {
+			"items": lines,
+			"count": f"{count:g}",
+			"total": fmt_money(total, currency=currency),
+			"note": order.get("text"),
+			"journey": flows.get(message.message_id),
+		}
+	return cards
 
 
 def order_summary(order):
