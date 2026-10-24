@@ -208,7 +208,13 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const LINKS = { form: 'WhatsApp Flow', label: 'OneChat Label', chat_link: 'OneChat Chat Link', team: 'OneChat Team' }
+const LINKS = {
+  form: 'WhatsApp Flow',
+  label: 'OneChat Label',
+  chat_link: 'OneChat Chat Link',
+  team: 'OneChat Team',
+  account: 'OneChat Account',
+}
 
 function variableToken(name) {
   return props.field.scope === 'records' ? `{{records.${name}.name}}` : `{{answers.${name}}}`

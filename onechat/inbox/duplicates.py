@@ -152,7 +152,7 @@ def suggestions(limit: int | str = 100):
 		)
 	out.sort(key=lambda row: (not row["confident"], row["keep"]["contact_name"] or ""))
 	return {
-		"pairs": out[: cint(limit) or 100],
+		"pairs": out[: cint(limit)] if cint(limit) else out,
 		"total": len(out),
 		"mode": setting("duplicate_merge") or "Manual",
 	}

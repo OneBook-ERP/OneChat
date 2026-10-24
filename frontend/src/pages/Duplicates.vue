@@ -41,7 +41,7 @@
 
       <template v-else>
         <p class="text-sm text-ink-gray-5">{{ __('{0} possible duplicates').format(formatNumber(total)) }}</p>
-        <article v-for="pair in pairs" :key="pair.key" class="flex flex-col gap-3 rounded-5 border border-outline-gray-1 p-3">
+        <article v-for="pair in pageRows" :key="pair.key" class="flex flex-col gap-3 rounded-5 border border-outline-gray-1 p-3">
           <div class="flex flex-wrap items-center gap-1.5">
             <Badge
               v-for="reason in pair.reasons"
@@ -101,6 +101,7 @@
             />
           </div>
         </article>
+        <Pagination v-if="pairs.length > PAGE_SIZES[0]" v-model:page="page" :total="pairs.length" inline />
       </template>
     </div>
   </ScrollArea>
@@ -108,14 +109,16 @@
 
 <script setup>
 import TruncatedText from '@/components/Common/TruncatedText.vue'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Avatar, Badge, Button, ErrorMessage, ScrollArea, Skeleton, call, toast } from 'frappe-ui'
 import AppHeader from '@/components/Layouts/AppHeader.vue'
 import EmptyState from '@/components/Common/EmptyState.vue'
+import Pagination from '@/components/Common/Pagination.vue'
 import { session } from '@/data/session'
 import { useUI } from '@/stores/ui'
 import { errorMessage, formatNumber, timeAgo } from '@/utils/format'
+import { PAGE_SIZES, pageLength, pageOf } from '@/utils/paging'
 import { translate as __ } from '@/translation'
 
 defineProps({ compact: { type: Boolean, default: false } })
@@ -133,6 +136,18 @@ const loaded = ref(false)
 const error = ref('')
 const choice = reactive({})
 const busy = reactive({})
+const page = ref(1)
+
+const pageRows = computed(() => pageOf(pairs.value, page.value))
+
+watch(pageLength, () => (page.value = 1))
+watch(
+  () => pairs.value.length,
+  (count) => {
+    const last = Math.max(1, Math.ceil(count / pageLength.value))
+    if (page.value > last) page.value = last
+  },
+)
 
 function sides(pair) {
   return [{ row: pair.keep }, { row: pair.merge }]
@@ -150,10 +165,11 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const data = await call(`${METHOD}suggestions`)
+    const data = await call(`${METHOD}suggestions`, { limit: 0 })
     pairs.value = data.pairs
     total.value = data.total
     mode.value = data.mode
+    page.value = 1
     for (const pair of data.pairs) choice[pair.key] = choice[pair.key] || pair.keep.name
     loaded.value = true
   } catch (err) {

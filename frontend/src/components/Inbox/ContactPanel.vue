@@ -27,6 +27,16 @@
             >
               <ChannelIcon channel="Instagram" class="size-3.5" />@{{ contact.instagram_username }}
             </a>
+            <RouterLink
+              v-for="twin in contact.also_on || []"
+              :key="twin.name"
+              :to="{ name: 'Inbox', params: { contact: twin.name } }"
+              class="flex items-center gap-1 text-sm text-ink-blue-6 hover:underline"
+            >
+              <ChannelIcon channel="Instagram" class="size-3.5" />
+              {{ __('Also on {0}').format(twin.account_label) }}
+              <span v-if="twin.unread_count" class="text-ink-gray-5">· {{ __('{0} unread').format(twin.unread_count) }}</span>
+            </RouterLink>
             <p v-if="contact.email" class="truncate text-sm text-ink-gray-5">
               <a :href="`mailto:${contact.email}`" class="hover:text-ink-gray-8">{{ contact.email }}</a>
             </p>

@@ -27,7 +27,7 @@ export function useNumberMenu() {
   const numberMenu = computed(() =>
     [
       switches(__('Accounts shown'), numbers.rows, (row) => ({
-        label: row.phone ? `${row.label} · ${row.phone}` : row.label,
+        label: [row.label, row.phone, row.unread ? __('{0} unread').format(row.unread) : ''].filter(Boolean).join(' · '),
         icon: channelIcon(row.channel),
         onClick: (value) => numbers.toggle(row.name, value),
       })),

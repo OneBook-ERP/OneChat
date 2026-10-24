@@ -847,6 +847,10 @@ def channel_fits(config, channel):
 	return (config.get("channel") or "WhatsApp") in ("Any", channel)
 
 
+def account_fits(config, account):
+	return not config.get("account") or config["account"] == account
+
+
 def matching_flow(doc, message, contact):
 	best = None
 	busy = None
@@ -855,6 +859,8 @@ def matching_flow(doc, message, contact):
 		if row["kind"] not in MESSAGE_TRIGGERS:
 			continue
 		if row["kind"] != "comment_received" and not channel_fits(row["config"], channel):
+			continue
+		if not account_fits(row["config"], doc.get("whatsapp_account")):
 			continue
 		if row["kind"] == "message_received":
 			if busy is None:
@@ -917,7 +923,9 @@ def start_order_flow(doc, message, contact):
 		(
 			row["flow"]
 			for row in trigger_index()
-			if row["kind"] == "order_placed" and channel_fits(row["config"], channel)
+			if row["kind"] == "order_placed"
+			and channel_fits(row["config"], channel)
+			and account_fits(row["config"], doc.get("whatsapp_account"))
 		),
 		None,
 	)

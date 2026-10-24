@@ -3,6 +3,13 @@
     <template #default>
       <div class="flex flex-col gap-4 md:min-h-[26rem] md:flex-row">
         <div class="flex shrink-0 flex-col gap-2 md:w-64">
+          <Select
+            v-if="accountOptions.length > 1"
+            :model-value="account"
+            :options="accountOptions"
+            :placeholder="__('Send from')"
+            @update:model-value="pickAccount"
+          />
           <FormControl v-model="query" type="search" :placeholder="__('Search templates')">
             <template #prefix>
               <span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" />
@@ -162,11 +169,36 @@ let fillTicket = 0
 const sending = ref(false)
 const error = ref('')
 
+const account = ref('')
+const accountRows = ref([])
+
 const templates = createResource({
   url: 'onechat.inbox.conversations.templates',
-  cache: 'onechat-templates',
-  makeParams: () => ({ search: query.value || null }),
+  makeParams: () => ({ search: query.value || null, account: account.value || null }),
 })
+
+const accountOptions = computed(() =>
+  accountRows.value.map((row) => ({ label: row.phone ? `${row.label} · ${row.phone}` : row.label, value: row.name })),
+)
+
+async function loadAccounts() {
+  try {
+    const result = await call('onechat.inbox.accounts.choices', { contact: props.contact })
+    accountRows.value = result.accounts || []
+    account.value = result.selected || ''
+  } catch (err) {
+    accountRows.value = []
+    account.value = ''
+    error.value = errorMessage(err)
+  }
+}
+
+function pickAccount(value) {
+  if (value === account.value) return
+  account.value = value
+  selected.value = null
+  templates.reload()
+}
 
 const rows = computed(() => (templates.data || []).filter((row) => String(row.status || '').toUpperCase() === 'APPROVED'))
 
@@ -185,11 +217,12 @@ const search = debounce(() => templates.reload(), 300)
 
 watch(query, search)
 
-watch(open, (value) => {
+watch(open, async (value) => {
   if (!value) return
 
   error.value = ''
-  if (!templates.data) templates.fetch()
+  await loadAccounts()
+  templates.fetch()
 })
 
 function token(index) {
@@ -277,6 +310,7 @@ async function send() {
       props.contact,
       selected.value.name,
       values.value.map((value) => String(value).trim()),
+      account.value,
     )
     emit('sent')
     open.value = false

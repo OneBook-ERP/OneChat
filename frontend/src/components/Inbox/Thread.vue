@@ -59,6 +59,15 @@
           <span v-if="contact.instagram_username" class="inline-flex items-center gap-1"
             ><ChannelIcon channel="Instagram" class="size-3" />@{{ contact.instagram_username }}</span
           >
+          <RouterLink
+            v-for="twin in contact.also_on || []"
+            :key="twin.name"
+            :to="{ name: 'Inbox', params: { contact: twin.name } }"
+            class="inline-flex items-center gap-1 text-ink-blue-6 hover:underline"
+          >
+            <span aria-hidden="true">·</span>{{ __('Also on {0}').format(twin.account_label) }}
+            <span v-if="twin.unread_count" class="text-ink-gray-5">({{ twin.unread_count }})</span>
+          </RouterLink>
           <template v-if="contact.reference_doctype">
             <span aria-hidden="true">·</span>
             <span>{{ __(contact.reference_doctype) }}</span>

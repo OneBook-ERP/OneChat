@@ -55,6 +55,13 @@ const MAKE_TARGETS = {
   'Purchase Invoice': ['Payment Entry'],
 }
 
+const accountField = {
+  key: 'account',
+  label: 'Only on account',
+  type: 'account',
+  description: 'Leave empty to start on any account.',
+}
+
 const choiceOutputs = (key) => (config) =>
   [
     ...(config[key] || []).filter((row) => row.title).map((row) => ({ id: row.id, label: row.title })),
@@ -84,6 +91,7 @@ export const CATALOG = [
           { label: 'WhatsApp and Instagram', value: 'Any' },
         ],
       },
+      accountField,
       {
         key: 'match',
         label: 'Start when the message',
@@ -140,6 +148,7 @@ export const CATALOG = [
         type: 'template',
         description: 'Optional. Leave empty to match this button on any template.',
       },
+      accountField,
     ],
     summary: (config) => config.button,
   },
@@ -153,7 +162,7 @@ export const CATALOG = [
     category: 'trigger',
     triggerType: 'WhatsApp Incoming',
     hint: 'The answers are available as {{form.field_name}}.',
-    fields: [{ key: 'form', label: 'Form', type: 'form', description: 'Leave empty to start on any form.' }],
+    fields: [{ key: 'form', label: 'Form', type: 'form', description: 'Leave empty to start on any form.' }, accountField],
     summary: (config) => config.form || 'Any form',
   },
   {
@@ -166,7 +175,7 @@ export const CATALOG = [
     category: 'trigger',
     triggerType: 'WhatsApp Incoming',
     hint: 'The order is available as {{order.summary}} (one line per item), {{order.total}}, {{order.count}}, {{order.quantity}} and {{order.note}}. To check for an existing customer, use a Condition on {{contact.links.erpnext.doctype}} equals Customer. Add Create Sales Order to put it in ERPNext. Without a flow, a draft Sales Order is made for every order.',
-    fields: [],
+    fields: [accountField],
   },
   {
     type: 'chat_link_opened',
@@ -177,7 +186,7 @@ export const CATALOG = [
     color: 'green',
     category: 'trigger',
     triggerType: 'WhatsApp Incoming',
-    fields: [{ key: 'link', label: 'Chat link', type: 'chat_link', required: true }],
+    fields: [{ key: 'link', label: 'Chat link', type: 'chat_link', required: true }, accountField],
     summary: (config) => config.link,
   },
   {
@@ -234,6 +243,7 @@ export const CATALOG = [
         description: 'Optional. One is picked at random for each comment, so replies don’t look automated.',
       },
       { key: 'hide_comment', label: 'Hide the comment after replying', type: 'switch' },
+      accountField,
       { key: 'once_per_person', label: 'Only once per person per post', type: 'switch', default: true },
     ],
     summary: (config) => (config.match === 'any' ? 'Any comment' : (config.keywords || []).map((row) => row.value ?? row).join(', ')),

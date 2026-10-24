@@ -67,8 +67,7 @@ def account_for(contact):
 	return frappe.db.get_value(CONTACT, contact, "whatsapp_account") or default_outgoing()
 
 
-def check(contact):
-	account = account_for(contact)
+def allow(account):
 	if not can_use(account):
 		frappe.throw(
 			_(
@@ -77,6 +76,75 @@ def check(contact):
 			frappe.PermissionError,
 		)
 	return account
+
+
+def check(contact):
+	return allow(account_for(contact))
+
+
+def pick(contact, account=None):
+	if not account:
+		return check(contact)
+	row = frappe.db.get_value(ACCOUNT, account, ["status", "channel"], as_dict=True)
+	if not row:
+		frappe.throw(_("Account {0} does not exist.").format(account))
+	if row.status == "Inactive":
+		frappe.throw(_("Account {0} is inactive. Activate it in Settings to send messages.").format(account))
+	require_whatsapp(account)
+	return allow(account)
+
+
+@frappe.whitelist()
+def choices(contact: str):
+	from onechat.inbox.visibility import check as check_visible
+	from onechat.workspace import numbers
+
+	check_visible(contact)
+	current = frappe.db.get_value(CONTACT, contact, "whatsapp_account")
+	off = blocked() | set(numbers.hidden())
+	rows = [
+		row
+		for row in frappe.get_all(
+			ACCOUNT,
+			filters={"status": "Active", "channel": ["!=", "Instagram"]},
+			fields=["name", "account_name", "display_phone_number", "is_default_outgoing"],
+			order_by="account_name asc",
+		)
+		if row.name not in off
+	]
+	from onechat.inbox import contact_accounts
+
+	names = [row.name for row in rows]
+	ready = sorted(
+		(
+			row
+			for row in contact_accounts.rows_of(contact)
+			if row.account in names and contact_accounts.window_open(row)
+		),
+		key=lambda row: row.last_incoming_at,
+		reverse=True,
+	)
+	open_names = [row.account for row in ready]
+	selected = (
+		current
+		if current in names
+		else open_names[0]
+		if open_names
+		else next((row.name for row in rows if row.is_default_outgoing), names[0] if names else None)
+	)
+	return {
+		"current": current,
+		"selected": selected,
+		"accounts": [
+			{
+				"name": row.name,
+				"label": row.account_name or row.name,
+				"phone": row.display_phone_number or "",
+				"window_open": row.name in open_names,
+			}
+			for row in rows
+		],
+	}
 
 
 def contact_of(doc):
