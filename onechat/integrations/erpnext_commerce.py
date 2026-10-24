@@ -27,6 +27,8 @@ from onechat.workspace.session import is_admin
 ACCOUNT = "OneChat Account"
 MAX_PRODUCTS = 30
 SUMMARY_ITEMS = 12
+ORDER_DOCTYPES = ("Quotation", "Sales Order", "Sales Invoice")
+TRACKED_BY_PO = ("Sales Order", "Sales Invoice")
 NAME_LIMIT = 40
 DELIVERY_DAYS = 7
 BATCH_SIZE = 1000
@@ -1045,7 +1047,23 @@ def customer_for(contact):
 	return name
 
 
-def create_sales_order(message, extra=None, submit=False, days=None, item_extra=None):
+def party_values(doctype, customer, delivery, message):
+	if doctype == "Quotation":
+		return {"quotation_to": "Customer", "party_name": customer, "order_type": "Sales"}
+	if doctype == "Sales Invoice":
+		return {"customer": customer, "po_no": message.message_id}
+	return {
+		"customer": customer,
+		"order_type": "Sales",
+		"delivery_date": delivery,
+		"po_no": message.message_id,
+	}
+
+
+def create_from_order(message, doctype="Sales Order", extra=None, submit=False, days=None, item_extra=None):
+	if doctype not in ORDER_DOCTYPES:
+		frappe.throw(_("A WhatsApp order can become a {0}.").format(", ".join(ORDER_DOCTYPES)))
+
 	order = frappe.parse_json(message.products or "{}") or {}
 	source = ERP.source()
 	codes = [
@@ -1064,16 +1082,13 @@ def create_sales_order(message, extra=None, submit=False, days=None, item_extra=
 	gst = gst_rates(message.whatsapp_account, [row["product_retailer_id"] for row in rows])
 	price_list = price_list_for(message.whatsapp_account)
 	delivery = add_days(nowdate(), DELIVERY_DAYS if days in (None, "") else cint(days))
+	dated = {"delivery_date": delivery} if doctype == "Sales Order" else {}
 	values = frappe._dict(
 		{
-			"doctype": "Sales Order",
-			"customer": customer,
+			"doctype": doctype,
 			"company": company(),
-			"order_type": "Sales",
-			"transaction_date": nowdate(),
-			"delivery_date": delivery,
-			"po_no": message.message_id,
 			"ignore_pricing_rule": 1,
+			**party_values(doctype, customer, delivery, message),
 			"items": [
 				{
 					"item_code": row["product_retailer_id"],
@@ -1082,7 +1097,7 @@ def create_sales_order(message, extra=None, submit=False, days=None, item_extra=
 						flt(row.get("item_price")) / (1 + flt(gst.get(row["product_retailer_id"])) / 100),
 						2,
 					),
-					"delivery_date": delivery,
+					**dated,
 					**(item_extra or {}),
 				}
 				for row in rows
@@ -1098,19 +1113,19 @@ def create_sales_order(message, extra=None, submit=False, days=None, item_extra=
 		doc = source.insert(values)
 		return source.submit(doc).name if submit else doc.name
 
-	so = frappe.get_doc(values)
-	so.set_missing_values()
-	so.insert(ignore_permissions=True)
+	doc = frappe.get_doc(values)
+	doc.set_missing_values()
+	doc.insert(ignore_permissions=True)
 	if submit:
-		so.submit()
+		doc.submit()
 
-	return so.name
+	return doc.name
 
 
-def order_of(message):
-	if not message.get("message_id"):
+def created_from(message, doctype="Sales Order"):
+	if doctype not in TRACKED_BY_PO or not message.get("message_id"):
 		return None
-	return ERP.source().get_value("Sales Order", {"po_no": message.message_id, "docstatus": ["<", 2]}, "name")
+	return ERP.source().get_value(doctype, {"po_no": message.message_id, "docstatus": ["<", 2]}, "name")
 
 
 @contextmanager
@@ -1124,9 +1139,9 @@ def elevated():
 		frappe.set_user(user)
 
 
-def mark_order(message, order, submitted=False):
-	label = _("Sales Order {0} created") if submitted else _("Draft Sales Order {0} created")
-	text = "\n".join([message.message or "", label.format(order)])
+def mark_order(message, name, doctype="Sales Order", submitted=False):
+	label = _("{0} {1} created") if submitted else _("Draft {0} {1} created")
+	text = "\n".join([message.message or "", label.format(_(doctype), name)])
 	frappe.db.set_value(MESSAGE, message.name, "message", text, update_modified=False)
 	if message.get("whatsapp_contact"):
 		publish(message.whatsapp_contact, message.name)
@@ -1139,7 +1154,7 @@ def handle_order(message):
 	frappe.db.savepoint("onechat_order")
 	try:
 		with elevated():
-			order = create_sales_order(message)
+			order = create_from_order(message)
 	except Exception:
 		frappe.db.rollback(save_point="onechat_order")
 		frappe.log_error(title="OneChat WhatsApp order")

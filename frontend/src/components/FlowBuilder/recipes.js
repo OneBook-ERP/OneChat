@@ -285,6 +285,7 @@ export const RECIPES = [
           doctype: 'Sales Invoice',
           name: '{{records.order.name}}',
           submit: true,
+          save_as: 'invoice',
         }),
         step('link', 'send_payment_link', { doctype: 'Sales Invoice', document: '{{records.invoice.name}}' }),
         step('cod', 'send_message', { text: 'Great, please keep {{records.order.grand_total}} ready at delivery. Thank you!' }),

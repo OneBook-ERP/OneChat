@@ -345,8 +345,8 @@ const RECORD_STEPS = ['find_record', 'create_record', 'create_sales_order', 'mak
 const SAVED_RECORDS = {
   find_record: { key: 'record', group: 'Found' },
   create_record: { key: 'created', group: 'Created' },
-  create_sales_order: { key: 'order', group: 'Created', doctype: 'Sales Order' },
-  make_record: { key: 'invoice', group: 'Made' },
+  create_sales_order: { key: 'order', group: 'Created', fallback: 'Sales Order' },
+  make_record: { key: 'made', group: 'Made' },
   save_address: { key: 'address', group: 'Saved', doctype: 'Address' },
 }
 const ORDER_VARIABLES = [
@@ -361,7 +361,7 @@ const ORDER_VARIABLES = [
 
 function savedRecord(type, config) {
   const saved = SAVED_RECORDS[type]
-  return { key: config.save_as || saved.key, group: saved.group, doctype: saved.doctype || config.doctype }
+  return { key: config.save_as || saved.key, group: saved.group, doctype: saved.doctype || config.doctype || saved.fallback }
 }
 
 const BASE_VARIABLES = [
@@ -383,6 +383,23 @@ const variables = computed(() => {
     const config = node.data?.config || {}
     if (['ask_question', 'send_buttons', 'send_list'].includes(type) && config.save_as) {
       list.push({ group: 'Their answers', label: config.save_as.replace(/_/g, ' '), token: `{{answers.${config.save_as}}}` })
+    }
+    if (type === 'set_variable') {
+      for (const name of Object.keys(config.variables || {})) {
+        if (name) list.push({ group: 'Saved values', label: name.replace(/_/g, ' '), token: `{{vars.${name}}}` })
+      }
+    }
+    if (type === 'http_request') {
+      list.push({ group: 'API reply', label: 'Reply', token: '{{http.response}}' })
+      list.push({ group: 'API reply', label: 'Status code', token: '{{http.status_code}}' })
+      if (config.save_as) list.push({ group: 'API reply', label: config.save_as.replace(/_/g, ' '), token: `{{vars.${config.save_as}}}` })
+    }
+    if (type === 'get_list') {
+      list.push({
+        group: 'Found records',
+        label: `${config.doctype || 'Records'} (list)`,
+        token: `{{records.${config.save_as || 'list'}}}`,
+      })
     }
     if (RECORD_STEPS.includes(type)) {
       const { key, doctype, group: verb } = savedRecord(type, config)

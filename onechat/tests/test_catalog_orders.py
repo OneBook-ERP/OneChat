@@ -33,7 +33,7 @@ def order_message(**values):
 
 
 class TestCreateSalesOrder(UnitTestCase):
-	def create(self, message, source=None, known=None):
+	def create(self, message, source=None, known=None, doctype="Sales Order"):
 		saved = MagicMock()
 		saved.name = "SAL-ORD-T-0001"
 		captured = {}
@@ -59,8 +59,24 @@ class TestCreateSalesOrder(UnitTestCase):
 			patch.object(erpnext_commerce, "company", return_value="OneBook"),
 			patch.object(frappe, "get_doc", side_effect=fake_get_doc),
 		):
-			name = erpnext_commerce.create_sales_order(message)
+			name = erpnext_commerce.create_from_order(message, doctype)
 		return name, captured, saved
+
+	def test_order_can_become_a_quotation(self):
+		_name, values, _saved = self.create(order_message(), doctype="Quotation")
+
+		self.assertEqual(values["doctype"], "Quotation")
+		self.assertEqual(values["quotation_to"], "Customer")
+		self.assertEqual(values["party_name"], "Leo Daniel A")
+		self.assertNotIn("customer", values)
+		self.assertNotIn("delivery_date", values["items"][0])
+
+	def test_order_can_become_a_sales_invoice(self):
+		_name, values, _saved = self.create(order_message(), doctype="Sales Invoice")
+
+		self.assertEqual(values["customer"], "Leo Daniel A")
+		self.assertEqual(values["po_no"], "wamid.order-1")
+		self.assertNotIn("delivery_date", values)
 
 	def test_order_becomes_a_sales_order_for_the_customer(self):
 		name, values, saved = self.create(order_message())
@@ -121,7 +137,7 @@ class TestCreateSalesOrder(UnitTestCase):
 			patch.object(erpnext_commerce, "company", return_value="OneBook"),
 			patch.object(frappe, "get_doc", side_effect=fake_get_doc),
 		):
-			erpnext_commerce.create_sales_order(
+			erpnext_commerce.create_from_order(
 				order_message(), extra={"order_type": "Shopping Cart"}, submit=True, days=2
 			)
 
@@ -133,7 +149,7 @@ class TestCreateSalesOrder(UnitTestCase):
 		message = order_message(flags=frappe._dict(onechat_order_flow=True))
 		with (
 			patch.object(erpnext_commerce, "enabled", return_value=True),
-			patch.object(erpnext_commerce, "create_sales_order") as create,
+			patch.object(erpnext_commerce, "create_from_order") as create,
 		):
 			erpnext_commerce.handle_order(message)
 

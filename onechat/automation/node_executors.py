@@ -138,7 +138,6 @@ def exec_create_document(node: dict, context: dict) -> dict:
 		doc_data[field] = resolve_expression(expr, context)
 
 	doc = frappe.get_doc(doc_data)
-	frappe.log_error("triggered", doc)
 	doc.insert()
 	frappe.db.commit()  # nosemgrep: frappe-manual-commit - persist created document in workflow step
 
@@ -150,7 +149,6 @@ def exec_create_document(node: dict, context: dict) -> dict:
 
 def exec_update_document(node: dict, context: dict) -> dict:
 	data = node.get("data", {})
-	frappe.error_log("data", data)
 	config = data.get("config", {}) if "config" in data else data
 
 	doctype = config.get("doctype")

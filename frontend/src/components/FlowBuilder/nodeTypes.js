@@ -99,6 +99,7 @@ const LEGACY = [
   },
   {
     type: 'create_document',
+    hidden: true,
     label: 'Create document',
     description: 'Create a new document',
     icon: 'lucide-file-plus',
@@ -109,6 +110,7 @@ const LEGACY = [
   },
   {
     type: 'update_document',
+    hidden: true,
     label: 'Update document',
     description: 'Change fields on a document',
     icon: 'lucide-file-pen',
@@ -122,27 +124,13 @@ const LEGACY = [
   },
   {
     type: 'delete_document',
+    hidden: true,
     label: 'Delete document',
     description: 'Delete a document',
     icon: 'lucide-file-x',
     color: 'red',
     category: 'advanced',
     fields: [doctypeField(), docnameField('context.erp.name')],
-  },
-  {
-    type: 'send_email',
-    label: 'Send email',
-    description: 'Send an email',
-    icon: 'lucide-mail',
-    color: 'blue',
-    category: 'advanced',
-    fields: [
-      { key: 'to', label: 'To', type: 'expression', required: true, placeholder: 'context.erp.doc.email_id' },
-      { key: 'subject', label: 'Subject', type: 'expression', required: true, placeholder: 'Order confirmation' },
-      { key: 'message', label: 'Message', type: 'textarea', required: true, placeholder: 'Your order has been confirmed.' },
-      { key: 'cc', label: 'CC', type: 'expression', placeholder: 'a@example.com,b@example.com' },
-      { key: 'bcc', label: 'BCC', type: 'expression', placeholder: 'audit@example.com' },
-    ],
   },
   {
     type: 'send_whatsapp',
@@ -155,33 +143,6 @@ const LEGACY = [
     fields: [
       { key: 'to', label: 'To (phone)', type: 'expression', required: true, placeholder: 'context.erp.doc.contact_mobile' },
       { key: 'template_name', label: 'Template', type: 'template', required: true },
-    ],
-  },
-  {
-    type: 'http_request',
-    label: 'HTTP request',
-    description: 'Call an external API',
-    icon: 'lucide-globe',
-    color: 'violet',
-    category: 'advanced',
-    hint: 'The response is available as context.http.response.',
-    fields: [
-      {
-        key: 'method',
-        label: 'Method',
-        type: 'select',
-        default: 'GET',
-        options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-      },
-      { key: 'url', label: 'URL', type: 'expression', required: true, placeholder: 'https://api.example.com/endpoint' },
-      {
-        key: 'headers',
-        label: 'Headers',
-        type: 'keyvalue',
-        keyPlaceholder: 'Authorization',
-        valuePlaceholder: 'Bearer token',
-      },
-      { key: 'body', label: 'JSON body', type: 'keyvalue' },
     ],
   },
   {
@@ -210,6 +171,7 @@ const LEGACY = [
   },
   {
     type: 'switch',
+    hidden: true,
     label: 'Switch',
     description: 'Match one of many values',
     icon: 'lucide-split',
@@ -223,6 +185,7 @@ const LEGACY = [
   },
   {
     type: 'loop',
+    hidden: true,
     label: 'Loop',
     description: 'Iterate over items',
     icon: 'lucide-repeat',
@@ -256,27 +219,8 @@ const LEGACY = [
     fields: [],
   },
   {
-    type: 'set_variable',
-    label: 'Set variable',
-    description: 'Store values in context.vars',
-    icon: 'lucide-variable',
-    color: 'blue',
-    category: 'advanced',
-    hint: 'Use {{now}} as a value to store the current time.',
-    fields: [
-      {
-        key: 'variables',
-        label: 'Variables',
-        type: 'keyvalue',
-        keyLabel: 'Variable',
-        valueLabel: 'Value',
-        keyPlaceholder: 'customer_phone',
-        valuePlaceholder: 'context.erp.doc.contact_mobile',
-      },
-    ],
-  },
-  {
     type: 'transform_data',
+    hidden: true,
     label: 'Transform data',
     description: 'Reshape a value',
     icon: 'lucide-code',
@@ -290,6 +234,7 @@ const LEGACY = [
   },
   {
     type: 'python_expression',
+    hidden: true,
     label: 'Expression',
     description: 'Resolve a value into context',
     icon: 'lucide-braces',
@@ -302,6 +247,7 @@ const LEGACY = [
   },
   {
     type: 'filter_array',
+    hidden: true,
     label: 'Filter array',
     description: 'Keep matching items',
     icon: 'lucide-filter',
@@ -315,6 +261,7 @@ const LEGACY = [
   },
   {
     type: 'map_array',
+    hidden: true,
     label: 'Map array',
     description: 'Transform each item',
     icon: 'lucide-map',
@@ -339,6 +286,7 @@ const LEGACY = [
   },
   {
     type: 'get_doc',
+    hidden: true,
     label: 'Get document',
     description: 'Fetch a document by name',
     icon: 'lucide-database',
@@ -348,36 +296,8 @@ const LEGACY = [
     fields: [doctypeField(), docnameField('context.erp.name or DOC-0001')],
   },
   {
-    type: 'get_list',
-    label: 'Get list',
-    description: 'Query documents',
-    icon: 'lucide-list',
-    color: 'cyan',
-    category: 'advanced',
-    hint: 'The rows are available as context.doc_list.',
-    fields: [
-      doctypeField(),
-      {
-        key: 'filters',
-        label: 'Filters',
-        type: 'keyvalue',
-        doctypeKey: 'doctype',
-        keyPlaceholder: 'status',
-        valuePlaceholder: 'value or expression',
-      },
-      {
-        key: 'fields',
-        label: 'Fields',
-        type: 'text',
-        default: 'name',
-        placeholder: 'name,customer_name,grand_total',
-        description: 'Comma-separated field names.',
-      },
-      { key: 'limit', label: 'Limit', type: 'number', default: 20, placeholder: '20' },
-    ],
-  },
-  {
     type: 'submit_doc',
+    hidden: true,
     label: 'Submit document',
     description: 'Submit a document',
     icon: 'lucide-circle-check',
@@ -388,6 +308,7 @@ const LEGACY = [
   },
   {
     type: 'cancel_doc',
+    hidden: true,
     label: 'Cancel document',
     description: 'Cancel a submitted document',
     icon: 'lucide-circle-x',
@@ -395,54 +316,6 @@ const LEGACY = [
     category: 'advanced',
     hint: 'Only submitted documents can be cancelled.',
     fields: [doctypeField(), docnameField()],
-  },
-  {
-    type: 'apply_workflow',
-    label: 'Apply workflow',
-    description: 'Change the workflow state',
-    icon: 'lucide-workflow',
-    color: 'violet',
-    category: 'advanced',
-    fields: [
-      doctypeField(),
-      docnameField(),
-      { key: 'action', label: 'Workflow action', type: 'text', required: true, placeholder: 'Approve' },
-    ],
-  },
-  {
-    type: 'send_notification',
-    label: 'Send notification',
-    description: 'In-app notification',
-    icon: 'lucide-bell',
-    color: 'amber',
-    category: 'advanced',
-    fields: [
-      { key: 'user', label: 'User', type: 'expression', required: true, placeholder: 'context.erp.doc.owner' },
-      { key: 'subject', label: 'Subject', type: 'expression', required: true, placeholder: 'Notification' },
-      { key: 'message', label: 'Message', type: 'expression', required: true, placeholder: 'Your document has been updated' },
-      { key: 'reference_doctype', label: 'Reference DocType', type: 'doctype' },
-      { key: 'reference_name', label: 'Reference name', type: 'text', placeholder: 'SINV-0001' },
-    ],
-  },
-  {
-    type: 'create_comment',
-    label: 'Create comment',
-    description: 'Add a comment to a document',
-    icon: 'lucide-message-square',
-    color: 'blue',
-    category: 'advanced',
-    fields: [
-      doctypeField('reference_doctype', 'Reference DocType'),
-      { key: 'reference_name', label: 'Reference name', type: 'expression', required: true, placeholder: 'context.erp.name' },
-      { key: 'content', label: 'Comment', type: 'expression', required: true, placeholder: 'Sent on WhatsApp' },
-      {
-        key: 'comment_type',
-        label: 'Comment type',
-        type: 'select',
-        default: 'Comment',
-        options: ['Comment', 'Info'],
-      },
-    ],
   },
   {
     type: 'attach_file',
@@ -564,7 +437,8 @@ export function summarize(type, config = {}) {
 
     let text = value
     if (field.type === 'select') {
-      const option = (field.options || []).find((item) => (item.value ?? item) === value)
+      const choices = typeof field.options === 'function' ? field.options(config) : field.options || []
+      const option = choices.find((item) => (item.value ?? item) === value)
       text = option?.label ?? option ?? value
     } else if (field.type === 'keyvalue') {
       text = Object.keys(value).join(', ')

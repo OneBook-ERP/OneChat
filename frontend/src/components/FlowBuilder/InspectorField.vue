@@ -124,11 +124,13 @@
     v-else-if="field.type === 'keyvalue'"
     :model-value="modelValue || {}"
     :label="__(field.label)"
-    :doctype="field.fixedDoctype || (field.doctypeKey ? config[field.doctypeKey] || '' : '')"
+    :doctype="valuesDoctype"
     :key-label="__(field.keyLabel || 'Field')"
     :value-label="__(field.valueLabel || 'Value')"
     :key-placeholder="field.keyPlaceholder"
     :value-placeholder="field.valuePlaceholder"
+    :show-required="!field.prefilled"
+    :description="description"
     @update:model-value="update"
   />
 
@@ -181,7 +183,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { FormControl, Select, Switch } from 'frappe-ui'
 import AgentSelect from './AgentSelect.vue'
 import ChoiceEditor from './ChoiceEditor.vue'
@@ -193,6 +195,7 @@ import MessageField from './MessageField.vue'
 import PostPicker from './PostPicker.vue'
 import RulesEditor from './RulesEditor.vue'
 import TemplateParams from './TemplateParams.vue'
+import { doctypeFields } from './api'
 import FieldPicker from '@/components/Automation/FieldPicker.vue'
 import LinkField from '@/components/Common/LinkField.vue'
 import { translate as __ } from '@/translation'
@@ -221,10 +224,32 @@ function slug(value) {
 const description = computed(() => (props.field.description ? __(props.field.description) : ''))
 
 const options = computed(() =>
-  (props.field.options || []).map((option) =>
+  (typeof props.field.options === 'function' ? props.field.options(props.config) : props.field.options || []).map((option) =>
     typeof option === 'string' ? { label: option, value: option } : { label: __(option.label), value: option.value },
   ),
 )
+
+const tableDoctype = ref('')
+
+watch(
+  () => (props.field.tableKey ? [props.config[props.field.doctypeKey], props.config[props.field.tableKey]] : []),
+  async ([parent, table] = []) => {
+    tableDoctype.value = ''
+    if (!parent || !table) return
+    try {
+      tableDoctype.value = (await doctypeFields(parent)).find((row) => row.fieldname === table)?.options || ''
+    } catch {
+      tableDoctype.value = ''
+    }
+  },
+  { immediate: true },
+)
+
+const valuesDoctype = computed(() => {
+  if (props.field.tableKey) return tableDoctype.value
+  if (props.field.doctypeOf) return props.field.doctypeOf(props.config)
+  return props.field.fixedDoctype || (props.field.doctypeKey ? props.config[props.field.doctypeKey] || '' : '')
+})
 
 function update(value) {
   if (props.field.type === 'number') {

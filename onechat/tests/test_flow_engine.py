@@ -1,8 +1,9 @@
 import json
 
+import frappe
 from frappe.tests import UnitTestCase
 
-from onechat.automation import engine
+from onechat.automation import engine, steps
 
 
 def node(node_id, kind, **config):
@@ -154,6 +155,60 @@ class TestSimulation(UnitTestCase):
 			],
 		)
 		self.assertTrue(result["done"])
+
+
+class TestAdvancedSteps(UnitTestCase):
+	def test_values_emails_and_deletes_are_described_in_test_chat(self):
+		graph = {
+			"nodes": [
+				node("start", "manual_trigger"),
+				node(
+					"keep", "set_variable", variables={"slot": "Evening", "who": "context.contact.first_name"}
+				),
+				node("say", "send_message", text="{{vars.who}}, delivery in the {{vars.slot}}"),
+				node("mail", "send_email", to="team@example.com", subject="Slot {{vars.slot}}", message="Hi"),
+				node("drop", "submit_record", action="delete", doctype="Sales Order", name="SO-1"),
+			],
+			"edges": [edge("start", "keep"), edge("keep", "say"), edge("say", "mail"), edge("mail", "drop")],
+		}
+		result = engine.simulate(json.dumps(graph))
+
+		self.assertEqual(
+			[message["text"] for message in result["messages"]],
+			[
+				"Test, delivery in the Evening",
+				"Email team@example.com: Slot Evening",
+				"Delete Sales Order SO-1",
+			],
+		)
+		self.assertTrue(result["done"])
+
+	def test_addresses_split_on_commas_and_spaces(self):
+		self.assertEqual(steps.addresses("a@x.com, b@x.com;c@x.com"), ["a@x.com", "b@x.com", "c@x.com"])
+
+
+class TestTableRows(UnitTestCase):
+	def rows(self, context, **config):
+		return steps.table_rows(frappe._dict(context=context), {"rows_field": "items", **config})
+
+	def test_one_row_per_entry_with_row_values(self):
+		context = {"order": engine.sample_order()}
+		result = self.rows(
+			context,
+			rows_from="{{order.items}}",
+			row_fields={"item_code": "{{row.item_code}}", "qty": "{{row.qty}}", "warehouse": ""},
+		)
+
+		self.assertEqual(
+			result, {"items": [{"item_code": "SAMPLE-1", "qty": 2}, {"item_code": "SAMPLE-2", "qty": 1}]}
+		)
+
+	def test_no_table_means_no_rows(self):
+		self.assertEqual(steps.table_rows(frappe._dict(context={}), {}), {})
+
+	def test_a_value_that_is_not_a_list_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.rows({"order": {"total": 900}}, rows_from="{{order.total}}", row_fields={"qty": "1"})
 
 
 class TestSchedule(UnitTestCase):
