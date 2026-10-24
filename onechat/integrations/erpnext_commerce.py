@@ -658,15 +658,27 @@ def item_rows(codes):
 
 	try:
 		rows = ERP.source().get_all(
-			"Item", filters={"name": ["in", codes]}, fields=["name", "item_name", "image"]
+			"Item",
+			or_filters={"name": ["in", codes], "item_code": ["in", codes]},
+			fields=["name", "item_code", "item_name", "image"],
 		)
 	except connection.RemoteError:
 		return {}
-	return {row.name: row for row in rows}
+	found = {}
+	for row in rows:
+		for key in (row.get("name"), row.get("item_code")):
+			if key in codes:
+				found.setdefault(key, row)
+	return found
 
 
 def item_names(codes):
-	return {code: row.item_name for code, row in item_rows(codes).items()}
+	return {code: row.item_name for code, row in item_rows(codes).items() if row.get("name") == code}
+
+
+def public_image(item):
+	image = (item or {}).get("image")
+	return absolute(image) if image and "/private/" not in image else None
 
 
 PAY = "OneChat WhatsApp Payment"
@@ -850,6 +862,55 @@ def publish_orders(messages):
 		publish(row["whatsapp_contact"], row["name"])
 
 
+CATALOG_ITEM = "onechat:catalog-item"
+CATALOG_ITEM_TTL = 6 * 3600
+
+
+def catalog_items(orders, codes):
+	from onechat.whatsapp.catalog import attempt
+
+	wanted = {}
+	for order in orders:
+		for row in order.get("product_items") or []:
+			if order.get("catalog_id") and row.get("product_retailer_id") in codes:
+				wanted.setdefault(order["catalog_id"], set()).add(row["product_retailer_id"])
+
+	cache, found = frappe.cache(), {}
+	for catalog_id, ids in wanted.items():
+		missing = []
+		for code in ids:
+			hit = cache.get_value(f"{CATALOG_ITEM}:{catalog_id}:{code}")
+			if hit is None:
+				missing.append(code)
+			else:
+				found[code] = hit
+		account = missing and frappe.db.get_value(ACCOUNT, {"catalog_id": catalog_id}, "name")
+		if not account:
+			continue
+		body, error = attempt(
+			frappe.get_doc(ACCOUNT, account),
+			"GET",
+			f"{catalog_id}/products",
+			{
+				"fields": "retailer_id,name,image_url",
+				"filter": json.dumps({"retailer_id": {"is_any": missing}}),
+				"limit": len(missing),
+			},
+		)
+		if error:
+			continue
+		rows = {
+			row.get("retailer_id"): {"name": row.get("name"), "image": row.get("image_url")}
+			for row in body.get("data") or []
+		}
+		for code in missing:
+			found[code] = rows.get(code) or {}
+			cache.set_value(
+				f"{CATALOG_ITEM}:{catalog_id}:{code}", found[code], expires_in_sec=CATALOG_ITEM_TTL
+			)
+	return found
+
+
 def order_cards(messages):
 	orders = {}
 	for message in messages:
@@ -866,6 +927,12 @@ def order_cards(messages):
 		}
 	)
 	items = item_rows(codes)
+	bare = [code for code in codes if not public_image(items.get(code))]
+	try:
+		listed = catalog_items(orders.values(), bare) if bare else {}
+	except Exception:
+		frappe.log_error(title="OneChat order card: catalog items")
+		listed = {}
 	flows = journeys([message.message_id for message in messages if message.message_id])
 	cards = {}
 	for message in messages:
@@ -878,12 +945,12 @@ def order_cards(messages):
 			currency = row.get("currency") or currency
 			total += qty * price
 			count += qty
-			item = items.get(code) or {}
+			item, listing = items.get(code) or {}, listed.get(code) or {}
 			lines.append(
 				{
 					"code": code,
-					"name": item.get("item_name") or code,
-					"image": absolute(item.get("image")) if item.get("image") else None,
+					"name": item.get("item_name") or listing.get("name") or code,
+					"image": public_image(item) or listing.get("image"),
 					"qty": f"{qty:g}",
 					"price": fmt_money(price, currency=currency),
 					"amount": fmt_money(qty * price, currency=currency),
