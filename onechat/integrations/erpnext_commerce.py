@@ -699,13 +699,19 @@ def payment_asks(source, orders, invoices):
 	asked = {}
 	for row in source.get_all(
 		"Payment Request",
-		filters={"reference_name": ["in", list(owner)], "docstatus": 1, "status": ["in", OPEN_REQUESTS]},
+		filters={
+			"reference_name": ["in", list(owner)],
+			"docstatus": 1,
+			"status": ["in", OPEN_REQUESTS],
+		},
 		fields=["reference_name"],
 	):
 		asked[owner.get(row.get("reference_name"))] = _("Payment link sent")
 	if frappe.db.table_exists(PAY):
 		for name in frappe.get_all(
-			PAY, filters={"reference_name": ["in", list(owner)], "status": "Pending"}, pluck="reference_name"
+			PAY,
+			filters={"reference_name": ["in", list(owner)], "status": "Pending"},
+			pluck="reference_name",
 		):
 			asked[owner.get(name)] = _("Asked on WhatsApp")
 	return asked
@@ -723,7 +729,11 @@ def journey(source, order, invoices, asked):
 		steps.append(step("sales_order", _("Sales Order"), "todo", _("Not created")))
 		return steps
 
-	name, docstatus, currency = order.get("name"), cint(order.get("docstatus")), order.get("currency")
+	name, docstatus, currency = (
+		order.get("name"),
+		cint(order.get("docstatus")),
+		order.get("currency"),
+	)
 	steps.append(
 		step(
 			"sales_order",
@@ -742,7 +752,12 @@ def journey(source, order, invoices, asked):
 	state = payment_state(order, paid) if docstatus == 1 else "Unpaid"
 	if state == "Paid":
 		steps.append(
-			step("payment", _("Payment"), "done", _("{0} paid").format(fmt_money(paid, currency=currency)))
+			step(
+				"payment",
+				_("Payment"),
+				"done",
+				_("{0} paid").format(fmt_money(paid, currency=currency)),
+			)
 		)
 	elif state == "Part paid":
 		steps.append(
@@ -751,7 +766,8 @@ def journey(source, order, invoices, asked):
 				_("Payment"),
 				"partial",
 				_("{0} of {1} paid").format(
-					fmt_money(paid, currency=currency), fmt_money(total, currency=currency)
+					fmt_money(paid, currency=currency),
+					fmt_money(total, currency=currency),
 				),
 			)
 		)
@@ -765,7 +781,7 @@ def journey(source, order, invoices, asked):
 			_("Invoice"),
 			"done" if billed >= 100 else "partial" if rows else "todo",
 			", ".join(row.get("name") for row in rows) or _("Not invoiced"),
-			source.absolute(f"/app/sales-invoice/{rows[0].get('name')}") if rows else None,
+			(source.absolute(f"/app/sales-invoice/{rows[0].get('name')}") if rows else None),
 		)
 	)
 
@@ -775,11 +791,11 @@ def journey(source, order, invoices, asked):
 			"delivery",
 			_("Delivery"),
 			"done" if delivered >= 100 else "partial" if delivered else "todo",
-			_("Delivered")
-			if delivered >= 100
-			else _("{0}% delivered").format(f"{delivered:g}")
-			if delivered
-			else _("Not delivered"),
+			(
+				_("Delivered")
+				if delivered >= 100
+				else (_("{0}% delivered").format(f"{delivered:g}") if delivered else _("Not delivered"))
+			),
 		)
 	)
 	return steps
@@ -836,7 +852,9 @@ def refresh_order_cards(doc, method=None):
 		if not orders or not frappe.db.table_exists("Sales Order"):
 			return
 		ids = frappe.get_all(
-			"Sales Order", filters={"name": ["in", list(orders)], "po_no": ["is", "set"]}, pluck="po_no"
+			"Sales Order",
+			filters={"name": ["in", list(orders)], "po_no": ["is", "set"]},
+			pluck="po_no",
 		)
 		messages = (
 			frappe.get_all(
@@ -915,7 +933,9 @@ def catalog_items(orders, codes):
 		for code in missing:
 			found[code] = rows.get(code) or {}
 			cache.set_value(
-				f"{CATALOG_ITEM}:{catalog_id}:{code}", found[code], expires_in_sec=CATALOG_ITEM_TTL
+				f"{CATALOG_ITEM}:{catalog_id}:{code}",
+				found[code],
+				expires_in_sec=CATALOG_ITEM_TTL,
 			)
 	return found
 
@@ -984,12 +1004,19 @@ def product_cards(messages):
 			continue
 		codes = list(dict.fromkeys(code for code in data.get("items") or [] if code))
 		if codes:
-			sent[message.name] = (data, codes, catalog_of(message.get("whatsapp_account")))
+			sent[message.name] = (
+				data,
+				codes,
+				catalog_of(message.get("whatsapp_account")),
+			)
 
 	codes = list({code for _data, items, _catalog in sent.values() for code in items})
 	items = item_rows(codes)
 	wanted = [
-		{"catalog_id": catalog, "product_items": [{"product_retailer_id": code} for code in rows]}
+		{
+			"catalog_id": catalog,
+			"product_items": [{"product_retailer_id": code} for code in rows],
+		}
 		for _data, rows, catalog in sent.values()
 		if catalog
 	]
@@ -1012,7 +1039,11 @@ def product_cards(messages):
 					"price": listing.get("price"),
 				}
 			)
-		cards[name] = {"header": data.get("header") or "", "body": data.get("body") or "", "items": lines}
+		cards[name] = {
+			"header": data.get("header") or "",
+			"body": data.get("body") or "",
+			"items": lines,
+		}
 	return cards
 
 
@@ -1094,7 +1125,11 @@ def customer_for(contact):
 
 def party_values(doctype, customer, delivery, message):
 	if doctype == "Quotation":
-		return {"quotation_to": "Customer", "party_name": customer, "order_type": "Sales"}
+		return {
+			"quotation_to": "Customer",
+			"party_name": customer,
+			"order_type": "Sales",
+		}
 	if doctype == "Sales Invoice":
 		return {"customer": customer, "po_no": message.message_id}
 	return {
@@ -1207,20 +1242,6 @@ def handle_order(message):
 
 	if order:
 		mark_order(message, order)
-
-
-def can_request_payment(contact, doctype, name):
-	if doctype != "Sales Invoice" or contact.reference_doctype != "Customer" or not contact.mobile_no:
-		return False
-
-	row = ERP.source().get_value(doctype, name, ["customer", "docstatus", "outstanding_amount"])
-
-	return (
-		bool(row)
-		and row.customer == contact.reference_docname
-		and row.docstatus == 1
-		and flt(row.outstanding_amount) > 0
-	)
 
 
 def payment_url(invoice):

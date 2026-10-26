@@ -359,7 +359,7 @@ def validate_flow(graph_json: JSON):
 				)
 			)
 
-	if "create_sales_order" in kinds.values() and trigger_kind != "order_placed":
+	if {"create_from_order", "create_sales_order"} & set(kinds.values()) and trigger_kind != "order_placed":
 		errors.append(_("Create from order needs the flow to start with Customer places an order."))
 
 	trigger_config = engine.Graph.config(graph.nodes[trigger]) if trigger else {}

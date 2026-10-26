@@ -231,7 +231,7 @@ export const RECIPES = [
     key: 'catalog_order',
     title: 'Catalog order to ERPNext',
     description:
-      'Check the customer, sign up new ones, create a draft Sales Order, ask them to confirm, submit it and collect payment or cash on delivery.',
+      'Check the customer, sign up new ones, create a draft from the cart, ask them to confirm, submit it and collect payment or cash on delivery. Switch the first record step to a Quotation and the rest follows.',
     icon: 'lucide-shopping-cart',
     category: 'Sales',
     needs: 'ERPNext',
@@ -269,19 +269,19 @@ export const RECIPES = [
         step('save', 'save_address', {
           fields: { address_line1: '{{answers.address}}', city: '{{answers.city}}', pincode: '{{answers.pincode}}' },
         }),
-        step('order', 'create_sales_order', { save_as: 'order' }),
+        step('order', 'create_from_order', { doctype: 'Sales Order', save_as: 'order' }),
         step('confirm', 'send_buttons', {
           text: 'Here is your order {{records.order.name}}:\n\n{{order.summary}}\n\nTotal: {{records.order.grand_total}}\n\nShall we confirm it?',
           buttons: [option('yes', 'Confirm order'), option('no', 'Cancel')],
           timeout: 24,
         }),
-        step('submit', 'submit_record', { doctype: 'Sales Order', name: '{{records.order.name}}', save_as: 'order' }),
+        step('submit', 'submit_record', { name: '{{records.order.name}}', same_as_record: true, save_as: 'order' }),
         step('pay', 'send_buttons', {
           text: 'Order {{records.order.name}} is confirmed ✅ How would you like to pay?',
           buttons: [option('online', 'Pay now'), option('cod', 'Cash on delivery')],
         }),
         step('invoice', 'make_record', {
-          from_doctype: 'Sales Order',
+          same_as_record: true,
           doctype: 'Sales Invoice',
           name: '{{records.order.name}}',
           submit: true,
@@ -289,7 +289,7 @@ export const RECIPES = [
         }),
         step('link', 'send_payment_link', { doctype: 'Sales Invoice', document: '{{records.invoice.name}}' }),
         step('cod', 'send_message', { text: 'Great, please keep {{records.order.grand_total}} ready at delivery. Thank you!' }),
-        step('cancel', 'submit_record', { action: 'cancel', doctype: 'Sales Order', name: '{{records.order.name}}' }),
+        step('cancel', 'submit_record', { action: 'cancel', name: '{{records.order.name}}', same_as_record: true }),
         step('cancelled', 'send_message', { text: 'No problem, your order has been cancelled.' }),
         step('human', 'handover', { text: 'Thanks for your order! Our team will confirm it with you shortly.', mode: 'round_robin' }),
       ]

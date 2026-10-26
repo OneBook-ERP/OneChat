@@ -341,10 +341,11 @@ const testing = ref(false)
 const recipesOpen = ref(false)
 const docFields = ref([])
 const recordFields = ref({})
-const RECORD_STEPS = ['find_record', 'create_record', 'create_sales_order', 'make_record', 'save_address']
+const RECORD_STEPS = ['find_record', 'create_record', 'create_from_order', 'create_sales_order', 'make_record', 'save_address']
 const SAVED_RECORDS = {
   find_record: { key: 'record', group: 'Found' },
   create_record: { key: 'created', group: 'Created' },
+  create_from_order: { key: 'order', group: 'Created', fallback: 'Sales Order' },
   create_sales_order: { key: 'order', group: 'Created', fallback: 'Sales Order' },
   make_record: { key: 'made', group: 'Made' },
   save_address: { key: 'address', group: 'Saved', doctype: 'Address' },

@@ -333,6 +333,7 @@ const LEGACY = [
 export const NODE_TYPES = [...CATALOG, ...LEGACY]
 
 const ALIASES = {
+  create_sales_order: 'create_from_order',
   erpnext_doc_event_trigger: 'doc_event_trigger',
   whatsapp_incoming_trigger: 'whatsapp_trigger',
   create_doc: 'create_document',

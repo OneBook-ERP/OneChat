@@ -55,6 +55,16 @@ const MAKE_TARGETS = {
   'Purchase Invoice': ['Payment Entry'],
 }
 
+const ALL_MAKE_TARGETS = [...new Set(Object.values(MAKE_TARGETS).flat())]
+
+const sameAsRecord = {
+  key: 'same_as_record',
+  label: 'Same type as the record',
+  type: 'switch',
+  default: true,
+  description: 'Follows whatever an earlier step saved, so a quotation, order or invoice all work.',
+}
+
 const accountField = {
   key: 'account',
   label: 'Only on account',
@@ -868,7 +878,7 @@ export const CATALOG = [
     summary: (config) => config.doctype,
   },
   {
-    type: 'create_sales_order',
+    type: 'create_from_order',
     whatsappOnly: true,
     label: 'Create from order',
     description: 'A quotation, order or invoice from the cart',
@@ -968,20 +978,22 @@ export const CATALOG = [
     category: 'records',
     hint: 'Works like the Create button in ERPNext, copying the items and party across. Payment Entry records a payment, for example cash on delivery.',
     fields: [
+      { key: 'name', label: 'Record', type: 'message', compact: true, required: true, placeholder: '{{records.order.name}}' },
+      sameAsRecord,
       {
         key: 'from_doctype',
         label: 'From a',
         type: 'select',
         default: 'Sales Order',
         options: Object.keys(MAKE_TARGETS),
+        depends: (config) => !config.same_as_record,
       },
-      { key: 'name', label: 'Record', type: 'message', compact: true, required: true, placeholder: '{{records.order.name}}' },
       {
         key: 'doctype',
         label: 'Make a',
         type: 'select',
         default: 'Sales Invoice',
-        options: (config) => MAKE_TARGETS[config.from_doctype || 'Sales Order'] || [],
+        options: (config) => (config.same_as_record ? ALL_MAKE_TARGETS : MAKE_TARGETS[config.from_doctype || 'Sales Order'] || []),
       },
       { key: 'submit', label: 'Submit it', type: 'switch' },
       { key: 'fields', label: 'Other values', type: 'keyvalue', doctypeKey: 'doctype', prefilled: true },
@@ -991,7 +1003,8 @@ export const CATALOG = [
       { id: 'done', label: 'Made' },
       { id: 'error', label: 'On error', muted: true },
     ],
-    summary: (config) => `${config.from_doctype || 'Sales Order'} → ${config.doctype || 'Sales Invoice'}`,
+    summary: (config) =>
+      `${config.same_as_record ? 'Record' : config.from_doctype || 'Sales Order'} → ${config.doctype || 'Sales Invoice'}`,
   },
   {
     type: 'submit_record',
@@ -1013,15 +1026,26 @@ export const CATALOG = [
           { label: 'Delete', value: 'delete' },
         ],
       },
-      { key: 'doctype', label: 'Record type', type: 'doctype', required: true, default: 'Sales Order' },
       { key: 'name', label: 'Record', type: 'message', compact: true, required: true, placeholder: '{{records.order.name}}' },
+      sameAsRecord,
+      {
+        key: 'doctype',
+        label: 'Record type',
+        type: 'doctype',
+        required: true,
+        default: 'Sales Order',
+        depends: (config) => !config.same_as_record,
+      },
       { key: 'save_as', label: 'Save it again as', type: 'variable', placeholder: 'order', scope: 'records' },
     ],
     outputs: [
       { id: 'done', label: 'Done' },
       { id: 'error', label: 'On error', muted: true },
     ],
-    summary: (config) => (config.doctype ? `${{ cancel: 'Cancel', delete: 'Delete' }[config.action] || 'Submit'} ${config.doctype}` : ''),
+    summary: (config) => {
+      const doctype = config.same_as_record ? 'record' : config.doctype
+      return doctype ? `${{ cancel: 'Cancel', delete: 'Delete' }[config.action] || 'Submit'} ${doctype}` : ''
+    },
   },
   {
     type: 'send_to_records',

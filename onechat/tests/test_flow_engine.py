@@ -156,6 +156,37 @@ class TestSimulation(UnitTestCase):
 		)
 		self.assertTrue(result["done"])
 
+	def test_record_steps_follow_the_type_saved_by_an_earlier_step(self):
+		graph = {
+			"nodes": [
+				node("start", "order_placed"),
+				node("quote", "create_from_order", doctype="Quotation", save_as="order"),
+				node("submit", "submit_record", same_as_record=1, name="{{records.order.name}}"),
+				node(
+					"make",
+					"make_record",
+					same_as_record=1,
+					doctype="Sales Order",
+					name="{{records.order.name}}",
+				),
+			],
+			"edges": [
+				edge("start", "quote"),
+				edge("quote", "submit", "done"),
+				edge("submit", "make", "done"),
+			],
+		}
+		result = engine.simulate(json.dumps(graph))
+
+		self.assertEqual(
+			self.texts(result),
+			[
+				"Create a Quotation for this WhatsApp order",
+				"Submit Quotation (test)",
+				"Make a Sales Order from Quotation (test)",
+			],
+		)
+
 
 class TestAdvancedSteps(UnitTestCase):
 	def test_values_emails_and_deletes_are_described_in_test_chat(self):

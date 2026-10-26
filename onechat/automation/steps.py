@@ -645,7 +645,7 @@ def create_record(run, node_id, config):
 		)
 
 	if not run.effect(_("Create a {0}").format(_(doctype))):
-		run.context.setdefault("records", {})[key] = {"name": _("(test)"), **values}
+		run.context.setdefault("records", {})[key] = {"doctype": doctype, "name": _("(test)"), **values}
 		return Result()
 
 	doc = source.insert({"doctype": doctype, **values}, ignore_permissions=True)
@@ -776,12 +776,33 @@ def filled_values(run, config, key):
 	return {field: value for field, value in values.items() if not empty(value)}
 
 
-def create_sales_order(run, node_id, config):
+SAVED_NAME = re.compile(r"^\{\{\s*records\.(\w+)\.name\s*\}\}$")
+
+
+def record_doctype(run, config, key, default=None):
+	if not cint(config.get("same_as_record")):
+		return config.get(key) or default
+	match = SAVED_NAME.match((config.get("name") or "").strip())
+	record = ((run.context.get("records") or {}).get(match.group(1)) or {}) if match else {}
+	if not record.get("doctype"):
+		frappe.throw(
+			_("Pick the record type. {0} is not a record saved by an earlier step.").format(
+				config.get("name") or _("The record")
+			)
+		)
+	return record["doctype"]
+
+
+def create_from_order(run, node_id, config):
 	doctype = config.get("doctype") or "Sales Order"
 	key = config.get("save_as") or "order"
 	order = run.context.get("order") or {}
 	if not run.effect(_("Create a {0} for this WhatsApp order").format(_(doctype))):
-		run.context.setdefault("records", {})[key] = {"name": _("(test)"), "grand_total": order.get("total")}
+		run.context.setdefault("records", {})[key] = {
+			"doctype": doctype,
+			"name": _("(test)"),
+			"grand_total": order.get("total"),
+		}
 		return Result(handle="done")
 
 	if not order.get("message"):
@@ -851,7 +872,7 @@ def maker(source_doctype, target, name):
 
 
 def make_record(run, node_id, config):
-	source_doctype, target = config.get("from_doctype") or "Sales Order", config.get("doctype")
+	source_doctype, target = record_doctype(run, config, "from_doctype", "Sales Order"), config.get("doctype")
 	name = as_text(resolve(config.get("name"), run.context)).strip()
 	method, args = maker(source_doctype, target, name)
 	if not method:
@@ -862,7 +883,7 @@ def make_record(run, node_id, config):
 	key = config.get("save_as") or "made"
 	submit = cint(config.get("submit"))
 	if not run.effect(_("Make a {0} from {1} {2}").format(_(target), _(source_doctype), name)):
-		run.context.setdefault("records", {})[key] = {"name": _("(test)")}
+		run.context.setdefault("records", {})[key] = {"doctype": target, "name": _("(test)")}
 		return Result(handle="done")
 
 	from onechat.integrations.erpnext_commerce import elevated
@@ -909,7 +930,7 @@ def remove_record(source, doctype, name):
 
 
 def submit_record(run, node_id, config):
-	doctype = config.get("doctype")
+	doctype = record_doctype(run, config, "doctype")
 	name = as_text(resolve(config.get("name"), run.context)).strip()
 	action = config.get("action") or "submit"
 	labels = {
@@ -1315,7 +1336,8 @@ STEPS = {
 	"update_record": update_record,
 	"send_to_records": send_to_records,
 	"send_payment_link": send_payment_link,
-	"create_sales_order": create_sales_order,
+	"create_from_order": create_from_order,
+	"create_sales_order": create_from_order,
 	"make_record": make_record,
 	"submit_record": submit_record,
 	"save_address": save_address,
