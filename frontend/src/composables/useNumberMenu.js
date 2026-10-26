@@ -29,7 +29,7 @@ export function useNumberMenu() {
       switches(__('Accounts shown'), numbers.rows, (row) => ({
         label: [row.label, row.phone, row.unread ? __('{0} unread').format(row.unread) : ''].filter(Boolean).join(' · '),
         icon: channelIcon(row.channel),
-        onClick: (value) => numbers.toggle(row.name, value),
+        onClick: () => numbers.toggle(row.name),
       })),
       switches(__('Teams shown'), numbers.teamRows, (row) => ({
         label: row.label,
