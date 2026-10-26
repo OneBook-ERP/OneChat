@@ -720,17 +720,25 @@ export const CATALOG = [
     icon: 'lucide-list-collapse',
     color: 'amber',
     category: 'logic',
-    hint: 'Use it after Find records. The result is {{vars.NAME.text}}, {{vars.NAME.count}} and {{vars.NAME.total}}. Template values cannot hold line breaks, so pick a separator other than New line when sending a template.',
+    hint: 'Turns a list, such as the items of an order, into text with one line each. Later steps can add its text, count and total from Add personal detail. Template values cannot hold line breaks, so join with a comma or dot when the text goes into a template.',
     fields: [
-      { key: 'list', label: 'List', type: 'message', compact: true, required: true, placeholder: '{{records.list}}' },
+      {
+        key: 'list',
+        label: 'List',
+        type: 'list_source',
+        required: true,
+        description: 'The order items, or records found or created by an earlier step.',
+      },
       {
         key: 'line',
-        label: 'Line for each record',
+        label: 'Line for each item',
         type: 'message',
         compact: true,
         required: true,
-        placeholder: '{{row.customer_name}}: {{row.outstanding_amount}} ({{row.name}})',
-        description: 'Use {{row.field}} for the current record.',
+        rowVariables: true,
+        preview: true,
+        placeholder: '{{row.qty}} × {{row.item_name}} · {{row.amount}}',
+        description: 'Add the fields of each item from Add personal detail.',
       },
       {
         key: 'separator',
@@ -744,16 +752,27 @@ export const CATALOG = [
           { label: 'Dot (·)', value: 'dot' },
         ],
       },
-      { key: 'total_field', label: 'Add up', type: 'text', placeholder: 'outstanding_amount', description: 'A number field to total.' },
-      { key: 'limit', label: 'At most', type: 'number', default: 20, description: 'Extra records are counted as "+ N more".' },
-      { key: 'empty_text', label: 'If the list is empty, say', type: 'text', placeholder: 'Nothing outstanding today 🎉' },
+      { key: 'total_field', label: 'Add up', type: 'list_field', description: 'A number to total, for example the amount.' },
+      { key: 'limit', label: 'At most', type: 'number', default: 20, description: 'Anything after this is shown as "+ N more".' },
+      { key: 'empty_text', label: 'If the list is empty, say', type: 'text', placeholder: 'Nothing to show' },
       { key: 'save_as', label: 'Save it as', type: 'variable', default: 'summary', placeholder: 'summary' },
     ],
     outputs: [
-      { id: 'found', label: 'Has records' },
+      { id: 'found', label: 'Has items' },
       { id: 'empty', label: 'Empty', muted: true },
     ],
-    summary: (config) => config.list,
+    changed: (key, config, lists) => {
+      if (key !== 'list') return {}
+      const list = lists.find((row) => row.token === config.list)
+      if (!list) return {}
+      const defaultLine = !config.line || lists.some((row) => row.line === config.line)
+      const defaultTotal = !config.total_field || lists.some((row) => row.total === config.total_field)
+      return {
+        ...(defaultLine ? { line: list.line } : {}),
+        ...(defaultTotal ? { total_field: list.total || '' } : {}),
+      }
+    },
+    summary: (config) => (config.list ? config.list.replace(/[{}\s]/g, '') : ''),
   },
   {
     type: 'end',

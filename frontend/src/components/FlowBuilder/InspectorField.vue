@@ -7,7 +7,48 @@
     :placeholder="field.placeholder"
     :required="field.required"
     :compact="!!field.compact"
+    :extra-variables="rowVariables"
+    :preview="preview"
     @update:model-value="update"
+  />
+
+  <div v-else-if="field.type === 'list_source'" class="flex flex-col gap-1.5">
+    <Select
+      :model-value="customList ? OTHER : modelValue"
+      :label="__(field.label)"
+      :description="customList ? '' : description"
+      :required="field.required"
+      :options="listSources"
+      :placeholder="__('Pick a list')"
+      @update:model-value="pickList"
+    />
+    <MessageField
+      v-if="customList"
+      :model-value="modelValue || ''"
+      :description="__('A variable that holds a list, for example the reply of an API request.')"
+      placeholder="{{http.response.items}}"
+      compact
+      @update:model-value="update"
+    />
+  </div>
+
+  <FormControl
+    v-else-if="field.type === 'list_field' && customList"
+    :model-value="modelValue || ''"
+    type="text"
+    :label="__(field.label)"
+    :description="__('The name of a number field in each item, for example amount.')"
+    placeholder="amount"
+    @update:model-value="update"
+  />
+
+  <Select
+    v-else-if="field.type === 'list_field'"
+    :model-value="modelValue || NOTHING"
+    :label="__(field.label)"
+    :description="description"
+    :options="listFields"
+    @update:model-value="(value) => update(value === NOTHING ? '' : value)"
   />
 
   <ChoiceEditor
@@ -183,7 +224,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { FormControl, Select, Switch } from 'frappe-ui'
 import AgentSelect from './AgentSelect.vue'
 import ChoiceEditor from './ChoiceEditor.vue'
@@ -228,6 +269,54 @@ function slug(value) {
 }
 
 const description = computed(() => (props.field.description ? __(props.field.description) : ''))
+
+const NOTHING = '__nothing__'
+const OTHER = '__other__'
+const lists = inject('flowLists', ref([]))
+const pickedList = computed(() => lists.value.find((row) => row.token === props.config.list) || null)
+const typingList = ref(false)
+const customList = computed(() => typingList.value || (!!props.config.list && !pickedList.value))
+
+const listSources = computed(() => [
+  ...lists.value.map((row) => ({ label: row.label, value: row.token })),
+  { label: __('Other (type a variable)'), value: OTHER },
+])
+
+function pickList(value) {
+  typingList.value = value === OTHER
+  update(value === OTHER ? '' : value)
+}
+
+const listFields = computed(() => {
+  const fields = (pickedList.value?.fields || []).filter((row) => row.number)
+  const options = [{ label: __('Nothing'), value: NOTHING }, ...fields.map((row) => ({ label: __(row.label), value: row.fieldname }))]
+  if (props.modelValue && !options.some((row) => row.value === props.modelValue)) {
+    options.push({ label: props.modelValue, value: props.modelValue })
+  }
+  return options
+})
+
+const rowVariables = computed(() =>
+  props.field.rowVariables
+    ? (pickedList.value?.fields || []).map((row) => ({ group: 'Each item', label: row.label, token: `{{row.${row.fieldname}}}` }))
+    : [],
+)
+
+const SEPARATORS = { comma: ', ', semicolon: '; ', dot: ' · ' }
+
+const preview = computed(() => {
+  if (!props.field.preview || !props.modelValue || !pickedList.value) return ''
+  const fields = Object.fromEntries((pickedList.value.fields || []).map((row) => [row.fieldname, __(row.label)]))
+  const rows = pickedList.value.sample || [{}]
+  const lines = rows.map((row) =>
+    String(props.modelValue).replace(/\{\{\s*([\w.]+)\s*\}\}/g, (token, path) => {
+      const field = path.startsWith('row.') ? path.slice(4) : null
+      if (field && row[field] !== undefined) return row[field]
+      return `‹${field ? fields[field] || field : path}›`
+    }),
+  )
+  return lines.join(SEPARATORS[props.config.separator] || '\n')
+})
 
 const options = computed(() =>
   (typeof props.field.options === 'function' ? props.field.options(props.config) : props.field.options || []).map((option) =>
