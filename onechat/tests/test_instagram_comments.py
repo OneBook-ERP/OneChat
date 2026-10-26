@@ -2,11 +2,11 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils import now_datetime
 
 from onechat.automation import engine
 from onechat.instagram import comments, send
+from onechat.tests.compat import IntegrationTestCase, UnitTestCase
 
 ACCOUNT = "OneChat Instagram Comments Test"
 IG_ID = "17841400000000003"

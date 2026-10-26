@@ -1,7 +1,7 @@
 import frappe
-from frappe.tests import IntegrationTestCase
 
 from onechat.inbox import conversations
+from onechat.tests.compat import IntegrationTestCase
 
 WHATSAPP = "OneChat Channel Test WhatsApp"
 INSTAGRAM = "OneChat Channel Test Instagram"

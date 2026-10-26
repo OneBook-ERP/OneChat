@@ -1,4 +1,4 @@
-from frappe.tests import UnitTestCase
+from onechat.tests.compat import UnitTestCase
 
 
 class TestWhatsAppSettings(UnitTestCase):

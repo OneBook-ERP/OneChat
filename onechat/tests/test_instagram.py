@@ -2,13 +2,13 @@ import hashlib
 import hmac
 import json
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils import now_datetime
 
 from onechat.instagram import send, webhook
+from onechat.tests.compat import IntegrationTestCase, UnitTestCase
 
 ACCOUNT = "OneChat Instagram Test"
 IG_ID = "17841400000000001"
@@ -33,7 +33,7 @@ class TestInstagramSignature(UnitTestCase):
 	def check(self, secrets, header, body=b"{}"):
 		with (
 			patch.object(webhook, "app_secrets", return_value=secrets),
-			patch.object(frappe, "request", create=True) as request,
+			patch.object(frappe, "request", new=MagicMock(), create=True) as request,
 			patch.object(frappe, "get_request_header", return_value=header),
 		):
 			request.get_data.return_value = body

@@ -3,10 +3,10 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests import IntegrationTestCase, UnitTestCase
 
 from onechat.insights import orders
 from onechat.integrations import erpnext_commerce
+from onechat.tests.compat import IntegrationTestCase, UnitTestCase
 
 ORDER = {
 	"catalog_id": "cat-1",
@@ -123,8 +123,10 @@ class TestCreateSalesOrder(UnitTestCase):
 		captured = {}
 
 		def fake_get_doc(*args, **kwargs):
-			captured.update(args[0])
-			return saved
+			if args and isinstance(args[0], dict):
+				captured.update(args[0])
+				return saved
+			return frappe._dict(name=args[1] if len(args) > 1 else None)
 
 		source = MagicMock(remote=False)
 		source.exists.return_value = True

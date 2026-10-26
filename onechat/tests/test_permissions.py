@@ -1,9 +1,9 @@
 import frappe
-from frappe.tests import IntegrationTestCase
 
 from onechat.automation import flows as automation
 from onechat.campaigns import bulk_messaging
 from onechat.setup import install
+from onechat.tests.compat import IntegrationTestCase
 from onechat.whatsapp import message
 from onechat.workspace import session
 

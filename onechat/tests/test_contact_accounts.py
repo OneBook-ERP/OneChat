@@ -1,9 +1,9 @@
 from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests import UnitTestCase
 
 from onechat.inbox import contact_accounts
+from onechat.tests.compat import UnitTestCase
 
 
 def message(**values):

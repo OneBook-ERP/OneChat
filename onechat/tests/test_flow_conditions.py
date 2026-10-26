@@ -1,9 +1,8 @@
 from typing import ClassVar
 
-from frappe.tests import UnitTestCase
-
 from onechat.automation.flow_runner import attribute_dict, evaluate
 from onechat.automation.values import compare, render, rules_match, validate_answer
+from onechat.tests.compat import UnitTestCase
 
 
 class TestLegacyConditions(UnitTestCase):

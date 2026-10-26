@@ -2,11 +2,11 @@ import json
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import IntegrationTestCase, UnitTestCase
 
 from onechat.automation import engine, flows
 from onechat.campaigns.chat_links import build_instagram_url
 from onechat.instagram import webhook
+from onechat.tests.compat import IntegrationTestCase, UnitTestCase
 
 ACCOUNT = "OneChat Instagram Features Test"
 IG_ID = "17841400000000002"

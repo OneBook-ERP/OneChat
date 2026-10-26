@@ -1,10 +1,10 @@
 from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests import IntegrationTestCase
 
 from onechat import integrations
 from onechat.integrations import connection
+from onechat.tests.compat import IntegrationTestCase
 from onechat.workspace import session
 
 

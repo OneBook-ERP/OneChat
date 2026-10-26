@@ -1,9 +1,9 @@
 import json
 
 import frappe
-from frappe.tests import UnitTestCase
 
 from onechat.automation import engine, steps
+from onechat.tests.compat import UnitTestCase
 
 
 def node(node_id, kind, **config):

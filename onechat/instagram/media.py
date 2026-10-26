@@ -26,8 +26,10 @@ def fetch(token: str | None = None):
 		return Response("Not found", status=404)
 
 	file = frappe.get_doc("File", name)
+	with open(file.get_full_path(), "rb") as handle:
+		content = handle.read()
 	return Response(
-		file.get_content(),
+		content,
 		mimetype=mimetypes.guess_type(file.file_name or file_url)[0] or "application/octet-stream",
 		headers={"Cache-Control": "no-store"},
 	)

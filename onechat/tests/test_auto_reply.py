@@ -1,8 +1,8 @@
 import frappe
-from frappe.tests import IntegrationTestCase, UnitTestCase
 
 from onechat.inbox import auto_reply
 from onechat.onechat.doctype.onechat_auto_reply.onechat_auto_reply import keyword_list
+from onechat.tests.compat import IntegrationTestCase, UnitTestCase
 
 
 class TestKeywordMatching(UnitTestCase):

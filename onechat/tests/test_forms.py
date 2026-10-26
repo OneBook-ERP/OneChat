@@ -1,9 +1,9 @@
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import UnitTestCase
 
 from onechat.campaigns import forms
+from onechat.tests.compat import UnitTestCase
 
 
 def fields(*rows):

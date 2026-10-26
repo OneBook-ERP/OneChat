@@ -1,9 +1,9 @@
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import UnitTestCase
 
 from onechat.onechat.doctype.whatsapp_notification.whatsapp_notification import WhatsAppNotification
+from onechat.tests.compat import UnitTestCase
 
 
 def rule(**values):

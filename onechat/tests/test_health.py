@@ -1,8 +1,8 @@
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import IntegrationTestCase
 
+from onechat.tests.compat import IntegrationTestCase
 from onechat.workspace import health
 
 
