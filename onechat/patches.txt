@@ -3,3 +3,4 @@ onechat.patches.rename_flow_doctype
 
 [post_model_sync]
 onechat.patches.backfill_contact_accounts
+onechat.patches.restore_automation_links
