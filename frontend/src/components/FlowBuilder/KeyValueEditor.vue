@@ -4,6 +4,7 @@
       <FormLabel :label="label" />
       <Button size="sm" variant="ghost" icon-left="lucide-plus" :label="__('Add')" @click="add()" />
     </div>
+    <p v-if="description" class="text-xs text-ink-gray-5">{{ description }}</p>
 
     <div v-if="missing.length" class="flex flex-wrap items-center gap-1.5 rounded-4 bg-surface-amber-1 px-2.5 py-2">
       <span class="text-xs text-ink-amber-8">{{ __('Required:') }}</span>
@@ -120,6 +121,8 @@ const props = defineProps({
   valueLabel: { type: String, default: 'Value' },
   keyPlaceholder: { type: String, default: '' },
   valuePlaceholder: { type: String, default: '' },
+  showRequired: { type: Boolean, default: true },
+  description: { type: String, default: '' },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -137,6 +140,7 @@ let last = ''
 const byName = computed(() => Object.fromEntries(fields.value.map((field) => [field.fieldname, field])))
 
 const missing = computed(() => {
+  if (!props.showRequired) return []
   const used = new Set(rows.value.map((row) => row.key))
   return fields.value.filter((field) => field.reqd && !used.has(field.fieldname) && !SKIP_REQUIRED.includes(field.fieldname)).slice(0, 8)
 })

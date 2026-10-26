@@ -93,7 +93,7 @@ def cooling(rule, contact):
 
 	key = f"onechat:auto-reply:{rule.name}:{contact}"
 	cache = frappe.cache()
-	if cache.get_value(key):
+	if cache.get_value(key, expires=True):
 		return True
 
 	cache.set_value(key, 1, expires_in_sec=minutes * 60)

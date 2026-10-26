@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta
+from html import unescape
 
 import frappe
 import requests
@@ -54,7 +55,7 @@ def rules(doc, contact):
 
 
 def plain(text):
-	return strip_html(text or "").replace("\xa0", " ").strip()
+	return unescape(strip_html(text or "")).replace("\xa0", " ").strip()
 
 
 def public_url(file_url):

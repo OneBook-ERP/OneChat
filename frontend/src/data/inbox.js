@@ -159,9 +159,36 @@ function snoozeFits(row) {
   return inbox.view === 'snoozed' ? isSnoozed(row) : !isSnoozed(row)
 }
 
+function accountHidden(account) {
+  return Boolean(account) && inbox.hiddenNumbers.includes(account)
+}
+
+function shownAccounts(row) {
+  return (row.accounts || []).filter((item) => !accountHidden(item.account))
+}
+
+function accountShown(row) {
+  if (!inbox.hiddenNumbers.length) return true
+  if (row.accounts?.length) return shownAccounts(row).length > 0
+  return !accountHidden(row.whatsapp_account)
+}
+
+export function overlayAccounts(row) {
+  if (!inbox.hiddenNumbers.length || !row.accounts?.length) return row
+  const shown = shownAccounts(row).sort((a, b) => (a.last_message_at < b.last_message_at ? 1 : -1))
+  if (!shown.length) return row
+  const newest = shown[0]
+  return Object.assign(row, {
+    last_message: newest.last_message,
+    last_message_at: newest.last_message_at,
+    last_message_type: newest.last_message_type,
+    unread_count: shown.reduce((sum, item) => sum + (Number(item.unread_count) || 0), 0),
+  })
+}
+
 function visible(row) {
   if (!snoozeFits(row)) return false
-  if (row.whatsapp_account && inbox.hiddenNumbers.includes(row.whatsapp_account)) return false
+  if (!accountShown(row)) return false
   if (row.team && inbox.hiddenTeams.includes(row.team)) return false
   if (inbox.view === 'unread' && !(row.unread_count > 0)) return false
   if (inbox.view === 'overdue' && !isOverdue(row)) return false
@@ -295,8 +322,9 @@ export function upsertContact(contact) {
   const row = findRow(contact.name)
   if (row) {
     Object.assign(row, contact)
+    if (contact.accounts) overlayAccounts(row)
     if (!snoozeFits(row) && inbox.active !== row.name) inbox.rows = inbox.rows.filter((item) => item.name !== row.name)
-  } else if (visible(contact)) inbox.rows.push({ ...contact })
+  } else if (visible(contact)) inbox.rows.push(overlayAccounts({ ...contact }))
 
   if (inbox.details[contact.name]) Object.assign(inbox.details[contact.name], contact)
   sortRows()
@@ -385,6 +413,7 @@ function pageVisible() {
 
 export function addMessage(contact, message) {
   const state = inbox.threads[contact]
+  if (accountHidden(message.whatsapp_account)) return
 
   if (message.content_type === 'reaction') {
     if (state) applyReaction(state, message)
@@ -436,6 +465,7 @@ async function deliver(contact, local) {
       attach: local.payload.attach || null,
       content_type: local.payload.content_type || 'text',
       reply_to: local.payload.reply?.name || null,
+      account: local.payload.account || null,
     })
     settle(contact, local, row)
     touchRow(contact, row)
@@ -479,11 +509,12 @@ export function discardMessage(contact, message) {
   state.messages = state.messages.filter((row) => row.name !== message.name)
 }
 
-export async function sendTemplate(contact, template, parameters) {
+export async function sendTemplate(contact, template, parameters, account = null) {
   const row = await call(`${METHOD}send_template`, {
     contact,
     template,
     parameters: parameters?.length ? JSON.stringify(parameters) : null,
+    account: account || null,
   })
 
   if (row) {
@@ -969,7 +1000,11 @@ export function fileName(url) {
 export function replyWindowOpen(messages, contact, hasMore, at = Date.now(), hours = 24) {
   const cutoff = dayjs(at).subtract(hours, 'hour')
   const incoming = [...messages].reverse().find((message) => message.kind !== 'note' && message.type === 'Incoming')
-  const stamps = [incoming?.creation, contact?.last_message_type === 'Incoming' ? contact.last_message_at : null]
+  const stamps = [
+    incoming?.creation,
+    contact?.last_message_type === 'Incoming' ? contact.last_message_at : null,
+    ...shownAccounts(contact || {}).map((row) => row.last_incoming_at),
+  ]
 
   if (stamps.some((value) => value && dayjs(value).isAfter(cutoff))) return true
 

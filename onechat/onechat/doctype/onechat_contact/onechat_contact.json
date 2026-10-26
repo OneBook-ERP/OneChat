@@ -45,6 +45,8 @@
   "last_message_type",
   "last_message_column_1",
   "last_message",
+  "accounts_section",
+  "accounts",
   "response_section",
   "first_response_at",
   "sla_due_at",
@@ -309,6 +311,19 @@
    "fieldname": "last_message",
    "fieldtype": "Small Text",
    "label": "Last Message",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "accounts_section",
+   "fieldtype": "Section Break",
+   "label": "Per Account"
+  },
+  {
+   "fieldname": "accounts",
+   "fieldtype": "Table",
+   "label": "Accounts",
+   "options": "OneChat Contact Account",
    "read_only": 1
   },
   {

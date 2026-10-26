@@ -21,7 +21,7 @@
       </p>
       <p>
         <span class="font-medium text-ink-gray-8">{{ __('Contacts') }}</span> ·
-        {{ __('a phone number with country code (+919876543210), an Instagram @username, ig:<Instagram ID>, or a OneChat contact ID. Instagram contacts can only be messaged after they write to you.') }}
+        {{ contactsHelp }}
       </p>
       <p>
         <span class="font-medium text-ink-gray-8">{{ __('Responses') }}</span> ·
@@ -90,6 +90,9 @@ import CodeBlock from '@/components/Common/CodeBlock.vue'
 import { translate as __ } from '@/translation'
 
 const base = window.location.origin
+const contactsHelp = __(
+  'a phone number with country code (+919876543210), an Instagram @username, ig:<Instagram ID>, or a OneChat contact ID. Instagram contacts can only be messaged after they write to you.',
+)
 const PREFIX = '/api/method/onechat.api.v1.'
 
 const CONTACT = {

@@ -1,10 +1,10 @@
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import UnitTestCase
 from frappe.utils import fmt_money
 
 from onechat.inbox import template_fill
+from onechat.tests.compat import UnitTestCase
 
 KNOWN = {
 	key: {"key": key, "label": key, "value": key.upper(), "source": "test"}

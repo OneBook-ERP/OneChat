@@ -168,6 +168,43 @@
             </ol>
           </div>
 
+          <div v-else-if="catalog" class="flex w-72 max-w-full flex-col gap-2 px-0.5 pt-0.5">
+            <div class="flex items-center gap-2">
+              <span
+                class="grid size-8 shrink-0 place-content-center rounded-full bg-surface-alpha-gray-2 text-ink-gray-7"
+                aria-hidden="true"
+              >
+                <span class="lucide-shopping-bag size-4" />
+              </span>
+              <div class="min-w-0">
+                <TruncatedText class="block truncate text-sm font-semibold text-ink-gray-9" :text="catalog.header || __('Products')" />
+                <p class="text-xs text-ink-gray-5">
+                  {{ catalog.items.length === 1 ? __('1 product') : __('{0} products').format(catalog.items.length) }}
+                </p>
+              </div>
+            </div>
+            <p v-if="catalog.body" class="whitespace-pre-line px-0.5 text-sm text-ink-gray-8">{{ catalog.body }}</p>
+            <ul class="flex flex-col divide-y divide-outline-gray-2 overflow-hidden rounded-4 bg-surface-alpha-gray-2">
+              <li v-for="item in catalog.items" :key="item.code" class="flex items-center gap-2.5 p-2">
+                <img
+                  v-if="item.image"
+                  :src="item.image"
+                  alt=""
+                  loading="lazy"
+                  class="size-10 shrink-0 rounded-3 bg-surface-gray-3 object-cover"
+                />
+                <span v-else class="grid size-10 shrink-0 place-content-center rounded-3 bg-surface-gray-3" aria-hidden="true">
+                  <span class="lucide-package size-4 text-ink-gray-5" />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <TruncatedText class="block truncate text-sm font-medium text-ink-gray-9" :text="item.name" />
+                  <span v-if="item.name !== item.code" class="block truncate text-xs text-ink-gray-5">{{ item.code }}</span>
+                </span>
+                <span v-if="item.price" class="shrink-0 text-sm font-medium tabular-nums text-ink-gray-8">{{ item.price }}</span>
+              </li>
+            </ul>
+          </div>
+
           <p v-else-if="placeholder" class="flex items-center gap-1.5 px-0.5 py-1 text-sm italic text-ink-gray-6">
             <span :class="placeholder.icon" class="size-4" aria-hidden="true" />
             {{ placeholder.label }}
@@ -394,7 +431,11 @@ const text = computed(() => messageBody(props.message))
 
 const order = computed(() => (kind.value === 'order' && props.message.order?.items?.length ? props.message.order : null))
 
-const body = computed(() => (location.value || order.value || !plainMessage(text.value) ? '' : richText(text.value)))
+const catalog = computed(() =>
+  ['product', 'product_list'].includes(kind.value) && props.message.catalog?.items?.length ? props.message.catalog : null,
+)
+
+const body = computed(() => (location.value || order.value || catalog.value || !plainMessage(text.value) ? '' : richText(text.value)))
 const copyText = computed(() => plainMessage(text.value))
 const inlineMeta = computed(() => !!body.value && !(template.value && props.message.template_footer) && !cta.value)
 
@@ -469,7 +510,7 @@ function cancelLink() {
 }
 
 const placeholder = computed(() => {
-  if (kind.value === 'text' || hasMedia.value || cta.value || location.value || order.value) return null
+  if (kind.value === 'text' || hasMedia.value || cta.value || location.value || order.value || catalog.value) return null
   if (
     ['location', 'contact', 'flow', 'interactive', 'button', 'product', 'product_list', 'order', 'order_details', 'order_status'].includes(
       kind.value,

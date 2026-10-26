@@ -1,9 +1,9 @@
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import UnitTestCase
 
 from onechat.assistant import api
+from onechat.tests.compat import UnitTestCase
 
 ORDER = {
 	"name": "create_document",

@@ -1,5 +1,6 @@
 import json
 import time
+from contextlib import contextmanager
 
 import frappe
 import requests
@@ -25,6 +26,10 @@ from onechat.workspace.session import is_admin
 
 ACCOUNT = "OneChat Account"
 MAX_PRODUCTS = 30
+SUMMARY_ITEMS = 12
+ORDER_DOCTYPES = ("Quotation", "Sales Order", "Sales Invoice")
+TRACKED_BY_PO = ("Sales Order", "Sales Invoice")
+NAME_LIMIT = 40
 DELIVERY_DAYS = 7
 BATCH_SIZE = 1000
 OPEN_REQUESTS = ["Requested", "Initiated", "Partially Paid"]
@@ -658,15 +663,27 @@ def item_rows(codes):
 
 	try:
 		rows = ERP.source().get_all(
-			"Item", filters={"name": ["in", codes]}, fields=["name", "item_name", "image"]
+			"Item",
+			or_filters={"name": ["in", codes], "item_code": ["in", codes]},
+			fields=["name", "item_code", "item_name", "image"],
 		)
 	except connection.RemoteError:
 		return {}
-	return {row.name: row for row in rows}
+	found = {}
+	for row in rows:
+		for key in (row.get("name"), row.get("item_code")):
+			if key in codes:
+				found.setdefault(key, row)
+	return found
 
 
 def item_names(codes):
-	return {code: row.item_name for code, row in item_rows(codes).items()}
+	return {code: row.item_name for code, row in item_rows(codes).items() if row.get("name") == code}
+
+
+def public_image(item):
+	image = (item or {}).get("image")
+	return absolute(image) if image and "/private/" not in image else None
 
 
 PAY = "OneChat WhatsApp Payment"
@@ -682,13 +699,19 @@ def payment_asks(source, orders, invoices):
 	asked = {}
 	for row in source.get_all(
 		"Payment Request",
-		filters={"reference_name": ["in", list(owner)], "docstatus": 1, "status": ["in", OPEN_REQUESTS]},
+		filters={
+			"reference_name": ["in", list(owner)],
+			"docstatus": 1,
+			"status": ["in", OPEN_REQUESTS],
+		},
 		fields=["reference_name"],
 	):
 		asked[owner.get(row.get("reference_name"))] = _("Payment link sent")
 	if frappe.db.table_exists(PAY):
 		for name in frappe.get_all(
-			PAY, filters={"reference_name": ["in", list(owner)], "status": "Pending"}, pluck="reference_name"
+			PAY,
+			filters={"reference_name": ["in", list(owner)], "status": "Pending"},
+			pluck="reference_name",
 		):
 			asked[owner.get(name)] = _("Asked on WhatsApp")
 	return asked
@@ -706,7 +729,11 @@ def journey(source, order, invoices, asked):
 		steps.append(step("sales_order", _("Sales Order"), "todo", _("Not created")))
 		return steps
 
-	name, docstatus, currency = order.get("name"), cint(order.get("docstatus")), order.get("currency")
+	name, docstatus, currency = (
+		order.get("name"),
+		cint(order.get("docstatus")),
+		order.get("currency"),
+	)
 	steps.append(
 		step(
 			"sales_order",
@@ -725,7 +752,12 @@ def journey(source, order, invoices, asked):
 	state = payment_state(order, paid) if docstatus == 1 else "Unpaid"
 	if state == "Paid":
 		steps.append(
-			step("payment", _("Payment"), "done", _("{0} paid").format(fmt_money(paid, currency=currency)))
+			step(
+				"payment",
+				_("Payment"),
+				"done",
+				_("{0} paid").format(fmt_money(paid, currency=currency)),
+			)
 		)
 	elif state == "Part paid":
 		steps.append(
@@ -734,7 +766,8 @@ def journey(source, order, invoices, asked):
 				_("Payment"),
 				"partial",
 				_("{0} of {1} paid").format(
-					fmt_money(paid, currency=currency), fmt_money(total, currency=currency)
+					fmt_money(paid, currency=currency),
+					fmt_money(total, currency=currency),
 				),
 			)
 		)
@@ -748,7 +781,7 @@ def journey(source, order, invoices, asked):
 			_("Invoice"),
 			"done" if billed >= 100 else "partial" if rows else "todo",
 			", ".join(row.get("name") for row in rows) or _("Not invoiced"),
-			source.absolute(f"/app/sales-invoice/{rows[0].get('name')}") if rows else None,
+			(source.absolute(f"/app/sales-invoice/{rows[0].get('name')}") if rows else None),
 		)
 	)
 
@@ -758,11 +791,11 @@ def journey(source, order, invoices, asked):
 			"delivery",
 			_("Delivery"),
 			"done" if delivered >= 100 else "partial" if delivered else "todo",
-			_("Delivered")
-			if delivered >= 100
-			else _("{0}% delivered").format(f"{delivered:g}")
-			if delivered
-			else _("Not delivered"),
+			(
+				_("Delivered")
+				if delivered >= 100
+				else (_("{0}% delivered").format(f"{delivered:g}") if delivered else _("Not delivered"))
+			),
 		)
 	)
 	return steps
@@ -819,7 +852,9 @@ def refresh_order_cards(doc, method=None):
 		if not orders or not frappe.db.table_exists("Sales Order"):
 			return
 		ids = frappe.get_all(
-			"Sales Order", filters={"name": ["in", list(orders)], "po_no": ["is", "set"]}, pluck="po_no"
+			"Sales Order",
+			filters={"name": ["in", list(orders)], "po_no": ["is", "set"]},
+			pluck="po_no",
 		)
 		messages = (
 			frappe.get_all(
@@ -850,6 +885,61 @@ def publish_orders(messages):
 		publish(row["whatsapp_contact"], row["name"])
 
 
+CATALOG_ITEM = "onechat:catalog-item"
+CATALOG_ITEM_TTL = 6 * 3600
+
+
+def catalog_items(orders, codes):
+	from onechat.whatsapp.catalog import attempt
+
+	wanted = {}
+	for order in orders:
+		for row in order.get("product_items") or []:
+			if order.get("catalog_id") and row.get("product_retailer_id") in codes:
+				wanted.setdefault(order["catalog_id"], set()).add(row["product_retailer_id"])
+
+	cache, found = frappe.cache(), {}
+	for catalog_id, ids in wanted.items():
+		missing = []
+		for code in ids:
+			hit = cache.get_value(f"{CATALOG_ITEM}:{catalog_id}:{code}")
+			if hit is None:
+				missing.append(code)
+			else:
+				found[code] = hit
+		account = missing and frappe.db.get_value(ACCOUNT, {"catalog_id": catalog_id}, "name")
+		if not account:
+			continue
+		body, error = attempt(
+			frappe.get_doc(ACCOUNT, account),
+			"GET",
+			f"{catalog_id}/products",
+			{
+				"fields": "retailer_id,name,image_url,price",
+				"filter": json.dumps({"retailer_id": {"is_any": missing}}),
+				"limit": len(missing),
+			},
+		)
+		if error:
+			continue
+		rows = {
+			row.get("retailer_id"): {
+				"name": row.get("name"),
+				"image": row.get("image_url"),
+				"price": row.get("price"),
+			}
+			for row in body.get("data") or []
+		}
+		for code in missing:
+			found[code] = rows.get(code) or {}
+			cache.set_value(
+				f"{CATALOG_ITEM}:{catalog_id}:{code}",
+				found[code],
+				expires_in_sec=CATALOG_ITEM_TTL,
+			)
+	return found
+
+
 def order_cards(messages):
 	orders = {}
 	for message in messages:
@@ -866,6 +956,12 @@ def order_cards(messages):
 		}
 	)
 	items = item_rows(codes)
+	bare = [code for code in codes if not public_image(items.get(code))]
+	try:
+		listed = catalog_items(orders.values(), bare) if bare else {}
+	except Exception:
+		frappe.log_error(title="OneChat order card: catalog items")
+		listed = {}
 	flows = journeys([message.message_id for message in messages if message.message_id])
 	cards = {}
 	for message in messages:
@@ -878,12 +974,12 @@ def order_cards(messages):
 			currency = row.get("currency") or currency
 			total += qty * price
 			count += qty
-			item = items.get(code) or {}
+			item, listing = items.get(code) or {}, listed.get(code) or {}
 			lines.append(
 				{
 					"code": code,
-					"name": item.get("item_name") or code,
-					"image": absolute(item.get("image")) if item.get("image") else None,
+					"name": item.get("item_name") or listing.get("name") or code,
+					"image": public_image(item) or listing.get("image"),
 					"qty": f"{qty:g}",
 					"price": fmt_money(price, currency=currency),
 					"amount": fmt_money(qty * price, currency=currency),
@@ -899,20 +995,108 @@ def order_cards(messages):
 	return cards
 
 
-def order_summary(order):
+def product_cards(messages):
+	sent = {}
+	for message in messages:
+		try:
+			data = frappe.parse_json(message.products) or {}
+		except ValueError:
+			continue
+		codes = list(dict.fromkeys(code for code in data.get("items") or [] if code))
+		if codes:
+			sent[message.name] = (
+				data,
+				codes,
+				catalog_of(message.get("whatsapp_account")),
+			)
+
+	codes = list({code for _data, items, _catalog in sent.values() for code in items})
+	items = item_rows(codes)
+	wanted = [
+		{
+			"catalog_id": catalog,
+			"product_items": [{"product_retailer_id": code} for code in rows],
+		}
+		for _data, rows, catalog in sent.values()
+		if catalog
+	]
+	try:
+		listed = catalog_items(wanted, set(codes)) if wanted else {}
+	except Exception:
+		frappe.log_error(title="OneChat product card: catalog items")
+		listed = {}
+
+	cards = {}
+	for name, (data, rows, _catalog) in sent.items():
+		lines = []
+		for code in rows:
+			item, listing = items.get(code) or {}, listed.get(code) or {}
+			lines.append(
+				{
+					"code": code,
+					"name": item.get("item_name") or listing.get("name") or code,
+					"image": public_image(item) or listing.get("image"),
+					"price": listing.get("price"),
+				}
+			)
+		cards[name] = {
+			"header": data.get("header") or "",
+			"body": data.get("body") or "",
+			"items": lines,
+		}
+	return cards
+
+
+def order_details(order):
 	rows = (order or {}).get("product_items") or []
 	names = item_names([row.get("product_retailer_id") for row in rows if row.get("product_retailer_id")])
-	lines = [_("New order ({0} items)").format(len(rows))]
-	total, currency = 0, None
+	items, total, currency = [], 0, None
 	for row in rows:
-		qty, price = flt(row.get("quantity")), flt(row.get("item_price"))
+		qty, price = flt(row.get("quantity")) or 1, flt(row.get("item_price"))
 		currency = row.get("currency") or currency
 		total += qty * price
 		code = row.get("product_retailer_id")
-		lines.append(f"{qty:g} × {names.get(code) or code} · {fmt_money(price, currency=currency)}")
-	lines.append(_("Total: {0}").format(fmt_money(total, currency=currency)))
-	if (order or {}).get("text"):
-		lines.append(_("Note: {0}").format(order["text"]))
+		items.append(
+			{
+				"item_code": code,
+				"item_name": names.get(code) or code,
+				"known": code in names,
+				"qty": qty,
+				"rate": price,
+				"amount": qty * price,
+			}
+		)
+
+	lines = [item_line(row, currency, NAME_LIMIT) for row in items[:SUMMARY_ITEMS]]
+	if len(items) > SUMMARY_ITEMS:
+		lines.append(_("+ {0} more items").format(len(items) - SUMMARY_ITEMS))
+	return {
+		"items": items,
+		"summary": "\n".join(lines),
+		"count": len(items),
+		"quantity": sum(row["qty"] for row in items),
+		"total": total,
+		"currency": currency,
+		"note": (order or {}).get("text") or "",
+		"unknown": [row["item_code"] for row in items if names and not row["known"]],
+	}
+
+
+def item_line(row, currency, limit=None):
+	name = row["item_name"] or ""
+	if limit and len(name) > limit:
+		name = name[: limit - 1] + "…"
+	return f"{row['qty']:g} × {name} · {fmt_money(row['rate'], currency=currency)}"
+
+
+def order_summary(order):
+	details = order_details(order)
+	currency = details["currency"]
+	lines = [_("New order ({0} items)").format(details["count"])]
+	lines += [item_line(row, currency) for row in details["items"]]
+	lines.append(_("Total: {0}").format(fmt_money(details["total"], currency=currency)))
+	if details["note"]:
+		lines.append(_("Note: {0}").format(details["note"]))
 
 	return "\n".join(lines)
 
@@ -939,7 +1123,27 @@ def customer_for(contact):
 	return name
 
 
-def create_sales_order(message):
+def party_values(doctype, customer, delivery, message):
+	if doctype == "Quotation":
+		return {
+			"quotation_to": "Customer",
+			"party_name": customer,
+			"order_type": "Sales",
+		}
+	if doctype == "Sales Invoice":
+		return {"customer": customer, "po_no": message.message_id}
+	return {
+		"customer": customer,
+		"order_type": "Sales",
+		"delivery_date": delivery,
+		"po_no": message.message_id,
+	}
+
+
+def create_from_order(message, doctype="Sales Order", extra=None, submit=False, days=None, item_extra=None):
+	if doctype not in ORDER_DOCTYPES:
+		frappe.throw(_("A WhatsApp order can become a {0}.").format(", ".join(ORDER_DOCTYPES)))
+
 	order = frappe.parse_json(message.products or "{}") or {}
 	source = ERP.source()
 	codes = [
@@ -957,17 +1161,14 @@ def create_sales_order(message):
 	currency = next((row.get("currency") for row in rows if row.get("currency")), None)
 	gst = gst_rates(message.whatsapp_account, [row["product_retailer_id"] for row in rows])
 	price_list = price_list_for(message.whatsapp_account)
-	delivery = add_days(nowdate(), DELIVERY_DAYS)
+	delivery = add_days(nowdate(), DELIVERY_DAYS if days in (None, "") else cint(days))
+	dated = {"delivery_date": delivery} if doctype == "Sales Order" else {}
 	values = frappe._dict(
 		{
-			"doctype": "Sales Order",
-			"customer": customer,
+			"doctype": doctype,
 			"company": company(),
-			"order_type": "Sales",
-			"transaction_date": nowdate(),
-			"delivery_date": delivery,
-			"po_no": message.message_id,
 			"ignore_pricing_rule": 1,
+			**party_values(doctype, customer, delivery, message),
 			"items": [
 				{
 					"item_code": row["product_retailer_id"],
@@ -976,7 +1177,8 @@ def create_sales_order(message):
 						flt(row.get("item_price")) / (1 + flt(gst.get(row["product_retailer_id"])) / 100),
 						2,
 					),
-					"delivery_date": delivery,
+					**dated,
+					**(item_extra or {}),
 				}
 				for row in rows
 			],
@@ -986,54 +1188,60 @@ def create_sales_order(message):
 		values.currency = currency
 	if price_list:
 		values.selling_price_list = price_list
+	values.update(extra or {})
 	if source.remote:
-		return source.insert(values).name
+		doc = source.insert(values)
+		return source.submit(doc).name if submit else doc.name
 
-	so = frappe.get_doc(values)
-	so.set_missing_values()
-	so.insert(ignore_permissions=True)
+	doc = frappe.get_doc(values)
+	doc.set_missing_values()
+	doc.insert(ignore_permissions=True)
+	if submit:
+		doc.submit()
 
-	return so.name
+	return doc.name
 
 
-def handle_order(message):
-	if not enabled():
-		return
+def created_from(message, doctype="Sales Order"):
+	if doctype not in TRACKED_BY_PO or not message.get("message_id"):
+		return None
+	return ERP.source().get_value(doctype, {"po_no": message.message_id, "docstatus": ["<", 2]}, "name")
 
+
+@contextmanager
+def elevated():
 	user = frappe.session.user
-	frappe.db.savepoint("onechat_order")
+	if not ERP.is_remote():
+		frappe.set_user("Administrator")
 	try:
-		if not ERP.is_remote():
-			frappe.set_user("Administrator")
-		order = create_sales_order(message)
-	except Exception:
-		frappe.db.rollback(save_point="onechat_order")
-		frappe.log_error(title="OneChat WhatsApp order")
-		return
+		yield
 	finally:
 		frappe.set_user(user)
 
-	if not order:
-		return
 
-	text = "\n".join([message.message or "", _("Draft Sales Order {0} created").format(order)])
+def mark_order(message, name, doctype="Sales Order", submitted=False):
+	label = _("{0} {1} created") if submitted else _("Draft {0} {1} created")
+	text = "\n".join([message.message or "", label.format(_(doctype), name)])
 	frappe.db.set_value(MESSAGE, message.name, "message", text, update_modified=False)
 	if message.get("whatsapp_contact"):
 		publish(message.whatsapp_contact, message.name)
 
 
-def can_request_payment(contact, doctype, name):
-	if doctype != "Sales Invoice" or contact.reference_doctype != "Customer" or not contact.mobile_no:
-		return False
+def handle_order(message):
+	if not enabled() or (message.get("flags") or {}).get("onechat_order_flow"):
+		return
 
-	row = ERP.source().get_value(doctype, name, ["customer", "docstatus", "outstanding_amount"])
+	frappe.db.savepoint("onechat_order")
+	try:
+		with elevated():
+			order = create_from_order(message)
+	except Exception:
+		frappe.db.rollback(save_point="onechat_order")
+		frappe.log_error(title="OneChat WhatsApp order")
+		return
 
-	return (
-		bool(row)
-		and row.customer == contact.reference_docname
-		and row.docstatus == 1
-		and flt(row.outstanding_amount) > 0
-	)
+	if order:
+		mark_order(message, order)
 
 
 def payment_url(invoice):

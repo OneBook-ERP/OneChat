@@ -1,8 +1,7 @@
 from collections import Counter
 
-from frappe.tests import UnitTestCase
-
 from onechat.insights.metrics import bands, delivery, last_line, ranked, slots, window
+from onechat.tests.compat import UnitTestCase
 
 
 class TestInsightsHelpers(UnitTestCase):

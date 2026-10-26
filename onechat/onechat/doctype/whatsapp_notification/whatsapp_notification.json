@@ -25,6 +25,8 @@
   "template",
   "field_name",
   "mobile_numbers",
+  "send_from",
+  "send_account",
   "message_column_1",
   "message_body",
   "code",
@@ -167,6 +169,21 @@
    "label": "Mobile Numbers (comma-separated)"
   },
   {
+   "default": "Default outgoing",
+   "fieldname": "send_from",
+   "fieldtype": "Select",
+   "label": "Send From",
+   "options": "Default outgoing\nSpecific account\nCustomer's account"
+  },
+  {
+   "depends_on": "eval:doc.send_from == 'Specific account'",
+   "fieldname": "send_account",
+   "fieldtype": "Link",
+   "label": "Send Account",
+   "mandatory_depends_on": "eval:doc.send_from == 'Specific account'",
+   "options": "OneChat Account"
+  },
+  {
    "fieldname": "message_column_1",
    "fieldtype": "Column Break"
   },
@@ -245,10 +262,10 @@
   },
   {
    "depends_on": "eval:['DOCUMENT','IMAGE'].includes(doc.header_type)",
+   "description": "Name shown for document headers. Defaults to the file’s own name.",
    "fieldname": "file_name",
    "fieldtype": "Data",
-   "label": "File name",
-   "description": "Name shown for document headers. Defaults to the file’s own name."
+   "label": "File name"
   },
   {
    "fieldname": "property_section",
@@ -270,10 +287,10 @@
    "label": "Value To Be Set"
   },
   {
+   "collapsible": 1,
    "fieldname": "help_section",
    "fieldtype": "Section Break",
-   "label": "Help",
-   "collapsible": 1
+   "label": "Help"
   },
   {
    "fieldname": "help_html",

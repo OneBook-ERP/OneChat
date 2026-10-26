@@ -1,8 +1,9 @@
 import json
 
-from frappe.tests import UnitTestCase
+import frappe
 
-from onechat.automation import engine
+from onechat.automation import engine, steps
+from onechat.tests.compat import UnitTestCase
 
 
 def node(node_id, kind, **config):
@@ -126,6 +127,168 @@ class TestSimulation(UnitTestCase):
 
 		self.assertEqual(result["messages"], [{"from": "system", "text": "Add the label VIP"}])
 		self.assertTrue(result["done"])
+
+	def test_order_flow_sees_the_order_and_routes_on_the_result(self):
+		graph = {
+			"nodes": [
+				node("start", "order_placed"),
+				node("order", "create_sales_order", save_as="order"),
+				node("ok", "send_message", text="{{order.count}} items, total {{records.order.grand_total}}"),
+				node("none", "send_message", text="No items"),
+				node("submit", "submit_record", doctype="Sales Order", name="{{records.order.name}}"),
+			],
+			"edges": [
+				edge("start", "order"),
+				edge("order", "ok", "done"),
+				edge("order", "none", "no_items"),
+				edge("ok", "submit"),
+			],
+		}
+		result = engine.simulate(json.dumps(graph))
+
+		self.assertEqual(
+			self.texts(result),
+			[
+				"Create a Sales Order for this WhatsApp order",
+				"2 items, total 900",
+				"Submit Sales Order (test)",
+			],
+		)
+		self.assertTrue(result["done"])
+
+	def test_record_steps_follow_the_type_saved_by_an_earlier_step(self):
+		graph = {
+			"nodes": [
+				node("start", "order_placed"),
+				node("quote", "create_from_order", doctype="Quotation", save_as="order"),
+				node("submit", "submit_record", same_as_record=1, name="{{records.order.name}}"),
+				node(
+					"make",
+					"make_record",
+					same_as_record=1,
+					doctype="Sales Order",
+					name="{{records.order.name}}",
+				),
+			],
+			"edges": [
+				edge("start", "quote"),
+				edge("quote", "submit", "done"),
+				edge("submit", "make", "done"),
+			],
+		}
+		result = engine.simulate(json.dumps(graph))
+
+		self.assertEqual(
+			self.texts(result),
+			[
+				"Create a Quotation for this WhatsApp order",
+				"Submit Quotation (test)",
+				"Make a Sales Order from Quotation (test)",
+			],
+		)
+
+
+class TestAdvancedSteps(UnitTestCase):
+	def test_values_emails_and_deletes_are_described_in_test_chat(self):
+		graph = {
+			"nodes": [
+				node("start", "manual_trigger"),
+				node(
+					"keep", "set_variable", variables={"slot": "Evening", "who": "context.contact.first_name"}
+				),
+				node("say", "send_message", text="{{vars.who}}, delivery in the {{vars.slot}}"),
+				node("mail", "send_email", to="team@example.com", subject="Slot {{vars.slot}}", message="Hi"),
+				node("drop", "submit_record", action="delete", doctype="Sales Order", name="SO-1"),
+			],
+			"edges": [edge("start", "keep"), edge("keep", "say"), edge("say", "mail"), edge("mail", "drop")],
+		}
+		result = engine.simulate(json.dumps(graph))
+
+		self.assertEqual(
+			[message["text"] for message in result["messages"]],
+			[
+				"Test, delivery in the Evening",
+				"Email team@example.com: Slot Evening",
+				"Delete Sales Order SO-1",
+			],
+		)
+		self.assertTrue(result["done"])
+
+	def test_addresses_split_on_commas_and_spaces(self):
+		self.assertEqual(steps.addresses("a@x.com, b@x.com;c@x.com"), ["a@x.com", "b@x.com", "c@x.com"])
+
+
+class TestSummaries(UnitTestCase):
+	def test_filter_values_understand_operators(self):
+		self.assertEqual(steps.filter_value("> 0"), [">", "0"])
+		self.assertEqual(steps.filter_value("!= Paid"), ["!=", "Paid"])
+		self.assertEqual(steps.filter_value("in Overdue, Unpaid"), ["in", ["Overdue", "Unpaid"]])
+		self.assertEqual(steps.filter_value("like %acme%"), ["like", "%acme%"])
+		self.assertEqual(steps.filter_value("is not set"), ["is", "not set"])
+		self.assertEqual(steps.filter_value("Paid"), "Paid")
+		self.assertEqual(steps.filter_value(5), 5)
+
+	def test_summary_lines_count_total_and_overflow(self):
+		rows = [{"name": f"INV-{n}", "customer_name": "Acme", "outstanding_amount": 100} for n in range(4)]
+		graph = {
+			"nodes": [
+				node("start", "manual_trigger"),
+				node(
+					"sum",
+					"summarize_list",
+					list="{{records.unpaid}}",
+					line="{{row.customer_name}} {{row.outstanding_amount}} ({{row.name}})",
+					separator="semicolon",
+					total_field="outstanding_amount",
+					limit=2,
+				),
+				node(
+					"say",
+					"send_message",
+					text="{{vars.summary.count}} unpaid, {{vars.summary.total}}: {{vars.summary.text}}",
+				),
+			],
+			"edges": [edge("start", "sum"), edge("sum", "say", "found")],
+		}
+		context = {
+			"records": {"unpaid": rows},
+			"contact": {"first_name": "T", "mobile_no": "1"},
+			"answers": {},
+			"vars": {},
+		}
+		run = engine.Run(frappe._dict(name="t"), engine.Graph(json.dumps(graph)), context, simulate=True)
+		run.execute(["start"])
+
+		self.assertEqual(
+			run.outbox[-1]["text"], "4 unpaid, 400: Acme 100 (INV-0); Acme 100 (INV-1); + 2 more"
+		)
+
+	def test_template_values_have_no_line_breaks(self):
+		self.assertEqual(steps.param_text("a\n b\n\nc"), "a · b · c")
+
+
+class TestTableRows(UnitTestCase):
+	def rows(self, context, **config):
+		return steps.table_rows(frappe._dict(context=context), {"rows_field": "items", **config})
+
+	def test_one_row_per_entry_with_row_values(self):
+		context = {"order": engine.sample_order()}
+		result = self.rows(
+			context,
+			rows_from="{{order.items}}",
+			row_fields={"item_code": "{{row.item_code}}", "qty": "{{row.qty}}", "warehouse": ""},
+		)
+
+		self.assertEqual(
+			result, {"items": [{"item_code": "SAMPLE-1", "qty": 2}, {"item_code": "SAMPLE-2", "qty": 1}]}
+		)
+
+	def test_no_table_means_no_rows(self):
+		self.assertEqual(steps.table_rows(frappe._dict(context={}), {}), {})
+
+	def test_a_value_that_is_not_a_list_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.rows({"order": {"total": 900}}, rows_from="{{order.total}}", row_fields={"qty": "1"})
 
 
 class TestSchedule(UnitTestCase):

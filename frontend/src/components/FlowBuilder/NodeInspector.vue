@@ -79,7 +79,7 @@
 
 <script setup>
 import TruncatedText from '@/components/Common/TruncatedText.vue'
-import { computed } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { Button, FormControl, ScrollArea } from 'frappe-ui'
 import InspectorField from './InspectorField.vue'
 import { colorOf, nodeDef, outputsOf, visibleFields } from './nodeTypes'
@@ -99,8 +99,11 @@ const fields = computed(() => visibleFields(props.node.data.nodeType, config.val
 const outputs = computed(() => outputsOf(props.node.data.nodeType, config.value))
 const label = computed(() => (props.node.data.label === def.value.label ? __(def.value.label) : props.node.data.label || ''))
 
+const lists = inject('flowLists', ref([]))
+
 function set(key, value) {
-  emit('change', { config: { ...config.value, [key]: value } })
+  const next = { ...config.value, [key]: value }
+  emit('change', { config: def.value.changed ? { ...next, ...def.value.changed(key, next, lists.value) } : next })
 }
 
 function rename(value) {

@@ -359,6 +359,9 @@ def validate_flow(graph_json: JSON):
 				)
 			)
 
+	if {"create_from_order", "create_sales_order"} & set(kinds.values()) and trigger_kind != "order_placed":
+		errors.append(_("Create from order needs the flow to start with Customer places an order."))
+
 	trigger_config = engine.Graph.config(graph.nodes[trigger]) if trigger else {}
 	instagram_only = trigger_kind == "comment_received"
 	if instagram_only or (trigger_config.get("channel") or "WhatsApp") != "WhatsApp":

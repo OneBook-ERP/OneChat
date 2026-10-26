@@ -847,6 +847,10 @@ def channel_fits(config, channel):
 	return (config.get("channel") or "WhatsApp") in ("Any", channel)
 
 
+def account_fits(config, account):
+	return not config.get("account") or config["account"] == account
+
+
 def matching_flow(doc, message, contact):
 	best = None
 	busy = None
@@ -855,6 +859,8 @@ def matching_flow(doc, message, contact):
 		if row["kind"] not in MESSAGE_TRIGGERS:
 			continue
 		if row["kind"] != "comment_received" and not channel_fits(row["config"], channel):
+			continue
+		if not account_fits(row["config"], doc.get("whatsapp_account")):
 			continue
 		if row["kind"] == "message_received":
 			if busy is None:
@@ -888,6 +894,9 @@ def on_message(doc, method=None):
 	frappe.db.savepoint("onechat_flow")
 	try:
 		message = message_context(doc)
+		if doc.content_type == "order" and start_order_flow(doc, message, contact):
+			return
+
 		session = waiting_session(contact)
 		if session:
 			doc.flags.onechat_flow_handled = True
@@ -906,6 +915,34 @@ def on_message(doc, method=None):
 	except Exception:
 		frappe.db.rollback(save_point="onechat_flow")
 		frappe.log_error(title="OneChat flow", reference_doctype=MESSAGE, reference_name=doc.name)
+
+
+def start_order_flow(doc, message, contact):
+	channel = doc.get("channel") or "WhatsApp"
+	flow = next(
+		(
+			row["flow"]
+			for row in trigger_index()
+			if row["kind"] == "order_placed"
+			and channel_fits(row["config"], channel)
+			and account_fits(row["config"], doc.get("whatsapp_account"))
+		),
+		None,
+	)
+	if not flow:
+		return False
+
+	from onechat.integrations.erpnext_commerce import order_details
+
+	order = {**order_details(frappe.parse_json(doc.get("products") or "{}")), "message": doc.name}
+	start(
+		flow,
+		{"trigger": "message", "message": message, "order": order},
+		contact=contact,
+		account=doc.get("whatsapp_account"),
+	)
+	doc.flags.onechat_flow_handled = doc.flags.onechat_order_flow = True
+	return True
 
 
 def start_comment_flow(doc):
@@ -991,8 +1028,20 @@ def doc_event(doctype, name, method, data):
 			flow=row["flow"],
 			context=context,
 			phone_field=row["config"].get("phone_field"),
+			send_from=row["config"].get("send_from"),
+			account=row["config"].get("account"),
 			enqueue_after_commit=True,
 		)
+
+
+def flow_account(send_from, account, contact):
+	if send_from == "account" and account:
+		return account
+	if send_from == "customer" and contact:
+		current = frappe.db.get_value(CONTACT, contact, "whatsapp_account")
+		if current and frappe.db.get_value("OneChat Account", current, "status") != "Inactive":
+			return current
+	return None
 
 
 def contact_for_phone(phone, name=None):
@@ -1011,7 +1060,7 @@ def contact_for_phone(phone, name=None):
 	)
 
 
-def run_doc_event(flow, context, phone_field=None):
+def run_doc_event(flow, context, phone_field=None, send_from=None, account=None):
 	doc = context.get("doc") or {}
 	phone = doc.get(phone_field) if phone_field else None
 	contact = None
@@ -1022,7 +1071,7 @@ def run_doc_event(flow, context, phone_field=None):
 		contact = contact_for_phone(phone, name)
 
 	try:
-		start(flow, context, contact=contact, phone=phone)
+		start(flow, context, contact=contact, phone=phone, account=flow_account(send_from, account, contact))
 	except Exception:
 		frappe.log_error(title=f"OneChat flow {flow}")
 
@@ -1125,6 +1174,26 @@ def tick():
 	run_schedules()
 
 
+def sample_order():
+	items = [
+		{"item_code": "SAMPLE-1", "item_name": _("Sample item"), "qty": 2, "rate": 250, "amount": 500},
+		{"item_code": "SAMPLE-2", "item_name": _("Another item"), "qty": 1, "rate": 400, "amount": 400},
+	]
+	for row in items:
+		row["known"] = True
+	return {
+		"items": items,
+		"summary": "\n".join(f"{row['qty']} × {row['item_name']} · {row['rate']}" for row in items),
+		"count": 2,
+		"quantity": 3,
+		"total": 900,
+		"currency": None,
+		"note": _("Please deliver in the evening"),
+		"unknown": [],
+		"message": None,
+	}
+
+
 def simulate(graph_json, state=None, reply=None):
 	graph = Graph(graph_json)
 	flow = frappe._dict(name="test", reply_timeout_hours=DEFAULT_TIMEOUT_HOURS)
@@ -1143,6 +1212,9 @@ def simulate(graph_json, state=None, reply=None):
 		"answers": {},
 		"vars": {},
 	}
+	trigger = graph.trigger()
+	if not state and trigger and Graph.kind(graph.nodes[trigger]) == "order_placed":
+		context["order"] = sample_order()
 	run = Run(flow, graph, context, state=state.get("state"), simulate=True)
 
 	try:

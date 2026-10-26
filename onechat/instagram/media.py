@@ -12,6 +12,14 @@ def token_key(token):
 	return f"onechat:instagram-media:{token}"
 
 
+def raw_content(file):
+	try:
+		content = file.get_content(encodings=[])
+	except TypeError:
+		content = file.get_content()
+	return content.encode() if isinstance(content, str) else content
+
+
 def share(file_url):
 	token = secrets.token_urlsafe(32)
 	frappe.cache().set_value(token_key(token), file_url, expires_in_sec=TOKEN_SECONDS)
@@ -27,7 +35,7 @@ def fetch(token: str | None = None):
 
 	file = frappe.get_doc("File", name)
 	return Response(
-		file.get_content(),
+		raw_content(file),
 		mimetype=mimetypes.guess_type(file.file_name or file_url)[0] or "application/octet-stream",
 		headers={"Cache-Control": "no-store"},
 	)

@@ -59,6 +59,15 @@
           <span v-if="contact.instagram_username" class="inline-flex items-center gap-1"
             ><ChannelIcon channel="Instagram" class="size-3" />@{{ contact.instagram_username }}</span
           >
+          <RouterLink
+            v-for="twin in contact.also_on || []"
+            :key="twin.name"
+            :to="{ name: 'Inbox', params: { contact: twin.name } }"
+            class="inline-flex items-center gap-1 text-ink-blue-6 hover:underline"
+          >
+            <span aria-hidden="true">·</span>{{ __('Also on {0}').format(twin.account_label) }}
+            <span v-if="twin.unread_count" class="text-ink-gray-5">({{ twin.unread_count }})</span>
+          </RouterLink>
           <template v-if="contact.reference_doctype">
             <span aria-hidden="true">·</span>
             <span>{{ __(contact.reference_doctype) }}</span>
@@ -308,19 +317,6 @@
         </button>
       </Transition>
     </div>
-
-    <p
-      v-if="typingLine"
-      class="mx-3 mb-1.5 flex shrink-0 items-center gap-1.5 rounded bg-surface-amber-1 px-2.5 py-1.5 text-xs text-ink-amber-7 sm:mx-4"
-      aria-live="polite"
-    >
-      <span class="lucide-pencil-line size-3.5 shrink-0" aria-hidden="true" />
-      <span class="truncate">{{ typingLine }} {{ __('Check before you send so you don’t both reply.') }}</span>
-    </p>
-    <p v-else-if="viewingLine" class="flex shrink-0 items-center gap-1.5 px-4 pb-1 text-xs text-ink-gray-5 sm:px-6" aria-live="polite">
-      <span class="lucide-eye size-3.5 shrink-0" aria-hidden="true" />
-      <span class="truncate">{{ viewingLine }}</span>
-    </p>
 
     <Composer
       ref="composer"
@@ -936,14 +932,6 @@ const presentTooltip = computed(() =>
     present.value.map((person) => (person.typing ? __('{0} (typing)').format(person.name) : person.name)).join(', '),
   ),
 )
-
-const viewingLine = computed(() => {
-  const names = viewers.value.filter((user) => !typers.value.includes(user)).map(agentName)
-  if (!names.length) return ''
-  if (names.length === 1) return __('{0} is also viewing this chat').format(names[0])
-  if (names.length === 2) return __('{0} and {1} are also viewing this chat').format(names[0], names[1])
-  return __('{0} teammates are also viewing this chat').format(names.length)
-})
 
 const searching = ref(false)
 const searchQuery = ref('')

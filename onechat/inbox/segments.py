@@ -327,7 +327,7 @@ def build(rules, match="all"):
 	contact = frappe.qb.DocType(CONTACT)
 	parts = [part for part in (criterion(contact, rule) for rule in parse_rules(rules)) if part is not None]
 	condition = contact.disable == 0
-	scope = visibility.criterion(contact)
+	scope = visibility.shown(contact)
 	if scope is not None:
 		condition = condition & scope
 	if parts:

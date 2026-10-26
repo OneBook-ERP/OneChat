@@ -13,6 +13,7 @@
     <div class="flex flex-col gap-2">
       <div class="flex items-center gap-2">
         <TabButtons v-if="modes.length > 1" v-model="mode" :options="modes" />
+        <Select v-if="!noteMode && accountOptions.length > 1" v-model="account" class="w-48" :options="accountOptions" />
         <span v-if="noteMode" class="flex min-w-0 items-center gap-1 truncate text-xs text-ink-amber-7">
           <span class="lucide-lock size-3.5 shrink-0" aria-hidden="true" />
           <TruncatedText class="truncate" :text="noteHint" />
@@ -260,11 +261,11 @@
 <script setup>
 import TruncatedText from '@/components/Common/TruncatedText.vue'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { Avatar, Button, Dropdown, ScrollArea, TabButtons, Textarea, Tooltip, toast } from 'frappe-ui'
+import { Avatar, Button, Dropdown, ScrollArea, Select, TabButtons, Textarea, Tooltip, dayjs, toast } from 'frappe-ui'
 import ResponsiveDialog from '@/components/Common/ResponsiveDialog.vue'
 import MediaPicker from '@/components/Media/MediaPicker.vue'
 import { embedded } from '@/data/embed'
-import { notifyTyping, stopTyping, useTypers, useViewers } from '@/data/typing'
+import { notifyTyping, stopTyping, useTypers } from '@/data/typing'
 import AttachmentPreview from './AttachmentPreview.vue'
 import ReplyPreview from './ReplyPreview.vue'
 import {
@@ -283,6 +284,7 @@ import {
 } from '@/data/inbox'
 import { can, session } from '@/data/session'
 import { useUI } from '@/stores/ui'
+import { useNumbers } from '@/stores/numbers'
 import { errorMessage } from '@/utils/format'
 import { translate as __ } from '@/translation'
 
@@ -326,6 +328,36 @@ const noteHint = computed(() =>
 const emit = defineEmits(['templates', 'sent'])
 
 const reply = defineModel('reply', { type: Object, default: null })
+
+const numbers = useNumbers()
+const account = ref('')
+
+const openAccounts = computed(() => {
+  const detail = inbox.details[props.contact] || findRow(props.contact) || {}
+  const cutoff = dayjs().subtract(24, 'hour')
+  return (detail.accounts || [])
+    .filter((row) => !numbers.isHidden(row.account) && row.last_incoming_at && dayjs(row.last_incoming_at).isAfter(cutoff))
+    .sort((a, b) => (a.last_incoming_at < b.last_incoming_at ? 1 : -1))
+})
+
+const accountOptions = computed(() =>
+  openAccounts.value.map((row) => {
+    const known = numbers.rows.find((item) => item.name === row.account)
+    const label = known?.label || row.account
+    return { label: known?.phone ? `${label} · ${known.phone}` : label, value: row.account }
+  }),
+)
+
+watch(
+  () => [props.contact, openAccounts.value.map((row) => row.account).join('|')],
+  () => {
+    const names = openAccounts.value.map((row) => row.account)
+    if (names.includes(account.value)) return
+    const current = (inbox.details[props.contact] || findRow(props.contact) || {}).whatsapp_account
+    account.value = names.includes(current) ? current : names[0] || ''
+  },
+  { immediate: true },
+)
 
 const text = ref('')
 const mayReply = can('OneChat Message', 'create')
@@ -389,7 +421,6 @@ const suggest = reactive({ open: false, kind: 'reply', start: 0, query: '', inde
 const mentioned = new Map()
 const ui = useUI()
 const typers = useTypers(() => props.contact)
-const viewers = useViewers(() => props.contact)
 let seen = null
 
 let upload = null
@@ -424,9 +455,6 @@ const collision = computed(() => {
   }
   if (claimable) {
     return { urgent: false, icon: 'lucide-user-check', text: __('Assigned to {0}').format(personName(owner)), claim: true }
-  }
-  if (viewers.value.length) {
-    return { urgent: false, icon: 'lucide-eye', text: __('{0} is also viewing this chat').format(namesOf(viewers.value)) }
   }
   return null
 })
@@ -793,13 +821,15 @@ async function send() {
   closeSuggestions()
   nextTick(grow)
 
+  const from = accountOptions.value.length > 1 ? account.value : null
   sendMessage(props.contact, {
     message: contentType === 'audio' ? '' : message,
     attach,
     content_type: contentType,
     reply: quoted,
+    account: from,
   })
-  if (contentType === 'audio' && message) sendMessage(props.contact, { message, content_type: 'text' })
+  if (contentType === 'audio' && message) sendMessage(props.contact, { message, content_type: 'text', account: from })
 
   emit('sent')
   focus()

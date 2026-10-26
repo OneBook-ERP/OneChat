@@ -3,10 +3,10 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests import IntegrationTestCase, UnitTestCase
 
 from onechat.insights import orders
 from onechat.integrations import erpnext_commerce
+from onechat.tests.compat import IntegrationTestCase, UnitTestCase
 
 ORDER = {
 	"catalog_id": "cat-1",
@@ -33,7 +33,7 @@ def order_message(**values):
 
 
 class TestCreateSalesOrder(UnitTestCase):
-	def create(self, message, source=None, known=None):
+	def create(self, message, source=None, known=None, doctype="Sales Order"):
 		saved = MagicMock()
 		saved.name = "SAL-ORD-T-0001"
 		captured = {}
@@ -59,8 +59,24 @@ class TestCreateSalesOrder(UnitTestCase):
 			patch.object(erpnext_commerce, "company", return_value="OneBook"),
 			patch.object(frappe, "get_doc", side_effect=fake_get_doc),
 		):
-			name = erpnext_commerce.create_sales_order(message)
+			name = erpnext_commerce.create_from_order(message, doctype)
 		return name, captured, saved
+
+	def test_order_can_become_a_quotation(self):
+		_name, values, _saved = self.create(order_message(), doctype="Quotation")
+
+		self.assertEqual(values["doctype"], "Quotation")
+		self.assertEqual(values["quotation_to"], "Customer")
+		self.assertEqual(values["party_name"], "Leo Daniel A")
+		self.assertNotIn("customer", values)
+		self.assertNotIn("delivery_date", values["items"][0])
+
+	def test_order_can_become_a_sales_invoice(self):
+		_name, values, _saved = self.create(order_message(), doctype="Sales Invoice")
+
+		self.assertEqual(values["customer"], "Leo Daniel A")
+		self.assertEqual(values["po_no"], "wamid.order-1")
+		self.assertNotIn("delivery_date", values)
 
 	def test_order_becomes_a_sales_order_for_the_customer(self):
 		name, values, saved = self.create(order_message())
@@ -100,6 +116,69 @@ class TestCreateSalesOrder(UnitTestCase):
 
 		self.assertEqual(name, "SAL-ORD-R-0001")
 		self.assertEqual(source.insert.call_args.args[0]["po_no"], "wamid.order-1")
+
+	def test_flow_values_delivery_days_and_submit(self):
+		saved = MagicMock()
+		saved.name = "SAL-ORD-T-0002"
+		captured = {}
+
+		def fake_get_doc(*args, **kwargs):
+			if args and isinstance(args[0], dict):
+				captured.update(args[0])
+				return saved
+			return frappe._dict(name=args[1] if len(args) > 1 else None)
+
+		source = MagicMock(remote=False)
+		source.exists.return_value = True
+		with (
+			patch.object(erpnext_commerce.ERP, "source", return_value=source),
+			patch.object(erpnext_commerce, "item_names", return_value={"CHAIR": "Chair"}),
+			patch.object(erpnext_commerce, "customer_for", return_value="Leo Daniel A"),
+			patch.object(erpnext_commerce, "gst_rates", return_value={}),
+			patch.object(erpnext_commerce, "price_list_for", return_value=None),
+			patch.object(erpnext_commerce, "company", return_value="OneBook"),
+			patch.object(frappe, "get_doc", side_effect=fake_get_doc),
+		):
+			erpnext_commerce.create_from_order(
+				order_message(), extra={"order_type": "Shopping Cart"}, submit=True, days=2
+			)
+
+		self.assertEqual(captured["order_type"], "Shopping Cart")
+		self.assertEqual(captured["delivery_date"], frappe.utils.add_days(frappe.utils.nowdate(), 2))
+		saved.submit.assert_called_once()
+
+	def test_order_handled_by_a_flow_is_left_to_it(self):
+		message = order_message(flags=frappe._dict(onechat_order_flow=True))
+		with (
+			patch.object(erpnext_commerce, "enabled", return_value=True),
+			patch.object(erpnext_commerce, "create_from_order") as create,
+		):
+			erpnext_commerce.handle_order(message)
+
+		create.assert_not_called()
+
+	def test_order_details_name_items_and_total(self):
+		with patch.object(erpnext_commerce, "item_names", return_value={"CHAIR": "Chair", "TABLE": "Table"}):
+			details = erpnext_commerce.order_details(ORDER)
+
+		self.assertEqual(details["count"], 3)
+		self.assertEqual(details["total"], 2 * 1180 + 500 + 10)
+		self.assertEqual(details["items"][0]["item_name"], "Chair")
+		self.assertEqual(details["unknown"], ["GHOST"])
+
+	def test_long_orders_keep_the_summary_short(self):
+		rows = [
+			{"product_retailer_id": f"ITEM-{index}", "quantity": 1, "item_price": 10, "currency": "INR"}
+			for index in range(30)
+		]
+		names = {f"ITEM-{index}": "A very long product name " * 4 for index in range(30)}
+		with patch.object(erpnext_commerce, "item_names", return_value=names):
+			details = erpnext_commerce.order_details({"product_items": rows})
+
+		lines = details["summary"].split("\n")
+		self.assertEqual(len(lines), erpnext_commerce.SUMMARY_ITEMS + 1)
+		self.assertEqual(lines[-1], "+ 18 more items")
+		self.assertLess(len(details["summary"]), 800)
 
 
 class TestOrderHelpers(UnitTestCase):

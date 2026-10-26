@@ -3,7 +3,7 @@
     <LinkField
       :model-value="form.whatsapp_account"
       doctype="OneChat Account"
-      :filters="{ channel: ['!=', 'Instagram'] }"
+      :filters="accountFilters"
       :label="__('WhatsApp account')"
       :required="true"
       :disabled="!!form.flow_id"
@@ -62,11 +62,13 @@
 
 <script setup>
 import TruncatedText from '@/components/Common/TruncatedText.vue'
+import { computed } from 'vue'
 import { FormControl } from 'frappe-ui'
 import LinkField from '@/components/Common/LinkField.vue'
 import FormStatusBadge from './FormStatusBadge.vue'
 import { CATEGORIES, VERSIONS, categoryLabel } from './formSchema'
 import { formatDateTime } from '@/utils/format'
+import { useNumbers } from '@/stores/numbers'
 import { translate as __ } from '@/translation'
 
 defineProps({
@@ -74,4 +76,13 @@ defineProps({
 })
 
 const emit = defineEmits(['change'])
+
+const numbers = useNumbers()
+if (!numbers.loaded) numbers.load()
+
+const accountFilters = computed(() => ({
+  channel: ['!=', 'Instagram'],
+  status: 'Active',
+  ...(numbers.hidden.length ? { name: ['not in', numbers.hidden] } : {}),
+}))
 </script>

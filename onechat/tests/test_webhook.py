@@ -3,8 +3,8 @@ import hmac
 from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests import IntegrationTestCase, UnitTestCase
 
+from onechat.tests.compat import IntegrationTestCase, UnitTestCase
 from onechat.whatsapp import webhook
 
 

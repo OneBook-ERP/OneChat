@@ -1,9 +1,9 @@
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils import add_to_date, now_datetime
 
+from onechat.tests.compat import IntegrationTestCase, UnitTestCase
 from onechat.whatsapp import pay
 
 PAYMENT = "OneChat WhatsApp Payment"

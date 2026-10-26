@@ -45,6 +45,33 @@ const timeoutFields = [
   },
 ]
 
+const MAKE_TARGETS = {
+  'Sales Order': ['Sales Invoice', 'Delivery Note', 'Payment Entry', 'Material Request', 'Pick List'],
+  'Sales Invoice': ['Payment Entry', 'Delivery Note'],
+  Quotation: ['Sales Order', 'Sales Invoice'],
+  'Delivery Note': ['Sales Invoice'],
+  'Material Request': ['Purchase Order'],
+  'Purchase Order': ['Purchase Receipt', 'Purchase Invoice', 'Payment Entry'],
+  'Purchase Invoice': ['Payment Entry'],
+}
+
+const ALL_MAKE_TARGETS = [...new Set(Object.values(MAKE_TARGETS).flat())]
+
+const sameAsRecord = {
+  key: 'same_as_record',
+  label: 'Same type as the record',
+  type: 'switch',
+  default: true,
+  description: 'Follows whatever an earlier step saved, so a quotation, order or invoice all work.',
+}
+
+const accountField = {
+  key: 'account',
+  label: 'Only on account',
+  type: 'account',
+  description: 'Leave empty to start on any account.',
+}
+
 const choiceOutputs = (key) => (config) =>
   [
     ...(config[key] || []).filter((row) => row.title).map((row) => ({ id: row.id, label: row.title })),
@@ -74,6 +101,7 @@ export const CATALOG = [
           { label: 'WhatsApp and Instagram', value: 'Any' },
         ],
       },
+      accountField,
       {
         key: 'match',
         label: 'Start when the message',
@@ -130,6 +158,7 @@ export const CATALOG = [
         type: 'template',
         description: 'Optional. Leave empty to match this button on any template.',
       },
+      accountField,
     ],
     summary: (config) => config.button,
   },
@@ -143,7 +172,7 @@ export const CATALOG = [
     category: 'trigger',
     triggerType: 'WhatsApp Incoming',
     hint: 'The answers are available as {{form.field_name}}.',
-    fields: [{ key: 'form', label: 'Form', type: 'form', description: 'Leave empty to start on any form.' }],
+    fields: [{ key: 'form', label: 'Form', type: 'form', description: 'Leave empty to start on any form.' }, accountField],
     summary: (config) => config.form || 'Any form',
   },
   {
@@ -155,7 +184,8 @@ export const CATALOG = [
     color: 'green',
     category: 'trigger',
     triggerType: 'WhatsApp Incoming',
-    fields: [],
+    hint: 'The order is available as {{order.summary}} (one line per item), {{order.total}}, {{order.count}}, {{order.quantity}} and {{order.note}}. To check for an existing customer, use a Condition on {{contact.links.erpnext.doctype}} equals Customer. Add Create Sales Order to put it in ERPNext. Without a flow, a draft Sales Order is made for every order.',
+    fields: [accountField],
   },
   {
     type: 'chat_link_opened',
@@ -166,7 +196,7 @@ export const CATALOG = [
     color: 'green',
     category: 'trigger',
     triggerType: 'WhatsApp Incoming',
-    fields: [{ key: 'link', label: 'Chat link', type: 'chat_link', required: true }],
+    fields: [{ key: 'link', label: 'Chat link', type: 'chat_link', required: true }, accountField],
     summary: (config) => config.link,
   },
   {
@@ -223,6 +253,7 @@ export const CATALOG = [
         description: 'Optional. One is picked at random for each comment, so replies don’t look automated.',
       },
       { key: 'hide_comment', label: 'Hide the comment after replying', type: 'switch' },
+      accountField,
       { key: 'once_per_person', label: 'Only once per person per post', type: 'switch', default: true },
     ],
     summary: (config) => (config.match === 'any' ? 'Any comment' : (config.keywords || []).map((row) => row.value ?? row).join(', ')),
@@ -246,6 +277,19 @@ export const CATALOG = [
         doctypeKey: 'doctype',
         description: 'The mobile number to message. Needed for WhatsApp steps.',
       },
+      {
+        key: 'send_from',
+        label: 'Send from',
+        type: 'select',
+        default: 'default',
+        options: [
+          { label: 'Default outgoing account', value: 'default' },
+          { label: 'The customer’s account', value: 'customer' },
+          { label: 'A specific account', value: 'account' },
+        ],
+        description: 'The customer’s account is the number they last wrote to.',
+      },
+      { key: 'account', label: 'Account', type: 'account', required: true, depends: (config) => config.send_from === 'account' },
       { key: 'rules', label: 'Only when', type: 'rules', scope: 'doc' },
     ],
     summary: (config) =>
@@ -314,6 +358,16 @@ export const CATALOG = [
     fields: [
       { key: 'text', label: 'Message', type: 'message', placeholder: 'Hi {{first_name}}, thanks for reaching out!' },
       { key: 'attach', label: 'Attachment', type: 'file' },
+      { section: 'More' },
+      {
+        key: 'to',
+        label: 'Send to another number',
+        type: 'message',
+        compact: true,
+        placeholder: '919876543210',
+        description:
+          'Leave empty to reply in this chat. Plain messages only reach a number that wrote to you in the last 24 hours, so use Send template for alerts.',
+      },
     ],
     required: (config) => (config.text || config.attach ? [] : ['text']),
   },
@@ -412,8 +466,17 @@ export const CATALOG = [
     fields: [
       { key: 'template', label: 'Template', type: 'template', required: true },
       { key: 'parameters', label: 'Values', type: 'template_params', templateKey: 'template' },
+      { section: 'More' },
+      {
+        key: 'to',
+        label: 'Send to another number',
+        type: 'message',
+        compact: true,
+        placeholder: '919876543210',
+        description: 'Leave empty to send to this chat. Use it for alerts to an owner or a team number.',
+      },
     ],
-    summary: (config) => config.template,
+    summary: (config) => (config.to ? `${config.template || ''} → ${config.to}` : config.template),
   },
   {
     type: 'send_form',
@@ -651,6 +714,67 @@ export const CATALOG = [
     summary: (config) => (config.mode === 'business_hours' ? 'Until business hours' : `${config.duration || 0} ${config.unit || 'hours'}`),
   },
   {
+    type: 'summarize_list',
+    label: 'Build a summary',
+    description: 'One line per record, with count and total',
+    icon: 'lucide-list-collapse',
+    color: 'amber',
+    category: 'logic',
+    hint: 'Turns a list, such as the items of an order, into text with one line each. Later steps can add its text, count and total from Add personal detail. Template values cannot hold line breaks, so join with a comma or dot when the text goes into a template.',
+    fields: [
+      {
+        key: 'list',
+        label: 'List',
+        type: 'list_source',
+        required: true,
+        description: 'The order items, or records found or created by an earlier step.',
+      },
+      {
+        key: 'line',
+        label: 'Line for each item',
+        type: 'message',
+        compact: true,
+        required: true,
+        rowVariables: true,
+        preview: true,
+        placeholder: '{{row.qty}} × {{row.item_name}} · {{row.amount}}',
+        description: 'Add the fields of each item from Add personal detail.',
+      },
+      {
+        key: 'separator',
+        label: 'Join lines with',
+        type: 'select',
+        default: 'newline',
+        options: [
+          { label: 'New line', value: 'newline' },
+          { label: 'Semicolon', value: 'semicolon' },
+          { label: 'Comma', value: 'comma' },
+          { label: 'Dot (·)', value: 'dot' },
+        ],
+      },
+      { key: 'total_field', label: 'Add up', type: 'list_field', description: 'A number to total, for example the amount.' },
+      { key: 'limit', label: 'At most', type: 'number', default: 20, description: 'Anything after this is shown as "+ N more".' },
+      { key: 'empty_text', label: 'If the list is empty, say', type: 'text', placeholder: 'Nothing to show' },
+      { key: 'save_as', label: 'Save it as', type: 'variable', default: 'summary', placeholder: 'summary' },
+    ],
+    outputs: [
+      { id: 'found', label: 'Has items' },
+      { id: 'empty', label: 'Empty', muted: true },
+    ],
+    changed: (key, config, lists) => {
+      if (key !== 'list') return {}
+      const list = lists.find((row) => row.token === config.list)
+      if (!list) return {}
+      const defaultLine = !config.line || lists.some((row) => row.line === config.line)
+      const defaultTotal = !config.total_field || lists.some((row) => row.total === config.total_field)
+      return {
+        ...(defaultLine ? { line: list.line } : {}),
+        ...(defaultTotal ? { total_field: list.total || '' } : {}),
+      }
+    },
+    summary: (config) => (config.list ? config.list.replace(/[{}\s]/g, '') : ''),
+  },
+  {
     type: 'end',
     label: 'End flow',
     description: 'Stop here',
@@ -693,6 +817,34 @@ export const CATALOG = [
     fields: [
       { key: 'doctype', label: 'Create a', type: 'doctype', required: true },
       { key: 'fields', label: 'Values', type: 'keyvalue', doctypeKey: 'doctype' },
+      { section: 'Table rows' },
+      {
+        key: 'rows_field',
+        label: 'Fill the table',
+        type: 'field',
+        doctypeKey: 'doctype',
+        description: 'Optional. A table such as Items, filled with one row for each entry in a list.',
+      },
+      {
+        key: 'rows_from',
+        label: 'One row for each',
+        type: 'message',
+        compact: true,
+        required: true,
+        placeholder: '{{order.items}}',
+        depends: (config) => Boolean(config.rows_field),
+      },
+      {
+        key: 'row_fields',
+        label: 'Row values',
+        type: 'keyvalue',
+        doctypeKey: 'doctype',
+        tableKey: 'rows_field',
+        valuePlaceholder: '{{row.item_code}}',
+        description: 'Use {{row.field}} for the current entry, for example {{row.item_code}} and {{row.qty}}.',
+        depends: (config) => Boolean(config.rows_field),
+      },
+      { section: 'More' },
       {
         key: 'if_exists',
         label: 'If it already exists',
@@ -713,6 +865,12 @@ export const CATALOG = [
         depends: (config) => (config.if_exists || 'create') !== 'create',
       },
       { key: 'save_as', label: 'Save it as', type: 'variable', default: 'created', placeholder: 'lead', scope: 'records' },
+      {
+        key: 'link_contact',
+        label: 'Link it to this customer’s chat',
+        type: 'switch',
+        description: 'For a Customer or Lead. Later steps, like Create Sales Order, then use this record.',
+      },
     ],
     outputs: [
       { id: 'done', label: 'Done' },
@@ -739,6 +897,176 @@ export const CATALOG = [
     summary: (config) => config.doctype,
   },
   {
+    type: 'create_from_order',
+    whatsappOnly: true,
+    label: 'Create from order',
+    description: 'A quotation, order or invoice from the cart',
+    icon: 'lucide-shopping-cart',
+    color: 'violet',
+    category: 'records',
+    hint: 'Only after Customer places an order. Customer, items, price list and GST come from the order, and the same order never makes two documents. Use {{records.order.name}} and {{records.order.grand_total}} in later steps.',
+    fields: [
+      {
+        key: 'doctype',
+        label: 'Create a',
+        type: 'select',
+        default: 'Sales Order',
+        options: ['Sales Order', 'Quotation', 'Sales Invoice'],
+      },
+      {
+        key: 'submit',
+        label: 'Submit it straight away',
+        type: 'switch',
+        description: 'Leave off to keep a draft, then use Submit or cancel once the customer confirms.',
+      },
+      {
+        key: 'delivery_days',
+        label: 'Deliver in (days)',
+        type: 'number',
+        default: 7,
+        depends: (config) => (config.doctype || 'Sales Order') === 'Sales Order',
+      },
+      {
+        key: 'fields',
+        label: 'Values',
+        type: 'keyvalue',
+        doctypeOf: (config) => config.doctype || 'Sales Order',
+        prefilled: true,
+        description: 'Overrides the defaults, for example company, order type or a date from {{answers.date}}. Empty values are skipped.',
+      },
+      {
+        key: 'item_fields',
+        label: 'Values on every item',
+        type: 'keyvalue',
+        doctypeOf: (config) => `${config.doctype || 'Sales Order'} Item`,
+        prefilled: true,
+        description: 'For example a warehouse or a discount.',
+      },
+      { key: 'save_as', label: 'Save it as', type: 'variable', default: 'order', placeholder: 'order', scope: 'records' },
+    ],
+    outputs: [
+      { id: 'done', label: 'Created' },
+      { id: 'no_items', label: 'No items found in ERPNext', muted: true },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) => `${config.submit ? 'Submitted' : 'Draft'} ${config.doctype || 'Sales Order'}`,
+  },
+  {
+    type: 'save_address',
+    label: 'Save address',
+    description: 'On the linked customer, supplier or lead',
+    icon: 'lucide-map-pin',
+    color: 'violet',
+    category: 'records',
+    hint: 'Collect the address with Send a form or Ask a question, then map the answers here, for example {{form.city}}. It is linked to the ERPNext record of this chat, or a new customer. Set it on a document before submitting it.',
+    fields: [
+      {
+        key: 'address_type',
+        label: 'Address type',
+        type: 'select',
+        default: 'Shipping',
+        options: [
+          { label: 'Shipping', value: 'Shipping' },
+          { label: 'Billing', value: 'Billing' },
+        ],
+      },
+      { key: 'fields', label: 'Values', type: 'keyvalue', fixedDoctype: 'Address', required: true },
+      { key: 'doctype', label: 'Also set it on a', type: 'doctype', default: 'Sales Order' },
+      { key: 'document', label: 'Record', type: 'message', compact: true, placeholder: '{{records.order.name}}' },
+      {
+        key: 'address_field',
+        label: 'In the field',
+        type: 'field',
+        doctypeKey: 'doctype',
+        description: 'Leave empty for the usual shipping or billing address field of sales and purchase documents.',
+      },
+      { key: 'save_as', label: 'Save it as', type: 'variable', default: 'address', placeholder: 'address', scope: 'records' },
+    ],
+    outputs: [
+      { id: 'done', label: 'Saved' },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) => config.address_type || 'Shipping',
+  },
+  {
+    type: 'make_record',
+    label: 'Make from a record',
+    description: 'Invoice, delivery or payment from a document',
+    icon: 'lucide-file-output',
+    color: 'violet',
+    category: 'records',
+    hint: 'Works like the Create button in ERPNext, copying the items and party across. Payment Entry records a payment, for example cash on delivery.',
+    fields: [
+      { key: 'name', label: 'Record', type: 'message', compact: true, required: true, placeholder: '{{records.order.name}}' },
+      sameAsRecord,
+      {
+        key: 'from_doctype',
+        label: 'From a',
+        type: 'select',
+        default: 'Sales Order',
+        options: Object.keys(MAKE_TARGETS),
+        depends: (config) => !config.same_as_record,
+      },
+      {
+        key: 'doctype',
+        label: 'Make a',
+        type: 'select',
+        default: 'Sales Invoice',
+        options: (config) => (config.same_as_record ? ALL_MAKE_TARGETS : MAKE_TARGETS[config.from_doctype || 'Sales Order'] || []),
+      },
+      { key: 'submit', label: 'Submit it', type: 'switch' },
+      { key: 'fields', label: 'Other values', type: 'keyvalue', doctypeKey: 'doctype', prefilled: true },
+      { key: 'save_as', label: 'Save it as', type: 'variable', default: 'made', placeholder: 'invoice', scope: 'records' },
+    ],
+    outputs: [
+      { id: 'done', label: 'Made' },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) =>
+      `${config.same_as_record ? 'Record' : config.from_doctype || 'Sales Order'} → ${config.doctype || 'Sales Invoice'}`,
+  },
+  {
+    type: 'submit_record',
+    label: 'Submit, cancel or delete',
+    description: 'Confirm, cancel or remove a record',
+    icon: 'lucide-file-check',
+    color: 'violet',
+    category: 'records',
+    hint: 'Cancel deletes a draft and cancels a submitted record. Delete cancels a submitted record first, then deletes it.',
+    fields: [
+      {
+        key: 'action',
+        label: 'Do',
+        type: 'select',
+        default: 'submit',
+        options: [
+          { label: 'Submit', value: 'submit' },
+          { label: 'Cancel', value: 'cancel' },
+          { label: 'Delete', value: 'delete' },
+        ],
+      },
+      { key: 'name', label: 'Record', type: 'message', compact: true, required: true, placeholder: '{{records.order.name}}' },
+      sameAsRecord,
+      {
+        key: 'doctype',
+        label: 'Record type',
+        type: 'doctype',
+        required: true,
+        default: 'Sales Order',
+        depends: (config) => !config.same_as_record,
+      },
+      { key: 'save_as', label: 'Save it again as', type: 'variable', placeholder: 'order', scope: 'records' },
+    ],
+    outputs: [
+      { id: 'done', label: 'Done' },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) => {
+      const doctype = config.same_as_record ? 'record' : config.doctype
+      return doctype ? `${{ cancel: 'Cancel', delete: 'Delete' }[config.action] || 'Submit'} ${doctype}` : ''
+    },
+  },
+  {
     type: 'send_to_records',
     whatsappOnly: true,
     label: 'Send template to records',
@@ -749,7 +1077,15 @@ export const CATALOG = [
     hint: 'Use {{record.field_name}} in the values for each record. Opted-out contacts are skipped for marketing templates.',
     fields: [
       { key: 'doctype', label: 'Records', type: 'doctype', required: true },
-      { key: 'filters', label: 'Where', type: 'keyvalue', doctypeKey: 'doctype' },
+      {
+        key: 'filters',
+        label: 'Where',
+        type: 'keyvalue',
+        doctypeKey: 'doctype',
+        prefilled: true,
+        valuePlaceholder: '> 0',
+        description: 'A value can start with >, <, >=, <=, !=, in, not in, like, or be "is set" / "is not set".',
+      },
       { key: 'phone_field', label: 'Phone field', type: 'field', doctypeKey: 'doctype', required: true },
       { key: 'template', label: 'Template', type: 'template', required: true },
       { key: 'parameters', label: 'Values', type: 'template_params', templateKey: 'template', scope: 'record' },
@@ -760,5 +1096,187 @@ export const CATALOG = [
       { id: 'error', label: 'On error', muted: true },
     ],
     summary: (config) => (config.doctype && config.template ? `${config.template} → ${config.doctype}` : ''),
+  },
+
+  {
+    type: 'send_email',
+    label: 'Send email',
+    description: 'To the customer or your team',
+    icon: 'lucide-mail',
+    color: 'blue',
+    category: 'advanced',
+    fields: [
+      { key: 'to', label: 'To', type: 'message', compact: true, required: true, placeholder: '{{email}}' },
+      { key: 'subject', label: 'Subject', type: 'message', compact: true, required: true, placeholder: 'Order {{records.order.name}}' },
+      { key: 'message', label: 'Message', type: 'message', required: true, placeholder: 'Hi {{first_name}}, your order is confirmed.' },
+      { section: 'More' },
+      { key: 'cc', label: 'CC', type: 'message', compact: true, placeholder: 'sales@example.com' },
+      { key: 'bcc', label: 'BCC', type: 'message', compact: true, placeholder: 'audit@example.com' },
+    ],
+    outputs: [
+      { id: 'done', label: 'Sent' },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) => config.to,
+  },
+  {
+    type: 'http_request',
+    label: 'Call an API',
+    description: 'Send or fetch data from another system',
+    icon: 'lucide-globe',
+    color: 'gray',
+    category: 'advanced',
+    hint: 'The reply is available as {{http.response}} and {{http.status_code}}. A reply other than 2xx takes the On error path.',
+    fields: [
+      {
+        key: 'method',
+        label: 'Method',
+        type: 'select',
+        default: 'GET',
+        options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+      },
+      {
+        key: 'url',
+        label: 'URL',
+        type: 'message',
+        compact: true,
+        required: true,
+        placeholder: 'https://api.example.com/orders/{{records.order.name}}',
+      },
+      { key: 'headers', label: 'Headers', type: 'keyvalue', keyPlaceholder: 'Authorization', valuePlaceholder: 'Bearer token' },
+      {
+        key: 'body',
+        label: 'Data',
+        type: 'keyvalue',
+        description: 'Sent as JSON, or as query parameters for GET.',
+      },
+      { key: 'save_as', label: 'Save the reply as', type: 'variable', placeholder: 'reply' },
+    ],
+    outputs: [
+      { id: 'done', label: 'Done' },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) => (config.url ? `${config.method || 'GET'} ${config.url}` : ''),
+  },
+  {
+    type: 'set_variable',
+    label: 'Set values',
+    description: 'Keep values to use in later steps',
+    icon: 'lucide-variable',
+    color: 'gray',
+    category: 'advanced',
+    hint: 'Use them later as {{vars.name}}. Use {{now}} for the current time.',
+    fields: [
+      {
+        key: 'variables',
+        label: 'Values',
+        type: 'keyvalue',
+        keyLabel: 'Name',
+        keyPlaceholder: 'delivery_slot',
+        valuePlaceholder: '{{answers.slot}}',
+        required: true,
+      },
+    ],
+    summary: (config) => Object.keys(config.variables || {}).join(', '),
+  },
+  {
+    type: 'get_list',
+    label: 'Find records',
+    description: 'Several records that match',
+    icon: 'lucide-list-filter',
+    color: 'violet',
+    category: 'records',
+    hint: 'The records are available as {{records.NAME}}, a list you can use in Create a record table rows.',
+    fields: [
+      { key: 'doctype', label: 'Find', type: 'doctype', required: true },
+      {
+        key: 'filters',
+        label: 'Where',
+        type: 'keyvalue',
+        doctypeKey: 'doctype',
+        prefilled: true,
+        valuePlaceholder: '> 0',
+        description: 'A value can start with >, <, >=, <=, !=, in, not in, like, or be "is set" / "is not set".',
+      },
+      {
+        key: 'fields',
+        label: 'Fields',
+        type: 'text',
+        default: 'name',
+        placeholder: 'name, customer_name, grand_total',
+        description: 'Comma separated.',
+      },
+      { key: 'limit', label: 'At most', type: 'number', default: 20 },
+      { key: 'save_as', label: 'Save them as', type: 'variable', default: 'list', placeholder: 'invoices', scope: 'records' },
+    ],
+    outputs: [
+      { id: 'found', label: 'Found' },
+      { id: 'not_found', label: 'None found', muted: true },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) => config.doctype,
+  },
+  {
+    type: 'apply_workflow',
+    label: 'Apply workflow action',
+    description: 'Approve, reject or move a record on',
+    icon: 'lucide-workflow',
+    color: 'violet',
+    category: 'advanced',
+    fields: [
+      { key: 'doctype', label: 'Record type', type: 'doctype', required: true },
+      { key: 'docname', label: 'Record', type: 'message', compact: true, required: true, placeholder: '{{records.order.name}}' },
+      { key: 'action', label: 'Action', type: 'text', required: true, placeholder: 'Approve' },
+    ],
+    outputs: [
+      { id: 'done', label: 'Done' },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) => (config.action ? `${config.action} ${config.doctype || ''}` : ''),
+  },
+  {
+    type: 'send_notification',
+    label: 'Notify a user',
+    description: 'A bell notification in the desk',
+    icon: 'lucide-bell',
+    color: 'blue',
+    category: 'advanced',
+    fields: [
+      { key: 'user', label: 'User', type: 'message', compact: true, required: true, placeholder: 'sales@example.com' },
+      { key: 'subject', label: 'Subject', type: 'message', compact: true, required: true, placeholder: 'New order {{records.order.name}}' },
+      { key: 'message', label: 'Message', type: 'message', placeholder: '{{name}} ordered {{order.count}} items.' },
+      { key: 'reference_doctype', label: 'Open record type', type: 'doctype' },
+      { key: 'reference_name', label: 'Record', type: 'message', compact: true, placeholder: '{{records.order.name}}' },
+    ],
+    outputs: [
+      { id: 'done', label: 'Sent' },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) => config.user,
+  },
+  {
+    type: 'create_comment',
+    label: 'Comment on a record',
+    description: 'Visible on the ERPNext document',
+    icon: 'lucide-message-square',
+    color: 'blue',
+    category: 'advanced',
+    fields: [
+      { key: 'reference_doctype', label: 'Record type', type: 'doctype', required: true },
+      { key: 'reference_name', label: 'Record', type: 'message', compact: true, required: true, placeholder: '{{records.order.name}}' },
+      { key: 'content', label: 'Comment', type: 'message', required: true, placeholder: 'Confirmed by the customer on WhatsApp.' },
+      {
+        key: 'comment_type',
+        label: 'Type',
+        type: 'select',
+        default: 'Comment',
+        options: ['Comment', 'Info'],
+      },
+    ],
+    outputs: [
+      { id: 'done', label: 'Done' },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) => config.reference_doctype,
   },
 ]

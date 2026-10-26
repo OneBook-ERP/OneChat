@@ -2,9 +2,9 @@ import json
 from unittest.mock import MagicMock, patch
 
 import frappe
-from frappe.tests import IntegrationTestCase, UnitTestCase
 
 from onechat.integrations import erpnext_commerce, payments
+from onechat.tests.compat import IntegrationTestCase, UnitTestCase
 
 REQUEST = "Payment Request"
 INTEGRATION = "Integration Request"

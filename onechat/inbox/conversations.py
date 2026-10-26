@@ -11,7 +11,7 @@ from frappe.utils import add_days, cint, escape_html, get_fullname, now_datetime
 from onechat import integrations
 from onechat.api_types import JSON
 from onechat.automation.engine import stop_contact, stop_for_agent
-from onechat.inbox import accounts, history, visibility
+from onechat.inbox import accounts, contact_accounts, history, visibility
 from onechat.inbox.visibility import check as check_visible
 from onechat.integrations import links
 from onechat.workspace import numbers
@@ -65,6 +65,7 @@ BULK_ACTIONS = ("assign", "status", "add_label", "remove_label", "read")
 MESSAGE_FIELDS = [
 	"name",
 	"type",
+	"whatsapp_account",
 	"status",
 	"error_message",
 	"content_type",
@@ -245,15 +246,16 @@ def conversations(
 			| table.instagram_username.like(pattern)
 		)
 
+	hidden = numbers.hidden()
 	rows = (
-		query.orderby(table.last_message_at, order=Order.desc)
+		query.orderby(numbers.shown_at(table, hidden) if hidden else table.last_message_at, order=Order.desc)
 		.orderby(table.modified, order=Order.desc)
 		.offset(cint(start))
 		.limit(cint(limit) or 30)
 		.run(as_dict=True)
 	)
 
-	return with_labels(rows)
+	return with_labels(contact_accounts.attach(contact_accounts.overlay(rows, hidden)))
 
 
 def where(table, filters, snoozed=False):
@@ -269,7 +271,12 @@ def where(table, filters, snoozed=False):
 			else (table.snoozed_until.isnull() | (table.snoozed_until <= now))
 		)
 		condition = part if condition is None else condition & part
+	hidden = numbers.hidden()
 	for field, value in filters.items():
+		if field == "unread_count" and hidden:
+			part = numbers.account_rows(table, hidden, unread=True)
+			condition = part if condition is None else condition & part
+			continue
 		if isinstance(value, list):
 			operator, argument = value
 			part = {
@@ -310,7 +317,11 @@ def counts(channel: str | None = None):
 
 
 def active_channels():
-	return sorted(set(frappe.get_all(ACCOUNT, filters={"status": "Active"}, pluck="channel")) - {None, ""})
+	filters = {"status": "Active"}
+	hidden = numbers.hidden()
+	if hidden:
+		filters["name"] = ["not in", hidden]
+	return sorted(set(frappe.get_all(ACCOUNT, filters=filters, pluck="channel")) - {None, ""})
 
 
 def followup_count(user):
@@ -328,6 +339,8 @@ def conversation(contact: str):
 	doc = frappe.get_doc(CONTACT, contact)
 	data = {field: doc.get(field) for field in CONTACT_FIELDS}
 	data["labels"] = [row.label for row in doc.get("labels") or []]
+	data["accounts"] = contact_accounts.rows_of(contact)
+	data["also_on"] = same_person(doc)
 	data["notes"] = note_rows(
 		frappe.get_all(
 			NOTE,
@@ -342,6 +355,53 @@ def conversation(contact: str):
 	data["links"] = links.public(doc)
 
 	return data
+
+
+def same_person(doc):
+	username = (doc.get("instagram_username") or "").strip().lower()
+	if doc.get("channel") != INSTAGRAM or not username:
+		return []
+	hidden = set(numbers.hidden())
+	rows = frappe.get_all(
+		CONTACT,
+		filters={
+			"channel": INSTAGRAM,
+			"instagram_username": username,
+			"name": ["!=", doc.name],
+			"disable": 0,
+			"whatsapp_account": ["!=", doc.get("whatsapp_account") or ""],
+		},
+		fields=[
+			"name",
+			"whatsapp_account",
+			"assigned_to",
+			"team",
+			"conversation_status",
+			"unread_count",
+			"last_message_at",
+		],
+		order_by="last_message_at desc",
+	)
+	rows = [row for row in rows if row.whatsapp_account not in hidden and visibility.allowed(row)]
+	labels = {
+		row.name: row.account_name or row.name
+		for row in frappe.get_all(
+			ACCOUNT,
+			filters={"name": ["in", [row.whatsapp_account for row in rows] or [""]]},
+			fields=["name", "account_name"],
+		)
+	}
+	return [
+		{
+			"name": row.name,
+			"account": row.whatsapp_account,
+			"account_label": labels.get(row.whatsapp_account, row.whatsapp_account),
+			"status": row.conversation_status,
+			"unread_count": cint(row.unread_count),
+			"last_message_at": row.last_message_at,
+		}
+		for row in rows
+	]
 
 
 @frappe.whitelist()
@@ -359,9 +419,20 @@ def messages(contact: str, before: str | None = None, limit: int | str = 40):
 	]
 	if before:
 		filters.append([MESSAGE, "creation", "<", before])
+	hidden = numbers.hidden()
+	or_filters = (
+		[[MESSAGE, "whatsapp_account", "is", "not set"], [MESSAGE, "whatsapp_account", "not in", hidden]]
+		if hidden
+		else None
+	)
 
 	rows = frappe.get_all(
-		MESSAGE, filters=filters, fields=MESSAGE_FIELDS, order_by="creation desc", limit_page_length=limit
+		MESSAGE,
+		filters=filters,
+		or_filters=or_filters,
+		fields=MESSAGE_FIELDS,
+		order_by="creation desc",
+		limit_page_length=limit,
 	)
 	rows.reverse()
 	has_more = len(rows) == limit
@@ -649,6 +720,18 @@ def enrich(rows):
 		for row in orders:
 			row.order = cards.get(row.name)
 
+	shown = [row for row in rows if row.content_type in ("product", "product_list") and row.products]
+	if shown:
+		from onechat.integrations.erpnext_commerce import product_cards
+
+		try:
+			cards = product_cards(shown)
+		except Exception:
+			frappe.log_error(title="OneChat product card")
+			cards = {}
+		for row in shown:
+			row.catalog = cards.get(row.name)
+
 	for row in rows:
 		row.pop("products", None)
 
@@ -689,6 +772,7 @@ def send(
 	attach: str | None = None,
 	content_type: str = "text",
 	reply_to: str | None = None,
+	account: str | None = None,
 ):
 	guard()
 	require(MESSAGE, "create")
@@ -697,7 +781,8 @@ def send(
 	if not (message or attach):
 		frappe.throw(_("Write a message or attach a file."))
 
-	account = accounts.check(contact)
+	account = accounts.pick(contact, account or contact_accounts.reply_account(contact, numbers.hidden()))
+	contact_accounts.require_window(contact, account)
 	doc = frappe.get_doc(CONTACT, contact)
 	reopen(doc)
 	outgoing = frappe.new_doc(MESSAGE)
@@ -721,17 +806,20 @@ def send(
 
 	outgoing.insert(ignore_permissions=True)
 	stop_for_agent(contact)
+	if account != doc.whatsapp_account:
+		frappe.db.set_value(CONTACT, contact, "whatsapp_account", account, update_modified=False)
 
 	return single(outgoing.name)
 
 
 @frappe.whitelist()
-def send_template(contact: str, template: str, parameters: JSON = None):
+def send_template(contact: str, template: str, parameters: JSON = None, account: str | None = None):
 	guard()
 	require(MESSAGE, "create")
 	check_visible(contact)
 
-	account = accounts.check(contact)
+	chosen = account
+	account = accounts.pick(contact, account)
 	doc = frappe.get_doc(CONTACT, contact)
 	reopen(doc)
 	outgoing = frappe.new_doc(MESSAGE)
@@ -757,6 +845,9 @@ def send_template(contact: str, template: str, parameters: JSON = None):
 
 	outgoing.insert(ignore_permissions=True)
 	stop_for_agent(contact)
+	if chosen and doc.whatsapp_account != account:
+		if not doc.whatsapp_account or doc.whatsapp_account in numbers.inactive_accounts():
+			frappe.db.set_value(CONTACT, contact, "whatsapp_account", account, update_modified=False)
 
 	return single(outgoing.name)
 
@@ -776,7 +867,7 @@ def mark_read(contact: str):
 	guard()
 	check_visible(contact)
 
-	frappe.db.set_value(CONTACT, contact, "unread_count", 0, update_modified=False)
+	contact_accounts.read(contact, numbers.hidden())
 	publish(contact)
 	from onechat.inbox.read_receipts import on_open
 
@@ -965,31 +1056,37 @@ def agents():
 
 
 @frappe.whitelist()
-def templates(search: str | None = None):
+def templates(search: str | None = None, account: str | None = None):
 	guard()
 
-	or_filters = None
-	if search:
-		or_filters = {"template_name": ["like", f"%{search}%"], "actual_name": ["like", f"%{search}%"]}
-
-	return frappe.get_all(
-		"WhatsApp Templates",
-		or_filters=or_filters,
-		fields=[
-			"name",
-			"template_name",
-			"actual_name",
-			"template",
-			"header",
-			"footer",
-			"language_code",
-			"category",
-			"status",
-			"sample_values",
-		],
-		order_by="template_name asc",
-		limit_page_length=50,
+	table = frappe.qb.DocType("WhatsApp Templates")
+	query = (
+		frappe.qb.from_(table)
+		.select(
+			table.name,
+			table.template_name,
+			table.actual_name,
+			table.template,
+			table.header,
+			table.footer,
+			table.language_code,
+			table.category,
+			table.status,
+			table.sample_values,
+			table.whatsapp_account,
+		)
+		.orderby(table.template_name)
+		.limit(50)
 	)
+	if search:
+		query = query.where(table.template_name.like(f"%{search}%") | table.actual_name.like(f"%{search}%"))
+	unowned = IfNull(table.whatsapp_account, "") == ""
+	if account:
+		query = query.where((table.whatsapp_account == account) | unowned)
+	inactive = numbers.inactive_accounts()
+	if inactive:
+		query = query.where(unowned | table.whatsapp_account.notin(inactive))
+	return query.run(as_dict=True)
 
 
 def single(name):
@@ -1152,6 +1249,7 @@ def surface(doc, contact, unread=True):
 			if current.conversation_status != "Open":
 				track(CONTACT, contact, [("conversation_status", current.conversation_status, "Open")])
 		frappe.db.set_value(CONTACT, contact, updates, update_modified=False)
+		contact_accounts.touch(contact, doc, updates["last_message"], unread)
 		history.on_message(doc, contact)
 		if doc.type == "Incoming":
 			if service.needs_reply(doc):
@@ -1203,6 +1301,7 @@ def publish(contact, message=None, **event):
 	row = frappe.db.get_value(CONTACT, contact, CONTACT_FIELDS, as_dict=True)
 	if row:
 		row.labels = label_map([contact]).get(contact, [])
+		row.accounts = contact_accounts.rows_of(contact)
 		with_links([row])
 	payload = {"contact": row, **event}
 	if message:

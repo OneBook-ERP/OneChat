@@ -341,7 +341,29 @@ const testing = ref(false)
 const recipesOpen = ref(false)
 const docFields = ref([])
 const recordFields = ref({})
-const RECORD_STEPS = ['find_record', 'create_record']
+const RECORD_STEPS = ['find_record', 'create_record', 'create_from_order', 'create_sales_order', 'make_record', 'save_address']
+const SAVED_RECORDS = {
+  find_record: { key: 'record', group: 'Found' },
+  create_record: { key: 'created', group: 'Created' },
+  create_from_order: { key: 'order', group: 'Created', fallback: 'Sales Order' },
+  create_sales_order: { key: 'order', group: 'Created', fallback: 'Sales Order' },
+  make_record: { key: 'made', group: 'Made' },
+  save_address: { key: 'address', group: 'Saved', doctype: 'Address' },
+}
+const ORDER_VARIABLES = [
+  { group: 'Order', label: 'Items (one per line)', token: '{{order.summary}}' },
+  { group: 'Order', label: 'Total', token: '{{order.total}}' },
+  { group: 'Order', label: 'Number of items', token: '{{order.count}}' },
+  { group: 'Order', label: 'Total quantity', token: '{{order.quantity}}' },
+  { group: 'Order', label: 'Currency', token: '{{order.currency}}' },
+  { group: 'Order', label: 'Customer note', token: '{{order.note}}' },
+  { group: 'Order', label: 'Items not in ERPNext', token: '{{order.unknown}}' },
+]
+
+function savedRecord(type, config) {
+  const saved = SAVED_RECORDS[type]
+  return { key: config.save_as || saved.key, group: saved.group, doctype: saved.doctype || config.doctype || saved.fallback }
+}
 
 const BASE_VARIABLES = [
   { group: 'Customer', label: 'Name', token: '{{name}}' },
@@ -350,22 +372,48 @@ const BASE_VARIABLES = [
   { group: 'Customer', label: 'Email', token: '{{email}}' },
   { group: 'Customer', label: 'Their last reply', token: '{{last_reply}}' },
   { group: 'Customer', label: 'Linked ERPNext record', token: '{{contact.links.erpnext.name}}' },
+  { group: 'Customer', label: 'Linked ERPNext record type', token: '{{contact.links.erpnext.doctype}}' },
   { group: 'Customer', label: 'Linked CRM record', token: '{{contact.links.crm.name}}' },
 ]
 
 const variables = computed(() => {
   const list = [...BASE_VARIABLES]
+  if (triggerNode.value?.data?.nodeType === 'order_placed') list.push(...ORDER_VARIABLES)
   for (const node of nodes.value) {
     const type = node.data?.nodeType
     const config = node.data?.config || {}
     if (['ask_question', 'send_buttons', 'send_list'].includes(type) && config.save_as) {
       list.push({ group: 'Their answers', label: config.save_as.replace(/_/g, ' '), token: `{{answers.${config.save_as}}}` })
     }
+    if (type === 'set_variable') {
+      for (const name of Object.keys(config.variables || {})) {
+        if (name) list.push({ group: 'Saved values', label: name.replace(/_/g, ' '), token: `{{vars.${name}}}` })
+      }
+    }
+    if (type === 'summarize_list') {
+      const key = config.save_as || 'summary'
+      const group = `${__('Summary')} · ${key.replace(/_/g, ' ')}`
+      list.push({ group, label: 'Text', token: `{{vars.${key}.text}}` })
+      list.push({ group, label: 'Count', token: `{{vars.${key}.count}}` })
+      list.push({ group, label: 'Total', token: `{{vars.${key}.total}}` })
+    }
+    if (type === 'http_request') {
+      list.push({ group: 'API reply', label: 'Reply', token: '{{http.response}}' })
+      list.push({ group: 'API reply', label: 'Status code', token: '{{http.status_code}}' })
+      if (config.save_as) list.push({ group: 'API reply', label: config.save_as.replace(/_/g, ' '), token: `{{vars.${config.save_as}}}` })
+    }
+    if (type === 'get_list') {
+      list.push({
+        group: 'Found records',
+        label: `${config.doctype || 'Records'} (list)`,
+        token: `{{records.${config.save_as || 'list'}}}`,
+      })
+    }
     if (RECORD_STEPS.includes(type)) {
-      const key = config.save_as || (type === 'find_record' ? 'record' : 'created')
-      const group = `${type === 'find_record' ? 'Found' : 'Created'} ${config.doctype || key}`
+      const { key, doctype, group: verb } = savedRecord(type, config)
+      const group = `${verb} ${doctype || key}`
       list.push({ group, label: 'ID', token: `{{records.${key}.name}}` })
-      for (const field of recordFields.value[config.doctype] || []) {
+      for (const field of recordFields.value[doctype] || []) {
         if (NO_VALUE_TYPES.includes(field.fieldtype) || field.fieldname === 'name') continue
         list.push({ group, label: field.label || field.fieldname, token: `{{records.${key}.${field.fieldname}}}` })
       }
@@ -381,13 +429,100 @@ const variables = computed(() => {
 
 provide('flowVariables', variables)
 
+const ITEM_LINE = '{{row.qty}} × {{row.item_name}} · {{row.amount}}'
+const CART_FIELDS = [
+  { fieldname: 'item_name', label: 'Item name' },
+  { fieldname: 'item_code', label: 'Item code' },
+  { fieldname: 'qty', label: 'Quantity', number: true },
+  { fieldname: 'rate', label: 'Price', number: true },
+  { fieldname: 'amount', label: 'Amount', number: true },
+]
+const LINE_FIELDS = [
+  ...CART_FIELDS,
+  { fieldname: 'uom', label: 'Unit' },
+  { fieldname: 'description', label: 'Description' },
+  { fieldname: 'discount_percentage', label: 'Discount %', number: true },
+  { fieldname: 'warehouse', label: 'Warehouse' },
+]
+const SAMPLE_ITEMS = [
+  { item_name: 'T-shirt', item_code: 'SKU001', qty: 2, rate: 800, amount: 1600, uom: 'Nos' },
+  { item_name: 'Coffee Mug', item_code: 'SKU006', qty: 1, rate: 890, amount: 890, uom: 'Nos' },
+]
+const ITEM_DOCTYPES = [
+  'Quotation',
+  'Sales Order',
+  'Sales Invoice',
+  'Delivery Note',
+  'Material Request',
+  'Purchase Order',
+  'Purchase Receipt',
+  'Purchase Invoice',
+]
+const NUMBER_TYPES = ['Currency', 'Float', 'Int', 'Percent']
+
+function itemList(key, doctype, verb) {
+  return {
+    label: `${verb} ${doctype} · ${__('items')}`,
+    token: `{{records.${key}.items}}`,
+    fields: LINE_FIELDS,
+    sample: SAMPLE_ITEMS,
+    line: ITEM_LINE,
+    total: 'amount',
+  }
+}
+
+const flowLists = computed(() => {
+  const lists = []
+  if (triggerNode.value?.data?.nodeType === 'order_placed') {
+    lists.push({
+      label: __('Order items (cart)'),
+      token: '{{order.items}}',
+      fields: CART_FIELDS,
+      sample: SAMPLE_ITEMS,
+      line: ITEM_LINE,
+      total: 'amount',
+    })
+  }
+  for (const node of nodes.value) {
+    const type = node.data?.nodeType
+    const config = node.data?.config || {}
+    if (RECORD_STEPS.includes(type)) {
+      const { key, doctype, group } = savedRecord(type, config)
+      if (ITEM_DOCTYPES.includes(doctype)) lists.push(itemList(key, doctype, __(group)))
+    }
+    if (type === 'get_list') {
+      const fields = (recordFields.value[config.doctype] || [])
+        .filter((field) => !NO_VALUE_TYPES.includes(field.fieldtype))
+        .map((field) => ({
+          fieldname: field.fieldname,
+          label: field.label || field.fieldname,
+          number: NUMBER_TYPES.includes(field.fieldtype),
+        }))
+      lists.push({
+        label: `${__('Found')} ${config.doctype || __('records')}`,
+        token: `{{records.${config.save_as || 'list'}}}`,
+        fields: [{ fieldname: 'name', label: 'ID' }, ...fields],
+        line: '{{row.name}}',
+        total: '',
+      })
+    }
+  }
+  const seen = new Set()
+  return lists.filter((row) => !seen.has(row.token) && seen.add(row.token))
+})
+
+provide('flowLists', flowLists)
+
 watch(
   () =>
     [
       ...new Set(
         nodes.value
-          .filter((node) => RECORD_STEPS.includes(node.data?.nodeType))
-          .map((node) => node.data?.config?.doctype)
+          .map((node) => {
+            const type = node.data?.nodeType
+            if (type === 'get_list') return node.data.config?.doctype
+            return RECORD_STEPS.includes(type) ? savedRecord(type, node.data.config || {}).doctype : null
+          })
           .filter(Boolean),
       ),
     ].join('|'),

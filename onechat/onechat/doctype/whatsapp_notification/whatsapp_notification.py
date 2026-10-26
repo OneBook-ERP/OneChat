@@ -265,9 +265,40 @@ class WhatsAppNotification(Document):
 				}
 				self.notify(data, doc_data, template_account=template.whatsapp_account)
 
+	def sending_account(self, phone=None, template_account=None):
+		mode = self.get("send_from") or "Default outgoing"
+		if mode == "Specific account" and self.get("send_account"):
+			return self.send_account
+		if mode == "Customer's account" and phone:
+			from onechat.inbox.conversations import find_contact
+
+			contact = find_contact(phone)
+			account = contact and frappe.db.get_value("OneChat Contact", contact, "whatsapp_account")
+			if account and frappe.db.get_value("OneChat Account", account, "status") != "Inactive":
+				return account
+		return template_account
+
+	def template_on(self, data, account):
+		template = (data.get("template") or {}) if data.get("type") == "template" else None
+		if not template:
+			return True
+		return bool(
+			frappe.db.exists(
+				"WhatsApp Templates",
+				{
+					"whatsapp_account": account,
+					"actual_name": template.get("name"),
+					"language_code": (template.get("language") or {}).get("code"),
+				},
+			)
+		)
+
 	def notify(self, data, doc_data=None, template_account=None):
-		if template_account:
-			whatsapp_account = frappe.get_doc("OneChat Account", template_account)
+		account = self.sending_account(data.get("to"), template_account)
+		if account and account != template_account and not self.template_on(data, account):
+			account = template_account
+		if account:
+			whatsapp_account = frappe.get_doc("OneChat Account", account)
 		else:
 			whatsapp_account = get_whatsapp_account(account_type="outgoing")
 
@@ -417,7 +448,12 @@ class WhatsAppNotification(Document):
 		if self.disabled:
 			return
 
-		whatsapp_account = get_whatsapp_account(account_type="outgoing")
+		account = self.sending_account(phone_no)
+		whatsapp_account = (
+			frappe.get_doc("OneChat Account", account)
+			if account
+			else get_whatsapp_account(account_type="outgoing")
+		)
 		if not whatsapp_account:
 			frappe.throw(_("Please set a default outgoing WhatsApp Account"))
 

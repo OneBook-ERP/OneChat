@@ -1,5 +1,11 @@
 @import 'frappe-ui/style.css';
 
+.menu-content {
+  max-height: min(var(--reka-dropdown-menu-content-available-height, 80vh), 32rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .onechat-flow {
   --vf-node-bg: var(--surface-elevation-1);
   --vf-node-text: var(--ink-gray-8);

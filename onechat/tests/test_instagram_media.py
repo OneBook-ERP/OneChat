@@ -1,9 +1,9 @@
 from unittest.mock import patch
 
 import frappe
-from frappe.tests import IntegrationTestCase
 
 from onechat.instagram import media, send, webhook
+from onechat.tests.compat import IntegrationTestCase
 
 
 class TestInstagramMediaLinks(IntegrationTestCase):

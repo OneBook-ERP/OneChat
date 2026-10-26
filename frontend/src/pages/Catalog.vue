@@ -42,12 +42,14 @@ import AppHeader from '@/components/Layouts/AppHeader.vue'
 import CatalogManager from '@/components/Campaigns/CatalogManager.vue'
 import EmptyState from '@/components/Common/EmptyState.vue'
 import { activeIntegrations } from '@/data/integrations'
+import { useNumbers } from '@/stores/numbers'
 import { errorMessage } from '@/utils/format'
 import { translate as __ } from '@/translation'
 
 defineProps({ compact: { type: Boolean, default: false } })
 
 const route = useRoute()
+const numbers = useNumbers()
 const accounts = ref([])
 const account = ref('')
 const loaded = ref(false)
@@ -59,13 +61,15 @@ const accountOptions = computed(() => accounts.value.map((row) => ({ label: row.
 
 onMounted(async () => {
   try {
-    accounts.value = await call('frappe.client.get_list', {
+    if (!numbers.loaded) await numbers.load()
+    const rows = await call('frappe.client.get_list', {
       doctype: 'OneChat Account',
       fields: ['name', 'account_name'],
-      filters: { business_id: ['is', 'set'] },
+      filters: { business_id: ['is', 'set'], status: 'Active' },
       order_by: 'account_name asc',
       limit_page_length: 0,
     })
+    accounts.value = rows.filter((row) => !numbers.isHidden(row.name))
     const wanted = route.query.account
     account.value = accounts.value.find((row) => row.name === wanted)?.name || accounts.value[0]?.name || ''
   } catch (err) {

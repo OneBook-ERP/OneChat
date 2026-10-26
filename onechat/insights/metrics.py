@@ -233,19 +233,23 @@ def totals(since, until):
 	message = frappe.qb.DocType(MESSAGE)
 	conversation = frappe.qb.DocType(CONVERSATION)
 	contact = frappe.qb.DocType(CONTACT)
-	sent = between(message.creation, since, until) & outgoing(message)
+
+	def within(field):
+		return scoped(field, between(field, since, until))
+
+	sent = within(message.creation) & outgoing(message)
 	return {
-		"received": count(message, between(message.creation, since, until) & (message.type == "Incoming")),
+		"received": count(message, within(message.creation) & (message.type == "Incoming")),
 		"sent": count(message, sent),
-		"conversations": count(conversation, between(conversation.opened_at, since, until)),
-		"resolved": count(conversation, between(conversation.resolved_at, since, until)),
+		"conversations": count(conversation, within(conversation.opened_at)),
+		"resolved": count(conversation, within(conversation.resolved_at)),
 		"response": average(
-			conversation, conversation.response_seconds, between(conversation.first_response_at, since, until)
+			conversation, conversation.response_seconds, within(conversation.first_response_at)
 		),
-		"contacts": count(contact, between(contact.creation, since, until)),
-		"opt_outs": count(contact, between(contact.opted_out_at, since, until)),
+		"contacts": count(contact, within(contact.creation)),
+		"opt_outs": count(contact, within(contact.opted_out_at)),
 		"read_rate": delivery(status_counts(sent))["read_rate"],
-		**satisfaction(conversation, between(conversation.csat_at, since, until)),
+		**satisfaction(conversation, within(conversation.csat_at)),
 	}
 
 
@@ -303,10 +307,12 @@ def heatmap(span):
 
 def backlog():
 	contact = frappe.qb.DocType(CONTACT)
-	is_open = contact.conversation_status == "Open"
+	is_open = scoped(contact.conversation_status, contact.conversation_status == "Open")
 	return {
 		"open": count(contact, is_open),
-		"pending": count(contact, contact.conversation_status == "Pending"),
+		"pending": count(
+			contact, scoped(contact.conversation_status, contact.conversation_status == "Pending")
+		),
 		"unassigned": count(contact, is_open & (IfNull(contact.assigned_to, "") == "")),
 		"waiting": count(contact, is_open & (contact.last_message_type == "Incoming")),
 	}
