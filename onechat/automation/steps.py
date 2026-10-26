@@ -1169,7 +1169,7 @@ def http_request(run, node_id, config):
 	url = text_of(run, config.get("url"))
 	if not url.startswith(("http://", "https://")):
 		frappe.throw(_("The URL must start with http:// or https://"))
-	if not run.effect(_("{0} {1}").format(method, url)):
+	if not run.effect(_("Send a {0} request to {1}").format(method, url)):
 		run.context["http"] = {"status_code": None, "response": None}
 		return Result(handle=outcome(run, node_id, "done"))
 
@@ -1234,7 +1234,7 @@ def apply_workflow(run, node_id, config):
 	action = text_of(run, config.get("action"))
 	if not doctype or not name or not action:
 		frappe.throw(_("Pick the record and the workflow action."))
-	if not run.effect(_("{0} {1} {2}").format(action, _(doctype), name)):
+	if not run.effect(_("Apply {0} to {1} {2}").format(action, _(doctype), name)):
 		return Result()
 
 	from onechat.integrations.erpnext_commerce import elevated

@@ -115,7 +115,7 @@ PAYMENT_ALERT = "onechat:payment-alert:{0}"
 
 def payment_alert(key, contact, amount, document, senders=()):
 	cache_key = PAYMENT_ALERT.format(key)
-	if frappe.cache().get_value(cache_key):
+	if frappe.cache().get_value(cache_key, expires=True):
 		return []
 	frappe.cache().set_value(cache_key, 1, expires_in_sec=86400)
 	row = frappe.db.get_value(
