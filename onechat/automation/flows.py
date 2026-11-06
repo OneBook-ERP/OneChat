@@ -359,8 +359,21 @@ def validate_flow(graph_json: JSON):
 				)
 			)
 
-	if {"create_from_order", "create_sales_order"} & set(kinds.values()) and trigger_kind != "order_placed":
-		errors.append(_("Create from order needs the flow to start with Customer places an order."))
+	cart_steps = [
+		node_id
+		for node_id, kind in kinds.items()
+		if kind in ("create_from_order", "create_sales_order")
+		and not any(
+			(engine.Graph.config(graph.nodes[node_id]).get(key) or "").strip()
+			for key in ("item_code", "items_from")
+		)
+	]
+	if cart_steps and trigger_kind != "order_placed":
+		errors.append(
+			_(
+				"Create from order needs the flow to start with Customer places an order, or an Item filled in on the step."
+			)
+		)
 
 	trigger_config = engine.Graph.config(graph.nodes[trigger]) if trigger else {}
 	instagram_only = trigger_kind == "comment_received"

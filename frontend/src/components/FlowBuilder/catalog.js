@@ -796,7 +796,18 @@ export const CATALOG = [
     fields: [
       { key: 'doctype', label: 'Find a', type: 'doctype', required: true },
       { key: 'field', label: 'Where', type: 'field', doctypeKey: 'doctype', required: true },
-      { key: 'value', label: 'Equals', type: 'message', required: true, compact: true, placeholder: '{{answers.order_no}}' },
+      {
+        key: 'match',
+        label: 'Match',
+        type: 'select',
+        default: 'equals',
+        options: [
+          { label: 'Equals', value: 'equals' },
+          { label: 'Contains the words (closest first)', value: 'contains' },
+        ],
+        description: 'Contains finds "abena gloves" in "Abena Classic nitrile gloves", in any order, and skips disabled records.',
+      },
+      { key: 'value', label: 'Value', type: 'message', required: true, compact: true, placeholder: '{{answers.order_no}}' },
       { key: 'save_as', label: 'Save it as', type: 'variable', default: 'record', placeholder: 'order', scope: 'records' },
     ],
     outputs: [
@@ -804,7 +815,30 @@ export const CATALOG = [
       { id: 'not_found', label: 'Not found', muted: true },
       { id: 'error', label: 'On error', muted: true },
     ],
-    summary: (config) => (config.doctype ? `${config.doctype} · ${config.field || ''}` : ''),
+    summary: (config) =>
+      config.doctype ? `${config.doctype} · ${config.field || ''}${config.match === 'contains' ? ' contains' : ''}` : '',
+  },
+  {
+    type: 'find_items',
+    label: 'Find items in a message',
+    description: 'Read "apple 2, orange 3" as items and quantities',
+    icon: 'lucide-list-checks',
+    color: 'violet',
+    category: 'records',
+    hint: 'Reads item names with quantities, such as "apple 2 orange 2", "2 apple, 3 orange" or one item per line, and finds each item by its words. Use {{vars.items.text}} to repeat what was found, {{vars.items.unknown_text}} for what was not, and {{vars.items.lines}} as the items of Create from order.',
+    fields: [
+      { key: 'text', label: 'Message', type: 'message', compact: true, placeholder: '{{answers.items}}', default: '{{last_reply}}' },
+      { key: 'doctype', label: 'Find a', type: 'doctype', default: 'Item' },
+      { key: 'field', label: 'By', type: 'field', doctypeKey: 'doctype', default: 'item_name' },
+      { key: 'save_as', label: 'Save it as', type: 'variable', default: 'items', placeholder: 'items' },
+    ],
+    outputs: [
+      { id: 'found', label: 'All found' },
+      { id: 'partial', label: 'Some found' },
+      { id: 'none', label: 'None found', muted: true },
+      { id: 'error', label: 'On error', muted: true },
+    ],
+    summary: (config) => `${config.doctype || 'Item'} · ${config.field || 'item_name'}`,
   },
   {
     type: 'create_record',
@@ -904,7 +938,7 @@ export const CATALOG = [
     icon: 'lucide-shopping-cart',
     color: 'violet',
     category: 'records',
-    hint: 'Only after Customer places an order. Customer, items, price list and GST come from the order, and the same order never makes two documents. Use {{records.order.name}} and {{records.order.grand_total}} in later steps.',
+    hint: 'After Customer places an order, customer, items, price list and GST come from the cart, and the same order never makes two documents. Without a cart, fill Item and Quantity, for example {{records.item.name}}. Use {{records.order.name}} and {{records.order.grand_total}} in later steps.',
     fields: [
       {
         key: 'doctype',
@@ -912,6 +946,31 @@ export const CATALOG = [
         type: 'select',
         default: 'Sales Order',
         options: ['Sales Order', 'Quotation', 'Sales Invoice'],
+      },
+      {
+        key: 'items_from',
+        label: 'Items',
+        type: 'message',
+        compact: true,
+        placeholder: '{{vars.items.lines}}',
+        description: 'Items found by Find items in a message. Leave empty to use the WhatsApp cart or one Item below.',
+      },
+      {
+        key: 'item_code',
+        label: 'Item',
+        type: 'message',
+        compact: true,
+        placeholder: '{{records.item.name}}',
+        description: 'Leave empty to use the WhatsApp cart. The price comes from the selling price list.',
+        depends: (config) => !(config.items_from || '').trim(),
+      },
+      {
+        key: 'qty',
+        label: 'Quantity',
+        type: 'message',
+        compact: true,
+        placeholder: '{{answers.qty}}',
+        depends: (config) => !!(config.item_code || '').trim(),
       },
       {
         key: 'submit',

@@ -6,7 +6,7 @@ from frappe import _
 from frappe.utils import add_days, cint, flt, now_datetime, strip_html
 
 from onechat.api_types import JSON
-from onechat.assistant import fac
+from onechat.assistant import cards, fac
 from onechat.assistant.providers import (
 	CLAUDE,
 	CLAUDE_MODEL,
@@ -29,21 +29,35 @@ SESSION_TTL = 3600
 HISTORY = 12
 DRAFT = re.compile(r"<draft>(.*?)</draft>", re.S)
 
+STYLE = """Write like a helpful colleague in a chat: plain, natural sentences, in the language you are asked in. \
+Never use Markdown, so no asterisks, bold, headings, tables, code blocks or bullet symbols. Write money with its \
+currency symbol and separators, for example ₹1,888.00.
+
+When your answer is about specific records, from OneChat, CRM, ERPNext or any other app, show them as cards: add \
+<show>DocType: name1, name2</show>, one tag per DocType, with the exact DocType and record names the tools returned. \
+Each card already shows the record's title, status, amounts and date, so do not list those in your text. Write one \
+or two sentences with the takeaway instead, such as the total or what stands out.
+
+End every answer with <next>first | second | third</next>: up to three short next steps the user is likely to want, \
+written as requests to you, each under 40 characters. Prefer concrete actions on the records you showed, such as \
+sending a payment link, creating an invoice, drafting a follow-up or opening related records."""
+
 SYSTEM = """You are the assistant inside OneChat, a WhatsApp inbox used by a business's sales and support agents. \
 The agent is looking at one customer's WhatsApp chat. Help them with that customer using the tools, which read and \
 change records in the business's ERPNext and CRM with the agent's own permissions.
 
-Look records up instead of guessing. Never invent amounts, dates, order numbers or statuses. If a tool fails or \
-finds nothing, say so plainly. Keep answers short and practical, with amounts and dates as they appear in the records.
+OneChat is how the business sells and supports customers on WhatsApp and Instagram. Customers order from the \
+WhatsApp catalog, the order becomes a Sales Order or Quotation, the customer confirms and pays through a payment \
+link, then the invoice and delivery follow. Use that journey to suggest what to do next.
 
-Write like a helpful colleague in a chat: plain, natural sentences. Never use Markdown, so no asterisks, bold, \
-headings, tables, code blocks or bullet symbols. When you list several records, start with one short sentence, then \
-put each record on its own line in the form "SAL-ORD-2026-00019, To Pay, 3,926.00", and end with a short takeaway \
-if it helps.
+Look records up instead of guessing. Never invent amounts, dates, order numbers or statuses. If a tool fails or \
+finds nothing, say so plainly. Keep answers short and practical.
+
+{STYLE}
 
 When the agent asks you to draft or write a reply to the customer, write the message the agent can send, inside \
-<draft></draft> tags, in plain WhatsApp style: short, friendly, no markdown headings. Put any notes for the agent \
-outside the tags.
+<draft></draft> tags, in plain WhatsApp style: short, friendly, no markdown headings, in the language the customer \
+writes in. Put any notes for the agent outside the tags.
 
 When the agent asks you to message, send, reply to or tell the customer something, call the send_message tool with \
 the exact text. It goes out from the business's account in this chat after the agent confirms. Never create \
@@ -60,10 +74,7 @@ and total figures, and to carry out tasks they ask for.
 Look records up instead of guessing. Never invent amounts, dates, names or statuses. If a tool fails or finds \
 nothing, say so plainly. If a question is unclear, ask one short follow-up question.
 
-Write like a helpful colleague in a chat: plain, natural sentences. Never use Markdown, so no asterisks, bold, \
-headings, tables, code blocks or bullet symbols. When you list several records, start with one short sentence, then \
-put each record on its own line in the form "SAL-ORD-2026-00019, To Pay, 3,926.00", and end with a short takeaway \
-if it helps. Suggest a sensible next step when there is one.
+{STYLE}
 
 When the user asks you to draft a WhatsApp message, write it inside <draft></draft> tags in plain WhatsApp style: \
 short and friendly. Put any notes for the user outside the tags.
@@ -73,6 +84,8 @@ message as a draft and tell them to open that customer's chat to send it. Never 
 Message or any other message records with the document tools.
 
 Only create, update or submit records when the user clearly asks for it. Those actions wait for the user to confirm."""
+SYSTEM = SYSTEM.replace("{STYLE}", STYLE)
+GLOBAL = GLOBAL.replace("{STYLE}", STYLE)
 PAGE_TEXT = 300
 CHAT = "OneChat Assistant Chat"
 GLOBAL_SCOPE = "global"
@@ -214,6 +227,7 @@ def engine(data):
 	level = fac.access()
 	if not level:
 		frappe.throw(_("You don't have access to the assistant."), frappe.PermissionError)
+	data["level"] = level
 	tools = fac.tools(frappe.session.user, level)
 	if data.get("contact") and can("OneChat Message", "create"):
 		tools = [*tools, SEND_SPEC]
@@ -221,15 +235,29 @@ def engine(data):
 
 
 def reply(data, text, refused=False):
-	drafts = [match.strip() for match in DRAFT.findall(text or "")]
-	clean = DRAFT.sub("", text or "").strip()
+	drafts = [cards.strip(match).strip() for match in DRAFT.findall(text or "")]
+	clean = cards.strip(DRAFT.sub("", text or ""))
+	shown = (
+		{"cards": [], "tiles": [], "next": []}
+		if refused
+		else cards.build(text, data.get("contact"), data.get("level"))
+	)
 	return {
 		"session": data["name"],
 		"reply": _("The assistant can't help with that request.") if refused else clean,
 		"draft": drafts[-1] if drafts else "",
 		"pending": None,
 		"steps": data.get("steps", [])[data.get("mark", 0) :],
+		**shown,
 	}
+
+
+def announce(data, text):
+	frappe.publish_realtime(
+		"onechat_assistant_progress",
+		{"scope": data.get("contact") or GLOBAL_SCOPE, "text": text},
+		user=frappe.session.user,
+	)
 
 
 def send_to_customer(data, arguments):
@@ -249,6 +277,7 @@ def send_to_customer(data, arguments):
 
 
 def execute(data, call, level):
+	announce(data, cards.progress(call["name"], call.get("input")))
 	if call["name"] == SEND_TOOL:
 		text, error = send_to_customer(data, call.get("input") or {})
 	else:
@@ -259,6 +288,8 @@ def execute(data, call, level):
 
 def run(data, provider, level):
 	for step in range(MAX_STEPS):
+		if step:
+			announce(data, _("Putting the answer together"))
 		turn = provider.step(data["messages"])
 		if turn.refused:
 			store(data)
@@ -422,6 +453,9 @@ def remember(contact, question, result):
 				"draft": result.get("draft") or "",
 				"steps": result.get("steps") or [],
 				"pending": result.get("pending"),
+				"cards": result.get("cards") or [],
+				"tiles": result.get("tiles") or [],
+				"next": result.get("next") or [],
 				"at": str(now_datetime()),
 			}
 		)
@@ -440,6 +474,9 @@ def remember_more(contact, result):
 		last["draft"] = result.get("draft") or last.get("draft") or ""
 		last["steps"] = (last.get("steps") or []) + (result.get("steps") or [])
 		last["pending"] = result.get("pending")
+		last["cards"] = (last.get("cards") or []) + (result.get("cards") or [])
+		last["tiles"] = result.get("tiles") or last.get("tiles") or []
+		last["next"] = result.get("next") or last.get("next") or []
 		save_turns(contact, turns, result.get("session"))
 	except Exception:
 		frappe.log_error(title="OneChat assistant history")

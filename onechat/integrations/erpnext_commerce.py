@@ -1130,14 +1130,62 @@ def party_values(doctype, customer, delivery, message):
 			"party_name": customer,
 			"order_type": "Sales",
 		}
+	reference = {"po_no": message.message_id} if message else {}
 	if doctype == "Sales Invoice":
-		return {"customer": customer, "po_no": message.message_id}
+		return {"customer": customer, **reference}
 	return {
 		"customer": customer,
 		"order_type": "Sales",
 		"delivery_date": delivery,
-		"po_no": message.message_id,
+		**reference,
 	}
+
+
+def create_for_items(
+	contact, items, doctype="Sales Order", account=None, extra=None, submit=False, days=None, item_extra=None
+):
+	if doctype not in ORDER_DOCTYPES:
+		frappe.throw(_("An item order can become a {0}.").format(", ".join(ORDER_DOCTYPES)))
+
+	source = ERP.source()
+	rows = [row for row in items or [] if row.get("item_code") and source.exists("Item", row["item_code"])]
+	if not rows or not contact:
+		return None
+
+	customer = customer_for(frappe.get_doc(CONTACT, contact))
+	price_list = price_list_for(account)
+	delivery = add_days(nowdate(), DELIVERY_DAYS if days in (None, "") else cint(days))
+	dated = {"delivery_date": delivery} if doctype == "Sales Order" else {}
+	values = frappe._dict(
+		{
+			"doctype": doctype,
+			"company": company(),
+			**party_values(doctype, customer, delivery, None),
+			"items": [
+				{
+					"item_code": row["item_code"],
+					"qty": flt(row.get("qty")) or 1,
+					**dated,
+					**(item_extra or {}),
+				}
+				for row in rows
+			],
+		}
+	)
+	if price_list:
+		values.selling_price_list = price_list
+	values.update(extra or {})
+	if source.remote:
+		doc = source.insert(values)
+		return source.submit(doc).name if submit else doc.name
+
+	doc = frappe.get_doc(values)
+	doc.set_missing_values()
+	doc.insert(ignore_permissions=True)
+	if submit:
+		doc.submit()
+
+	return doc.name
 
 
 def create_from_order(message, doctype="Sales Order", extra=None, submit=False, days=None, item_extra=None):
