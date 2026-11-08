@@ -434,6 +434,13 @@
               @update:model-value="(value) => (doc.read_receipts = value)"
             />
           </SettingsRow>
+          <SettingsRow :title="__('Typing indicator')" :description="__(typingHelp)">
+            <Switch
+              :model-value="doc.read_receipts !== 'Never' && doc.typing_indicator !== 0"
+              :disabled="doc.read_receipts === 'Never'"
+              @update:model-value="(value) => (doc.typing_indicator = value ? 1 : 0)"
+            />
+          </SettingsRow>
         </div>
       </div>
     </template>
@@ -490,7 +497,14 @@ const DEFAULTS = {
   is_default_incoming: 0,
   is_default_outgoing: 0,
   read_receipts: 'When an agent opens the chat',
+  typing_indicator: 1,
 }
+
+const typingHelp = computed(() =>
+  doc.value.read_receipts === 'Never'
+    ? 'Turn on read receipts to use this. WhatsApp marks the message as read when it shows typing.'
+    : 'While the AI agent writes a reply, the customer sees typing… This also marks their message as read.',
+)
 
 const GROUPS = [
   {
@@ -626,6 +640,7 @@ const FIELDS = [
   'is_default_incoming',
   'is_default_outgoing',
   'read_receipts',
+  'typing_indicator',
 ]
 
 const commerce = computed(() => activeIntegrations.value.some((row) => row.name === 'erpnext'))

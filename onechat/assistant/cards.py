@@ -1,4 +1,3 @@
-import json
 import re
 from urllib.parse import quote
 
@@ -6,7 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, fmt_money, formatdate, get_url
 
-from onechat.assistant import fac
+from onechat.assistant.tools import as_agent
 from onechat.integrations import connection
 
 SHOW = re.compile(r"<show>(.*?)</show>", re.S)
@@ -103,11 +102,11 @@ def strip(text):
 	return NEXT.sub("", SHOW.sub("", text or "")).strip()
 
 
-def build(text, contact, level):
+def build(text, contact):
 	cards = []
 	for doctype, name in shown(text):
 		try:
-			made = card(doctype, name, contact, level)
+			made = card(doctype, name, contact)
 		except Exception:
 			frappe.log_error(title=f"OneChat assistant card: {doctype} {name}")
 			made = None
@@ -116,9 +115,9 @@ def build(text, contact, level):
 	return {"cards": cards, "tiles": tiles(cards), "next": chips(text)}
 
 
-def card(doctype, name, contact, level):
+def card(doctype, name, contact):
 	owner = connection.owner_of(doctype)
-	doc = remote_doc(owner, doctype, name, level) if owner else local_doc(doctype, name)
+	doc = remote_doc(owner, doctype, name) if owner else local_doc(doctype, name)
 	if not doc:
 		return None
 	fields, title_field, submittable = layout(owner, doctype)
@@ -181,35 +180,13 @@ def local_doc(doctype, name):
 	return frappe.get_doc(doctype, name).as_dict()
 
 
-def remote_doc(owner, doctype, name, level):
-	servers = fac.servers(frappe.session.user)
-	if not any(server["key"] == owner.key for server in servers):
-		return None
-	tool = f"{owner.key}{fac.SEPARATOR}get_document" if len(servers) > 1 else "get_document"
-	text, error = fac.call(frappe.session.user, tool, {"doctype": doctype, "name": name}, level)
-	if error:
-		return None
+def remote_doc(owner, doctype, name):
 	try:
-		data = json.loads(text)
-	except ValueError:
+		with as_agent():
+			return connection.Remote(owner).get_doc(doctype, name) or None
+	except frappe.ValidationError:
+		frappe.clear_last_message()
 		return None
-	return find_doc(data, name)
-
-
-def find_doc(data, name):
-	if isinstance(data, dict):
-		if data.get("name") == name:
-			return frappe._dict(data)
-		for value in data.values():
-			found = find_doc(value, name)
-			if found:
-				return found
-	if isinstance(data, list):
-		for value in data:
-			found = find_doc(value, name)
-			if found:
-				return found
-	return None
 
 
 def layout(owner, doctype):
@@ -292,23 +269,26 @@ def tiles(cards):
 	return out
 
 
-def progress(name, arguments):
-	tool = fac.base(name)
+def progress_texts():
+	change = _("Preparing the change")
+	return {
+		"count_and_total": _("Analysing the figures"),
+		"customer_overview": _("Looking at the customer"),
+		"find_items": _("Finding items"),
+		"what_customer_owes": _("Checking what is due"),
+		"create_document": change,
+		"update_document": change,
+		"submit_document": change,
+		"send_payment_link": _("Preparing the payment link"),
+		"send_message": _("Preparing the message"),
+	}
+
+
+def progress(tool, arguments):
 	arguments = arguments or {}
-	doctype = arguments.get("doctype") or arguments.get("reference_doctype") or ""
-	record = arguments.get("name") or arguments.get("docname") or ""
-	if tool == "get_document" and doctype:
-		return _("Opening {0} {1}").format(_(doctype), record).strip()
-	if tool in ("list_documents", "search_documents") and doctype:
+	doctype = arguments.get("doctype") or ""
+	if tool == "get_record" and doctype:
+		return _("Opening {0} {1}").format(_(doctype), arguments.get("name") or "").strip()
+	if tool == "search_records" and doctype:
 		return _("Looking up {0} records").format(_(doctype))
-	if tool in ("search", "fetch"):
-		return _("Searching your records")
-	if tool in ("generate_report", "report_list", "report_requirements"):
-		return _("Running a report")
-	if tool == "analyze_business_data":
-		return _("Analysing the figures")
-	if tool in ("create_document", "update_document", "submit_document", "run_workflow"):
-		return _("Preparing the change")
-	if tool == "send_message":
-		return _("Preparing the message")
-	return _("Working on it")
+	return progress_texts().get(tool) or _("Working on it")

@@ -9,6 +9,7 @@
   "flow",
   "run_id",
   "contact",
+  "run_as",
   "automation_execution_log_0_column_1",
   "status",
   "start_time",
@@ -44,6 +45,13 @@
    "fieldtype": "Link",
    "label": "Contact",
    "options": "OneChat Contact",
+   "read_only": 1
+  },
+  {
+   "fieldname": "run_as",
+   "fieldtype": "Link",
+   "label": "Ran As",
+   "options": "User",
    "read_only": 1
   },
   {
@@ -122,7 +130,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-03 10:00:00.000000",
+ "modified": "2026-11-07 18:30:00.000000",
  "modified_by": "Administrator",
  "module": "OneChat",
  "name": "Automation Execution Log",

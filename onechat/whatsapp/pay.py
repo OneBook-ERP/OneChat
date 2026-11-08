@@ -796,9 +796,9 @@ def entry(row):
 		saved = source.submit(source.insert(draft))
 		name = (saved or {}).get("name")
 	else:
-		user = frappe.session.user
-		try:
-			frappe.set_user("Administrator")
+		from onechat.automation import run_as
+
+		with run_as.elevated():
 			draft = frappe.get_attr(method)(
 				row.reference_doctype,
 				row.reference_name,
@@ -809,8 +809,6 @@ def entry(row):
 			draft.insert()
 			draft.submit()
 			name = draft.name
-		finally:
-			frappe.set_user(user)
 	if name:
 		frappe.db.set_value(PAYMENT, row.name, {"payment_entry": name, "error": None})
 

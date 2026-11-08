@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -65,7 +65,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/frappe-bench
-          key: bench-${{ runner.os }}-py${{ matrix.python-version }}-${{ steps.versions.outputs.frappe }}
+          key: bench-ubuntu-24.04-py${{ matrix.python-version }}-${{ steps.versions.outputs.frappe }}
 
       - name: Install bench and MariaDB client
         run: |

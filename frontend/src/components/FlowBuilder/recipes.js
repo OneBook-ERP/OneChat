@@ -50,6 +50,25 @@ function flow(graph) {
 
 export const RECIPES = [
   {
+    key: 'ai_agent',
+    title: 'AI Agent',
+    description:
+      'AI answers every customer message: order status, what they owe, products, orders and payment links. Hands over when needed.',
+    icon: 'lucide-sparkles',
+    category: 'Customer Service',
+    build: () => {
+      const nodes = [
+        step('start', 'message_received', { match: 'any' }),
+        step('agent', 'ai_agent', {
+          knowledge: 'Opening hours: \nDelivery areas: \nReturns: ',
+        }),
+        step('handover', 'handover', { text: 'Connecting you to our team, someone will reply shortly.', mode: 'round_robin' }),
+      ]
+      const edges = [link('start', 'agent'), link('agent', 'handover', 'handover')]
+      return flow(layout(nodes, edges))
+    },
+  },
+  {
     key: 'comment_to_dm',
     title: 'Comment keyword to DM',
     description: 'When someone comments a keyword on your Instagram post, DM them the details and reply publicly.',

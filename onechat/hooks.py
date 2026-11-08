@@ -206,7 +206,7 @@ scheduler_events = {
 		"onechat.utils.trigger_whatsapp_notifications_all",
 		"onechat.campaigns.broadcasts.send_due_broadcasts",
 	],
-	"hourly": ["onechat.assistant.fac.cleanup_tokens", "onechat.utils.trigger_whatsapp_notifications_hourly"],
+	"hourly": ["onechat.utils.trigger_whatsapp_notifications_hourly"],
 	"hourly_long": [
 		"onechat.utils.trigger_whatsapp_notifications_hourly_long",
 		"onechat.insights.costs.sync_all",

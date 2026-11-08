@@ -47,24 +47,12 @@
   "ignored_duplicates",
   "assistant_tab",
   "assistant_enabled",
-  "assistant_provider",
+  "assistant_model",
+  "bot_model",
+  "bot_daily_limit",
   "assistant_max_tokens",
   "assistant_0_column_1",
   "assistant_agent_signin",
-  "claude_section",
-  "assistant_anthropic_key",
-  "claude_column_1",
-  "assistant_claude_model",
-  "openai_section",
-  "assistant_openai_key",
-  "openai_column_1",
-  "assistant_openai_model",
-  "other_provider_section",
-  "assistant_other_name",
-  "assistant_other_url",
-  "other_provider_column_1",
-  "assistant_other_key",
-  "assistant_other_model",
   "access_section",
   "assistant_roles",
   "payments_tab",
@@ -74,6 +62,8 @@
   "receipt_template",
   "desk_payment_links",
   "data_app_tab",
+  "automation_section",
+  "automation_user",
   "retention_section",
   "retention_enabled",
   "message_retention_days",
@@ -363,11 +353,25 @@
    "label": "Enable the assistant"
   },
   {
-   "default": "Claude",
-   "fieldname": "assistant_provider",
-   "fieldtype": "Select",
-   "label": "AI provider",
-   "options": "Claude\nOpenAI\nOther"
+   "description": "The model agents talk to. Add providers and models in OneChat → Settings → Assistant.",
+   "fieldname": "assistant_model",
+   "fieldtype": "Link",
+   "label": "Assistant Model",
+   "options": "OneChat AI Model"
+  },
+  {
+   "description": "The model the AI agent flow step uses to chat with customers. Empty uses the assistant model.",
+   "fieldname": "bot_model",
+   "fieldtype": "Link",
+   "label": "Customer Bot Model",
+   "options": "OneChat AI Model"
+  },
+  {
+   "default": "500",
+   "description": "Across all chats. When it is reached, the AI hands chats to the team until tomorrow.",
+   "fieldname": "bot_daily_limit",
+   "fieldtype": "Int",
+   "label": "AI Replies Per Day"
   },
   {
    "default": "16000",
@@ -387,82 +391,6 @@
    "fieldname": "assistant_agent_signin",
    "fieldtype": "Check",
    "label": "Agents Sign In Themselves"
-  },
-  {
-   "fieldname": "claude_section",
-   "fieldtype": "Section Break",
-   "label": "Claude"
-  },
-  {
-   "fieldname": "assistant_anthropic_key",
-   "fieldtype": "Password",
-   "label": "Claude API key"
-  },
-  {
-   "fieldname": "claude_column_1",
-   "fieldtype": "Column Break"
-  },
-  {
-   "description": "Defaults to claude-opus-5",
-   "fieldname": "assistant_claude_model",
-   "fieldtype": "Data",
-   "label": "Claude model"
-  },
-  {
-   "fieldname": "openai_section",
-   "fieldtype": "Section Break",
-   "label": "OpenAI"
-  },
-  {
-   "fieldname": "assistant_openai_key",
-   "fieldtype": "Password",
-   "label": "OpenAI API key"
-  },
-  {
-   "fieldname": "openai_column_1",
-   "fieldtype": "Column Break"
-  },
-  {
-   "description": "Defaults to gpt-5",
-   "fieldname": "assistant_openai_model",
-   "fieldtype": "Data",
-   "label": "OpenAI model"
-  },
-  {
-   "fieldname": "other_provider_section",
-   "fieldtype": "Section Break",
-   "label": "Other Provider"
-  },
-  {
-   "depends_on": "eval:doc.assistant_provider=='Other'",
-   "description": "Shown in the Assistant, for example Gemini",
-   "fieldname": "assistant_other_name",
-   "fieldtype": "Data",
-   "label": "Other Provider Name"
-  },
-  {
-   "depends_on": "eval:doc.assistant_provider=='Other'",
-   "description": "OpenAI-compatible base URL, for example https://generativelanguage.googleapis.com/v1beta/openai/",
-   "fieldname": "assistant_other_url",
-   "fieldtype": "Data",
-   "label": "Other Provider URL"
-  },
-  {
-   "fieldname": "other_provider_column_1",
-   "fieldtype": "Column Break"
-  },
-  {
-   "depends_on": "eval:doc.assistant_provider=='Other'",
-   "fieldname": "assistant_other_key",
-   "fieldtype": "Password",
-   "label": "Other Provider API Key"
-  },
-  {
-   "depends_on": "eval:doc.assistant_provider=='Other'",
-   "description": "For example gemini-2.5-flash",
-   "fieldname": "assistant_other_model",
-   "fieldtype": "Data",
-   "label": "Other Provider Model"
   },
   {
    "fieldname": "access_section",
@@ -515,6 +443,18 @@
    "fieldname": "data_app_tab",
    "fieldtype": "Tab Break",
    "label": "Data & App"
+  },
+  {
+   "description": "Flows, the AI, payment receipts and catalog orders run as this user when no one is signed in. Empty keeps the old behaviour.",
+   "fieldname": "automation_section",
+   "fieldtype": "Section Break",
+   "label": "Automation"
+  },
+  {
+   "fieldname": "automation_user",
+   "fieldtype": "Link",
+   "label": "Run Flows and AI As",
+   "options": "User"
   },
   {
    "fieldname": "retention_section",
@@ -692,7 +632,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-10 10:00:00.000000",
+ "modified": "2026-11-08 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "OneChat",
  "name": "OneChat Settings",

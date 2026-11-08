@@ -440,37 +440,18 @@ def assistant():
 	settings = frappe.get_cached_doc(SETTINGS)
 	if not cint(settings.get("assistant_enabled")):
 		return []
-	from onechat.assistant.api import key_of
-	from onechat.assistant.fac import installed
+	from onechat.assistant.api import ready
 
 	group = _("Assistant")
-	key = bool(key_of(settings))
-	fac = installed()
-	if key and fac:
-		return [
-			row(
-				"assistant",
-				group,
-				_("Assistant"),
-				OK,
-				_("An API key is set and Frappe Assistant Core is available."),
-			)
-		]
-	problems = [
-		text
-		for ok, text in (
-			(key, _("no API key")),
-			(fac, _("Frappe Assistant Core isn't installed or connected")),
-		)
-		if not ok
-	]
+	if ready(settings):
+		return [row("assistant", group, _("Assistant"), OK, _("A model and its API key are set."))]
 	return [
 		row(
 			"assistant",
 			group,
 			_("Assistant"),
 			FAIL,
-			_("Not ready: {0}.").format(", ".join(problems)),
+			_("Not ready: {0}.").format(_("no model or API key")),
 			_("Finish setup under Assistant."),
 			"settings:integrations",
 		)

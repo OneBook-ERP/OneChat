@@ -30,6 +30,7 @@
   "read_receipts_section",
   "read_receipts",
   "read_receipts_column_1",
+  "typing_indicator",
   "allow_auto_read_receipt",
   "status_tab",
   "connection_section",
@@ -221,6 +222,13 @@
   {
    "fieldname": "read_receipts_column_1",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "While the AI agent writes a reply, the customer sees typing… on WhatsApp. This also marks their message as read.",
+   "fieldname": "typing_indicator",
+   "fieldtype": "Check",
+   "label": "Typing indicator"
   },
   {
    "default": "1",
@@ -547,7 +555,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-03 10:00:00.000000",
+ "modified": "2026-11-08 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "OneChat",
  "name": "OneChat Account",

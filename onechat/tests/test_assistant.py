@@ -35,7 +35,7 @@ class TestConfirmCard(UnitTestCase):
 
 	def test_submit_card_warns_it_cannot_be_undone(self):
 		card = api.card(
-			{"name": "erp__submit_document", "input": {"doctype": "Sales Invoice", "name": "SINV-0012"}}
+			{"name": "submit_document", "input": {"doctype": "Sales Invoice", "name": "SINV-0012"}}
 		)
 
 		self.assertEqual(card["title"], "Submit Sales Invoice SINV-0012?")

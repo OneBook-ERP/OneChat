@@ -227,12 +227,20 @@ def execute_flow(flow_name: str, context: JSON = None, contact: str | None = Non
 
 
 @frappe.whitelist()
-def simulate(graph_json: JSON, state: JSON = None, reply: JSON = None):
+def simulate(
+	graph_json: JSON,
+	state: JSON = None,
+	reply: JSON = None,
+	contact: str | None = None,
+	live: int | str = 0,
+):
 	require_admin()
 	return engine.simulate(
 		graph_json,
 		frappe.parse_json(state) if state else None,
 		frappe.parse_json(reply) if reply else None,
+		contact=contact or None,
+		live=cint(live),
 	)
 
 
@@ -348,6 +356,7 @@ def validate_flow(graph_json: JSON):
 		"send_list",
 		"ask_question",
 		"send_form",
+		"ai_agent",
 	}
 	trigger_kind = kinds.get(trigger)
 	if trigger_kind in (*engine.DOC_EVENT_TRIGGERS, "scheduled_trigger"):

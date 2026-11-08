@@ -6,12 +6,11 @@ from frappe.utils import cint
 def assistant_spec():
 	return {
 		"name": "assistant",
-		"label": _("Assistant (FAC)"),
+		"label": _("AI Assistant"),
 		"icon": "lucide-sparkles",
-		"logo": "/assets/onechat/images/integrations/fac.svg",
 		"category": _("AI"),
 		"description": _(
-			"Agents ask about a customer and get answers from ERPNext and CRM, or a drafted reply, using Frappe Assistant Core with Claude or OpenAI."
+			"Agents ask about a customer and get answers from ERPNext and CRM, or a drafted reply, using Claude, OpenAI or another AI provider."
 		),
 		"features": [
 			_("Answers like what a customer owes or where their order is"),
@@ -19,12 +18,11 @@ def assistant_spec():
 			_("Creates or updates records only after the agent confirms"),
 			_("Access by role; code, database queries and deleting are never allowed"),
 		],
-		"docs_url": "https://github.com/buildswithpaul/Frappe_Assistant_Core",
 		"ready": "onechat.integrations.extras.always",
 		"active": "onechat.integrations.extras.assistant_active",
 		"where": "onechat.integrations.extras.assistant_where",
 		"sites_help": _(
-			"FAC reads the data of the site it is installed on. Install it on the site that has your ERPNext or CRM. On this site each agent's own permissions apply. On another site OneChat uses that connection's Sign in (OAuth), so FAC acts as the admin who signed in."
+			"The assistant reads your ERPNext and CRM data wherever they are connected. On this site each agent's own permissions apply. On another site it uses the agent's own sign-in when agents sign in, otherwise the connection's login."
 		),
 		"setup": "assistant",
 	}
@@ -57,25 +55,16 @@ def payments_spec():
 
 
 def assistant_where():
-	from onechat.assistant import fac
 	from onechat.integrations import api, connection
 
-	out = []
-	if fac.local_installed():
-		out.append(
-			{
-				**api.app_site("erpnext"),
-				"label": frappe.local.site,
-				"url": "",
-				"remote": False,
-				"auth": _("Each agent"),
-				"user": "",
-				"ready": True,
-			}
-		)
-	for row in connection.remote_sites():
-		if row.uses_oauth() and fac.remote_has_fac(row):
-			out.append(api.app_site(row.key))
+	out, local = [], False
+	for key in connection.APPS:
+		site = connection.site(key)
+		if site.is_remote() and site.ready():
+			out.append(api.app_site(key))
+		elif not site.is_remote() and site.installed_here() and not local:
+			out.append({**api.app_site(key), "auth": _("Each agent")})
+			local = True
 	return out
 
 

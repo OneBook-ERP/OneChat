@@ -455,6 +455,52 @@ export const CATALOG = [
     ],
   },
   {
+    type: 'ai_agent',
+    label: 'AI Agent',
+    description: 'AI chats with the customer until done',
+    icon: 'lucide-sparkles',
+    color: 'violet',
+    category: 'whatsapp',
+    waits: true,
+    fields: [
+      {
+        key: 'instructions',
+        label: 'Instructions',
+        type: 'textarea',
+        placeholder:
+          'Warm and short. Call customers by first name.\nOnly take orders for items in stock.\nSend a payment link after every order.',
+        description:
+          'How it talks and what it may do, in your words. It can find products, check orders and dues, create orders after the customer confirms and send payment links.',
+      },
+      {
+        key: 'knowledge',
+        label: 'What the AI should know',
+        type: 'textarea',
+        placeholder: 'Open 10 am to 8 pm, Monday to Saturday. We deliver across Chennai in 3 days. Returns within 7 days.',
+        description: 'Facts it can share: timings, delivery areas, policies. It looks up orders, invoices and products itself.',
+      },
+      { key: 'business_name', label: 'Business name', type: 'text', placeholder: 'Furniture Street' },
+      {
+        key: 'model',
+        label: 'AI model',
+        type: 'ai_model',
+        description: 'Leave empty to use the bot model from Settings → Assistant.',
+      },
+      { section: 'Limits' },
+      {
+        key: 'max_replies',
+        label: 'Hand over after this many AI replies',
+        type: 'number',
+        placeholder: '20',
+      },
+      ...timeoutFields,
+    ],
+    outputs: [
+      { id: 'handover', label: 'Needs a person' },
+      { id: 'no_reply', label: 'No reply', muted: true },
+    ],
+  },
+  {
     type: 'send_template',
     whatsappOnly: true,
     label: 'Send template',

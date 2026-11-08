@@ -109,6 +109,12 @@
           </template>
           {{ __('Integrations') }}
         </SettingsNavItem>
+        <SettingsNavItem value="automation">
+          <template #prefix>
+            <span class="lucide-bot size-4 shrink-0 text-ink-gray-6" />
+          </template>
+          {{ __('Automation') }}
+        </SettingsNavItem>
         <SettingsNavItem value="developers">
           <template #prefix>
             <span class="lucide-code-xml size-4 shrink-0 text-ink-gray-6" />
@@ -236,6 +242,10 @@
           <IntegrationsPanel />
         </SettingsPanel>
 
+        <SettingsPanel value="automation">
+          <AutomationPanel />
+        </SettingsPanel>
+
         <SettingsPanel value="developers">
           <DevelopersPanel />
         </SettingsPanel>
@@ -273,6 +283,7 @@ import {
 } from 'frappe-ui'
 import AccountsPanel from './AccountsPanel.vue'
 import AppPanel from './AppPanel.vue'
+import AutomationPanel from './AutomationPanel.vue'
 import DefaultsPanel from './DefaultsPanel.vue'
 import DevelopersPanel from './DevelopersPanel.vue'
 import HealthPanel from './HealthPanel.vue'
@@ -335,6 +346,7 @@ const ADMIN_TABS = [
   'team',
   'teams',
   'integrations',
+  'automation',
   'labels',
   'inbox-rules',
   'whatsapp',
@@ -360,6 +372,7 @@ const TAB_LABELS = {
   instagram: 'Instagram',
   retention: 'Data retention',
   integrations: 'Integrations',
+  automation: 'Automation',
   app: 'App',
   developers: 'Developers',
   health: 'Health',

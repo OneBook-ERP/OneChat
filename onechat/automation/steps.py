@@ -1559,6 +1559,18 @@ def create_comment(run, node_id, config):
 	return Result(output={"comment": comment.get("name")})
 
 
+def ai_agent(run, node_id, config):
+	from onechat.automation import ai_agent as agent
+
+	return agent.begin(run, node_id, config)
+
+
+def resume_ai_agent(run, node_id, config, event):
+	from onechat.automation import ai_agent as agent
+
+	return agent.resume(run, node_id, config, event)
+
+
 STEPS = {
 	"message_received": trigger,
 	"button_clicked": trigger,
@@ -1612,9 +1624,11 @@ STEPS = {
 	"erpnext_workflow_action": apply_workflow,
 	"send_notification": send_notification,
 	"create_comment": create_comment,
+	"ai_agent": ai_agent,
 }
 
 RESUME = {
+	"ai_agent": resume_ai_agent,
 	"send_buttons": resume_buttons,
 	"send_list": resume_list,
 	"ask_question": resume_question,
