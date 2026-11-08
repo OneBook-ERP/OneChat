@@ -227,12 +227,20 @@ def execute_flow(flow_name: str, context: JSON = None, contact: str | None = Non
 
 
 @frappe.whitelist()
-def simulate(graph_json: JSON, state: JSON = None, reply: JSON = None):
+def simulate(
+	graph_json: JSON,
+	state: JSON = None,
+	reply: JSON = None,
+	contact: str | None = None,
+	live: int | str = 0,
+):
 	require_admin()
 	return engine.simulate(
 		graph_json,
 		frappe.parse_json(state) if state else None,
 		frappe.parse_json(reply) if reply else None,
+		contact=contact or None,
+		live=cint(live),
 	)
 
 
@@ -348,6 +356,7 @@ def validate_flow(graph_json: JSON):
 		"send_list",
 		"ask_question",
 		"send_form",
+		"ai_agent",
 	}
 	trigger_kind = kinds.get(trigger)
 	if trigger_kind in (*engine.DOC_EVENT_TRIGGERS, "scheduled_trigger"):
@@ -359,8 +368,21 @@ def validate_flow(graph_json: JSON):
 				)
 			)
 
-	if {"create_from_order", "create_sales_order"} & set(kinds.values()) and trigger_kind != "order_placed":
-		errors.append(_("Create from order needs the flow to start with Customer places an order."))
+	cart_steps = [
+		node_id
+		for node_id, kind in kinds.items()
+		if kind in ("create_from_order", "create_sales_order")
+		and not any(
+			(engine.Graph.config(graph.nodes[node_id]).get(key) or "").strip()
+			for key in ("item_code", "items_from")
+		)
+	]
+	if cart_steps and trigger_kind != "order_placed":
+		errors.append(
+			_(
+				"Create from order needs the flow to start with Customer places an order, or an Item filled in on the step."
+			)
+		)
 
 	trigger_config = engine.Graph.config(graph.nodes[trigger]) if trigger else {}
 	instagram_only = trigger_kind == "comment_received"

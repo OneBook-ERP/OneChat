@@ -10,20 +10,31 @@
   }
 }
 
+.onechat-launcher-item {
+  margin-right: 8px;
+}
+
+.onechat-launcher-icon {
+  position: relative;
+  display: inline-flex;
+}
+
 .onechat-launcher-count {
   position: absolute;
-  top: 2px;
-  right: -2px;
+  top: -7px;
+  left: 10px;
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
   background: var(--red-500);
+  box-shadow: 0 0 0 2px var(--navbar-bg, var(--bg-color));
   color: var(--white);
   font-size: 10px;
   font-weight: 600;
   line-height: 16px;
   text-align: center;
+  white-space: nowrap;
 }
 
 .onechat-panel {

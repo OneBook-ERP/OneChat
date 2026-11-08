@@ -86,7 +86,10 @@
             {{ turn.question }}
           </p>
 
-          <div v-if="turn.reply || turn.draft || turn.steps?.length || turn.pending?.length" class="flex items-start gap-2.5">
+          <div
+            v-if="turn.reply || turn.draft || turn.steps?.length || turn.pending?.length || turn.cards?.length"
+            class="flex items-start gap-2.5"
+          >
             <AssistantIcon class="mt-0.5 size-6 shrink-0 text-ink-green-6" />
             <div class="flex min-w-0 flex-1 flex-col gap-2.5">
               <p v-if="turn.steps?.length" class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-gray-5">
@@ -97,6 +100,24 @@
               </p>
 
               <p v-if="turn.reply" class="whitespace-pre-wrap break-words text-sm leading-6 text-ink-gray-8">{{ plain(turn.reply) }}</p>
+
+              <div v-if="turn.tiles?.length" class="grid grid-cols-3 gap-2">
+                <div v-for="tile in turn.tiles" :key="tile.label" class="rounded-4 bg-surface-gray-1 px-2.5 py-2 text-center">
+                  <p class="truncate text-sm font-semibold tabular-nums text-ink-gray-9">{{ tile.value }}</p>
+                  <p class="truncate text-xs text-ink-gray-5">{{ tile.label }}</p>
+                </div>
+              </div>
+
+              <div v-if="turn.cards?.length" class="flex flex-col gap-2">
+                <AssistantCard
+                  v-for="card in turn.cards"
+                  :key="`${card.doctype}-${card.name}`"
+                  :card="card"
+                  :contact="target"
+                  :disabled="!!busy || waiting"
+                  @ask="send"
+                />
+              </div>
 
               <div v-if="turn.draft" class="flex flex-col gap-2 rounded-4 border border-outline-gray-2 p-3">
                 <p class="flex items-center gap-1.5 text-xs font-medium text-ink-gray-5">
@@ -181,13 +202,40 @@
                   <Button size="sm" variant="subtle" :label="__('Cancel')" :disabled="!!busy" @click="decide(false)" />
                 </div>
               </div>
+
+              <div v-if="turn.next?.length && index === turns.length - 1 && !busy && !waiting" class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="chip in turn.next"
+                  :key="chip"
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-full border border-outline-gray-2 px-3 py-1 text-left text-sm text-ink-gray-8 transition-colors hover:bg-surface-gray-1 focus-visible:focus-ring"
+                  @click="send(chip)"
+                >
+                  <span class="lucide-corner-down-right size-3.5 shrink-0 text-ink-gray-5" aria-hidden="true" />
+                  {{ chip }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div v-if="busy === 'ask'" class="flex items-center gap-2.5">
+        <div v-if="busy === 'ask'" class="flex items-start gap-2.5">
           <AssistantIcon thinking class="size-6 shrink-0 text-ink-green-6" />
-          <span class="text-sm text-ink-gray-5">{{ __('Looking it up…') }}</span>
+          <ol class="flex flex-col gap-1 pt-0.5 text-sm">
+            <li
+              v-for="(line, position) in progress"
+              :key="position"
+              class="flex items-center gap-1.5"
+              :class="position === progress.length - 1 ? 'text-ink-gray-7' : 'text-ink-gray-5'"
+            >
+              <span
+                :class="position === progress.length - 1 ? 'lucide-loader animate-spin' : 'lucide-check text-ink-green-6'"
+                class="size-3.5 shrink-0"
+                aria-hidden="true"
+              />
+              {{ line }}
+            </li>
+          </ol>
         </div>
         <div ref="end" />
       </div>
@@ -249,9 +297,11 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Button, ErrorMessage, ScrollArea, Textarea, toast } from 'frappe-ui'
+import AssistantCard from './AssistantCard.vue'
 import AssistantIcon from './AssistantIcon.vue'
+import { useSocket } from '@/data/socket'
 import TruncatedText from '@/components/Common/TruncatedText.vue'
 import {
   askAssistant,
@@ -299,6 +349,13 @@ const chat = computed({
 })
 const busy = ref('')
 const error = ref('')
+const progress = ref([])
+
+function onProgress(data) {
+  if (busy.value !== 'ask' || data?.scope !== scope.value || !data.text) return
+  if (progress.value.at(-1) !== data.text) progress.value.push(data.text)
+  scrollToEnd()
+}
 
 const status = computed(() => assistantStatus.data || {})
 const waiting = computed(() => !!turns.value.at(-1)?.pending?.length)
@@ -311,6 +368,7 @@ const KIND_ICON = {
   submit: 'lucide-file-check-2',
   workflow: 'lucide-workflow',
   send: 'lucide-send',
+  payment: 'lucide-credit-card',
 }
 
 const CUSTOMER_PROMPTS = [
@@ -375,15 +433,24 @@ function reset() {
 async function send(text) {
   const value = (text ?? question.value).trim()
   if (!value || busy.value || waiting.value) return
-  const turn = { question: value, reply: '', draft: '', pending: null, steps: [] }
+  const turn = { question: value, reply: '', draft: '', pending: null, steps: [], cards: [], tiles: [], next: [] }
   turns.value.push(turn)
   question.value = ''
   busy.value = 'ask'
   error.value = ''
+  progress.value = [__('Understanding your request')]
   scrollToEnd()
   try {
     const result = await askAssistant(props.contact, value, chat.value, !props.contact && usePage.value ? props.page : null)
-    Object.assign(turns.value.at(-1), { reply: result.reply, draft: result.draft, pending: result.pending, steps: result.steps || [] })
+    Object.assign(turns.value.at(-1), {
+      reply: result.reply,
+      draft: result.draft,
+      pending: result.pending,
+      steps: result.steps || [],
+      cards: result.cards || [],
+      tiles: result.tiles || [],
+      next: result.next || [],
+    })
     chat.value = result.session
   } catch (err) {
     error.value = errorMessage(err)
@@ -404,6 +471,9 @@ async function decide(approve) {
     turn.draft = result.draft || turn.draft
     turn.pending = result.pending
     turn.steps = [...turn.steps, ...(result.steps || [])]
+    turn.cards = [...(turn.cards || []), ...(result.cards || [])]
+    turn.tiles = result.tiles?.length ? result.tiles : turn.tiles
+    turn.next = result.next?.length ? result.next : turn.next
     chat.value = result.session
   } catch (err) {
     error.value = errorMessage(err)
@@ -446,6 +516,9 @@ watch(
       .catch(() => {}),
   { immediate: true },
 )
+
+onMounted(() => useSocket().on('onechat_assistant_progress', onProgress))
+onBeforeUnmount(() => useSocket().off('onechat_assistant_progress', onProgress))
 
 defineExpose({ reset, hasTurns: computed(() => turns.value.length > 0), provider: computed(() => status.value.provider || '') })
 

@@ -54,7 +54,8 @@
             <Badge theme="red" variant="subtle" size="sm" :label="__('Opted out')" />
           </Tooltip>
         </div>
-        <p class="flex items-center gap-1.5 truncate text-xs text-ink-gray-5">
+        <p v-if="chatTypingLine" class="truncate text-xs text-ink-green-7" aria-live="polite">{{ chatTypingLine }}</p>
+        <p v-else class="flex items-center gap-1.5 truncate text-xs text-ink-gray-5">
           <span v-if="contact.mobile_no" class="tabular-nums">{{ contact.mobile_no }}</span>
           <span v-if="contact.instagram_username" class="inline-flex items-center gap-1"
             ><ChannelIcon channel="Instagram" class="size-3" />@{{ contact.instagram_username }}</span
@@ -296,6 +297,21 @@
               />
             </template>
           </section>
+
+          <div v-if="chatTyper" class="flex justify-end py-1">
+            <span
+              class="flex items-center gap-1 rounded-4 bg-surface-green-2 px-3 py-2.5 shadow-sm"
+              role="status"
+              :aria-label="chatTypingLine"
+            >
+              <span
+                v-for="dot in 3"
+                :key="dot"
+                class="size-1.5 animate-bounce rounded-full bg-ink-gray-5"
+                :style="{ animationDelay: `${(dot - 1) * 150}ms` }"
+              />
+            </span>
+          </div>
         </div>
       </ScrollArea>
 
@@ -469,7 +485,7 @@ import AssistantPanel from './AssistantPanel.vue'
 import AssistantIcon from './AssistantIcon.vue'
 import { assistantStatus } from '@/data/assistant'
 import { can, session } from '@/data/session'
-import { useTypers, useViewers, watchTypers } from '@/data/typing'
+import { useChatTyper, useTypers, useViewers, watchTypers } from '@/data/typing'
 import { countLabel, dayLabel, errorMessage, formatDateTime } from '@/utils/format'
 import { translate as __ } from '@/translation'
 
@@ -911,7 +927,20 @@ const typers = useTypers(() => props.contactName)
 const viewers = useViewers(() => props.contactName)
 let stopWatchingTypers = null
 
+const chatTyper = useChatTyper(() => props.contactName)
+
+const chatTypingLine = computed(() => {
+  const typer = chatTyper.value
+  if (!typer) return ''
+  return __('{0} is typing…').format(typer.name || __('AI agent'))
+})
+
+watch(chatTyper, (typer) => {
+  if (typer && stick.value) nextTick(() => scrollToBottom(true))
+})
+
 const typingLine = computed(() => {
+  if (chatTypingLine.value) return chatTypingLine.value
   const names = typers.value.map(agentName)
   if (!names.length) return ''
   if (names.length === 1) return __('{0} is typing…').format(names[0])

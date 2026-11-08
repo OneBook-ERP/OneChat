@@ -397,6 +397,14 @@ const variables = computed(() => {
       list.push({ group, label: 'Count', token: `{{vars.${key}.count}}` })
       list.push({ group, label: 'Total', token: `{{vars.${key}.total}}` })
     }
+    if (type === 'find_items') {
+      const key = config.save_as || 'items'
+      const group = `${__('Items found')} · ${key.replace(/_/g, ' ')}`
+      list.push({ group, label: 'Found (one per line)', token: `{{vars.${key}.text}}` })
+      list.push({ group, label: 'Not found', token: `{{vars.${key}.unknown_text}}` })
+      list.push({ group, label: 'Number found', token: `{{vars.${key}.count}}` })
+      list.push({ group, label: 'Items for an order', token: `{{vars.${key}.lines}}` })
+    }
     if (type === 'http_request') {
       list.push({ group: 'API reply', label: 'Reply', token: '{{http.response}}' })
       list.push({ group: 'API reply', label: 'Status code', token: '{{http.status_code}}' })

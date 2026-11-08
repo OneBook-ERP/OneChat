@@ -550,11 +550,14 @@ def find_record(run, node_id, config):
 
 	value = resolve(config.get("value"), run.context)
 	source = records_of(doctype)
-	rows = (
-		source.get_all(doctype, filters={field: value}, fields=["name"], order_by="modified desc", limit=1)
-		if value not in (None, "")
-		else []
-	)
+	if value in (None, ""):
+		rows = []
+	elif config.get("match") == "contains":
+		rows = closest_matches(source, doctype, field, str(value).strip())
+	else:
+		rows = source.get_all(
+			doctype, filters={field: value}, fields=["name"], order_by="modified desc", limit=1
+		)
 	key = config.get("save_as") or "record"
 	if not rows:
 		run.context.setdefault("records", {})[key] = None
@@ -562,7 +565,202 @@ def find_record(run, node_id, config):
 
 	record = plain(source.get_doc(doctype, rows[0].name))
 	run.context.setdefault("records", {})[key] = record
-	return Result(handle="found", output={"name": rows[0].name})
+	return Result(handle="found", output={"name": rows[0].name, "matches": len(rows)})
+
+
+def closest_matches(source, doctype, field, text):
+	from onechat.automation import safety
+
+	if not text:
+		return []
+	try:
+		known = safety.fields_of(doctype, source)
+	except Exception:
+		known = {}
+	filters = {"disabled": 0} if "disabled" in known else {}
+	if doctype == "Item":
+		filters.update(
+			{key: value for key, value in (("is_sales_item", 1), ("has_variants", 0)) if key in known}
+		)
+	needle = normalized(text)
+	words = [word for word in re.split(r"[^\w.]+", needle) if word][:6]
+	if not words:
+		return []
+	fields = list(dict.fromkeys(["name", field]))
+	rows = source.get_all(
+		doctype,
+		filters=[[doctype, key, "=", value] for key, value in filters.items()]
+		+ [[doctype, field, "like", f"%{word}%"] for word in words],
+		fields=fields,
+		order_by="modified desc",
+		limit=20,
+	)
+
+	def rank(row):
+		value = normalized(row.get(field) or row.get("name"))
+		return (value != needle, needle not in value, not value.startswith(needle), len(value))
+
+	return sorted(rows, key=rank)
+
+
+QTY_TOKEN = re.compile(r"(?:x|×)?(\d+(?:[.,]\d+)?)(?:x|×)?", re.I)
+QTY_UNITS = {
+	"x",
+	"×",
+	"nos",
+	"no",
+	"pcs",
+	"pc",
+	"piece",
+	"pieces",
+	"unit",
+	"units",
+	"kg",
+	"kgs",
+	"g",
+	"gm",
+	"gms",
+	"l",
+	"ltr",
+	"litre",
+	"litres",
+	"liter",
+	"liters",
+	"box",
+	"boxes",
+	"pair",
+	"pairs",
+	"pack",
+	"packs",
+}
+ORDER_SEPARATORS = re.compile(r"\n|,|;|&|\+|\band\b", re.I)
+
+
+def qty_in(token):
+	match = QTY_TOKEN.fullmatch(token)
+	return flt(match.group(1).replace(",", ".")) if match else None
+
+
+def split_pairs(tokens):
+	marks = [qty_in(token) for token in tokens]
+	if not any(mark is not None for mark in marks):
+		return [(" ".join(tokens), 1)]
+
+	pairs, name, qty, skip_unit = [], [], None, False
+	qty_first = marks[0] is not None
+	for token, mark in zip(tokens, marks, strict=True):
+		if skip_unit and token.lower().strip(".") in QTY_UNITS:
+			skip_unit = False
+			continue
+		skip_unit = False
+		if mark is None:
+			name.append(token)
+			continue
+		skip_unit = True
+		if qty_first:
+			if name or qty is not None:
+				pairs.append((" ".join(name), qty or 1))
+			name, qty = [], mark
+		elif name:
+			pairs.append((" ".join(name), mark))
+			name = []
+	if name or (qty_first and qty is not None):
+		pairs.append((" ".join(name), qty or 1))
+	return [(text.strip(" -:.x×"), qty) for text, qty in pairs if text.strip(" -:.x×")]
+
+
+def whole_pair(tokens):
+	tokens = list(tokens)
+	qty = 1
+	if tokens and qty_in(tokens[-1]) is not None:
+		qty = qty_in(tokens.pop())
+	elif len(tokens) > 2 and tokens[-1].lower().strip(".") in QTY_UNITS and qty_in(tokens[-2]) is not None:
+		qty = qty_in(tokens[-2])
+		tokens = tokens[:-2]
+	elif tokens and qty_in(tokens[0]) is not None:
+		qty = qty_in(tokens.pop(0))
+	return " ".join(tokens).strip(" -:.x×"), qty
+
+
+def order_chunks(text):
+	return [chunk.split() for chunk in ORDER_SEPARATORS.split(strip_html(as_text(text))) if chunk.strip()]
+
+
+ORDER_FILLER = {
+	"order",
+	"buy",
+	"i",
+	"want",
+	"wants",
+	"need",
+	"needs",
+	"please",
+	"pls",
+	"plz",
+	"to",
+	"me",
+	"send",
+	"would",
+	"like",
+	"can",
+	"get",
+	"some",
+	"hi",
+	"hello",
+}
+
+
+def without_filler(name):
+	return " ".join(word for word in name.split() if word.lower().strip(".,!?") not in ORDER_FILLER)
+
+
+def match_chunk(source, doctype, field, tokens):
+	def matched(pairs):
+		pairs = [(without_filler(name), qty) for name, qty in pairs]
+		return [
+			(name, qty, (closest_matches(source, doctype, field, name) or [None])[0])
+			for name, qty in pairs
+			if name
+		]
+
+	split = matched(split_pairs(tokens))
+	if all(row for _name, _qty, row in split) or len(split) <= 1:
+		return split
+	whole = matched([whole_pair(tokens)])
+	return whole if whole and whole[0][2] else split
+
+
+def find_items(run, node_id, config):
+	text = resolve(config.get("text") or "{{last_reply}}", run.context)
+	doctype = config.get("doctype") or "Item"
+	field = config.get("field") or ("item_name" if doctype == "Item" else "name")
+	source = records_of(doctype)
+
+	lines, unknown, quantities = {}, [], 0
+	for tokens in order_chunks(text):
+		quantities += sum(1 for token in tokens if qty_in(token) is not None)
+		for name, qty, row in match_chunk(source, doctype, field, tokens):
+			if not row:
+				unknown.append(name)
+				continue
+			line = lines.setdefault(
+				row.name,
+				{"item_code": row.name, "item_name": row.get(field) or row.name, "qty": 0, "asked": name},
+			)
+			line["qty"] = flt(line["qty"] + (qty or 1), 3)
+
+	rows = list(lines.values())
+	key = config.get("save_as") or "items"
+	run.context.setdefault("vars", {})[key] = {
+		"lines": rows,
+		"count": len(rows),
+		"text": "\n".join(f"{as_text(row['qty'])} × {row['item_name']}" for row in rows),
+		"unknown": unknown,
+		"unknown_text": ", ".join(unknown),
+		"quantities": quantities,
+	}
+	handle = "found" if rows and not unknown else "partial" if rows else "none"
+	return Result(handle=handle, output={"found": len(rows), "unknown": unknown})
 
 
 def records_of(doctype):
@@ -797,6 +995,10 @@ def create_from_order(run, node_id, config):
 	doctype = config.get("doctype") or "Sales Order"
 	key = config.get("save_as") or "order"
 	order = run.context.get("order") or {}
+	if not order.get("message") and (
+		(config.get("item_code") or "").strip() or (config.get("items_from") or "").strip()
+	):
+		return create_from_item(run, config, doctype, key)
 	if not run.effect(_("Create a {0} for this WhatsApp order").format(_(doctype))):
 		run.context.setdefault("records", {})[key] = {
 			"doctype": doctype,
@@ -834,6 +1036,64 @@ def create_from_order(run, node_id, config):
 
 	keep_record(run, key, doctype, name)
 	return Result(handle="done", output={"name": name, "unknown": order.get("unknown")})
+
+
+def requested_items(run, config):
+	if (config.get("items_from") or "").strip():
+		entries = resolve(config.get("items_from"), run.context)
+		if isinstance(entries, str):
+			entries = frappe.parse_json(entries) if entries.strip().startswith("[") else None
+		if isinstance(entries, dict):
+			entries = entries.get("lines")
+		return [
+			{"item_code": entry.get("item_code"), "qty": flt(entry.get("qty")) or 1}
+			for entry in entries or []
+			if isinstance(entry, dict) and entry.get("item_code")
+		]
+	code = resolve(config.get("item_code"), run.context)
+	return [{"item_code": code, "qty": flt(resolve(config.get("qty"), run.context)) or 1}] if code else []
+
+
+def create_from_item(run, config, doctype, key):
+	rows = requested_items(run, config)
+	if not rows:
+		return Result(handle="no_items")
+	listed = ", ".join(f"{as_text(row['qty'])} × {row['item_code']}" for row in rows)
+
+	if not run.effect(_("Create a {0} for {1}").format(_(doctype), listed)):
+		run.context.setdefault("records", {})[key] = {
+			"doctype": doctype,
+			"name": _("(test)"),
+			"items": [{**row, "item_name": row["item_code"]} for row in rows],
+		}
+		return Result(handle="done")
+
+	from onechat.integrations import erpnext_commerce as commerce
+
+	if not commerce.enabled():
+		frappe.throw(_("Connect ERPNext in Settings → Integrations first."))
+
+	made = run.state.setdefault("from_item", {})
+	marker = f"{doctype}:{listed}"
+	name = made.get(marker)
+	if not name:
+		with commerce.elevated():
+			name = commerce.create_for_items(
+				run.contact,
+				rows,
+				doctype,
+				account=run.session.whatsapp_account if run.session else None,
+				extra=filled_values(run, config, "fields"),
+				item_extra=filled_values(run, config, "item_fields"),
+				submit=cint(config.get("submit")),
+				days=config.get("delivery_days"),
+			)
+		if not name:
+			return Result(handle="no_items", output={"unknown": [row["item_code"] for row in rows]})
+		made[marker] = name
+
+	keep_record(run, key, doctype, name)
+	return Result(handle="done", output={"name": name})
 
 
 SELLING = "erpnext.selling.doctype"
@@ -1299,6 +1559,18 @@ def create_comment(run, node_id, config):
 	return Result(output={"comment": comment.get("name")})
 
 
+def ai_agent(run, node_id, config):
+	from onechat.automation import ai_agent as agent
+
+	return agent.begin(run, node_id, config)
+
+
+def resume_ai_agent(run, node_id, config, event):
+	from onechat.automation import ai_agent as agent
+
+	return agent.resume(run, node_id, config, event)
+
+
 STEPS = {
 	"message_received": trigger,
 	"button_clicked": trigger,
@@ -1332,6 +1604,7 @@ STEPS = {
 	"delay": wait,
 	"end": end,
 	"find_record": find_record,
+	"find_items": find_items,
 	"create_record": create_record,
 	"update_record": update_record,
 	"send_to_records": send_to_records,
@@ -1351,9 +1624,11 @@ STEPS = {
 	"erpnext_workflow_action": apply_workflow,
 	"send_notification": send_notification,
 	"create_comment": create_comment,
+	"ai_agent": ai_agent,
 }
 
 RESUME = {
+	"ai_agent": resume_ai_agent,
 	"send_buttons": resume_buttons,
 	"send_list": resume_list,
 	"ask_question": resume_question,

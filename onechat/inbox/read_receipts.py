@@ -1,5 +1,6 @@
 import frappe
 import requests
+from frappe.utils import cint
 
 ACCOUNT = "OneChat Account"
 MESSAGE = "OneChat Message"
@@ -26,7 +27,7 @@ def on_message(doc, method=None):
 		queue(doc.whatsapp_account, doc.message_id)
 
 
-def on_open(contact):
+def latest_incoming(contact):
 	rows = frappe.get_all(
 		MESSAGE,
 		filters={
@@ -39,8 +40,39 @@ def on_open(contact):
 		order_by="creation desc",
 		limit_page_length=1,
 	)
-	if rows and mode(rows[0].whatsapp_account) == ON_OPEN:
-		queue(rows[0].whatsapp_account, rows[0].message_id)
+	return rows[0] if rows else None
+
+
+def on_open(contact):
+	row = latest_incoming(contact)
+	if row and mode(row.whatsapp_account) == ON_OPEN:
+		queue(row.whatsapp_account, row.message_id)
+
+
+def typing_on(account):
+	if not frappe.get_meta(ACCOUNT).has_field("typing_indicator"):
+		return True
+	return bool(cint(frappe.db.get_value(ACCOUNT, account, "typing_indicator")))
+
+
+def typing(contact):
+	row = latest_incoming(contact)
+	if not row or mode(row.whatsapp_account) == NEVER or not typing_on(row.whatsapp_account):
+		return
+	doc = frappe.get_doc(ACCOUNT, row.whatsapp_account)
+	if doc.get("channel") == "Instagram":
+		act(doc, row.message_id, "typing_on")
+		return
+	post(
+		doc,
+		{
+			"messaging_product": "whatsapp",
+			"status": "read",
+			"message_id": row.message_id,
+			"typing_indicator": {"type": "text"},
+		},
+		"OneChat typing indicator",
+	)
 
 
 def queue(account, message_id):
@@ -58,31 +90,39 @@ def queue(account, message_id):
 def send(account, message_id):
 	doc = frappe.get_doc(ACCOUNT, account)
 	if doc.get("channel") == "Instagram":
-		mark_seen(doc, message_id)
+		act(doc, message_id, "mark_seen")
 		return
+	post(
+		doc,
+		{"messaging_product": "whatsapp", "status": "read", "message_id": message_id},
+		"OneChat read receipt",
+	)
+
+
+def post(doc, payload, title):
 	token = doc.get_password("token", raise_exception=False)
 	if not token or not doc.phone_id:
 		return
 	try:
 		response = requests.post(
 			f"{doc.url}/{doc.version}/{doc.phone_id}/messages",
-			json={"messaging_product": "whatsapp", "status": "read", "message_id": message_id},
+			json=payload,
 			headers={"Authorization": f"Bearer {token}"},
 			timeout=TIMEOUT,
 		)
 		if not response.ok:
-			frappe.log_error(title="OneChat read receipt", message=response.text[:1000])
+			frappe.log_error(title=title, message=response.text[:1000])
 	except requests.RequestException:
-		frappe.log_error(title="OneChat read receipt")
+		frappe.log_error(title=title)
 
 
-def mark_seen(account, message_id):
+def act(account, message_id, action):
 	from onechat.instagram import graph
 
 	party = frappe.db.get_value(MESSAGE, {"message_id": message_id}, "from")
 	if not party:
 		return
 	try:
-		graph.send(account, {"recipient": {"id": party}, "sender_action": "mark_seen"})
+		graph.send(account, {"recipient": {"id": party}, "sender_action": action})
 	except (graph.GraphError, requests.RequestException):
-		frappe.log_error(title="OneChat Instagram read receipt")
+		frappe.log_error(title=f"OneChat Instagram {action}")

@@ -6,10 +6,28 @@
       </span>
       <div class="min-w-0 flex-1">
         <p class="text-base font-medium text-ink-gray-8">{{ __('Test chat') }}</p>
-        <TruncatedText as="p" class="truncate text-xs text-ink-gray-5" :text="__('You are the customer. Nothing is sent.')" />
+        <TruncatedText as="p" class="truncate text-xs text-ink-gray-5" :text="subtitle" />
       </div>
       <Button variant="ghost" icon="lucide-rotate-ccw" :label="__('Restart')" :disabled="busy" @click="restart" />
       <Button variant="ghost" icon="lucide-x" :label="__('Close')" @click="emit('close')" />
+    </div>
+
+    <div class="flex flex-col gap-2 border-b border-outline-gray-1 p-3">
+      <LinkField
+        :model-value="contact"
+        doctype="OneChat Contact"
+        :placeholder="__('Test customer')"
+        :disabled="busy"
+        @update:model-value="pickContact"
+      />
+      <Switch
+        v-if="contact"
+        :model-value="live"
+        :label="__('Create real records')"
+        :description="__('Orders the AI places are saved on this site. Messages and payment links are never sent.')"
+        :disabled="busy"
+        @update:model-value="setLive"
+      />
     </div>
 
     <ScrollArea ref="scroller" class="chat-wallpaper min-h-0 flex-1 bg-surface-gray-1" viewport-class="px-3 py-4">
@@ -123,9 +141,10 @@
 </template>
 
 <script setup>
+import LinkField from '@/components/Common/LinkField.vue'
 import TruncatedText from '@/components/Common/TruncatedText.vue'
-import { nextTick, onMounted, ref } from 'vue'
-import { Button, FormControl, LoadingIndicator, ScrollArea, call } from 'frappe-ui'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { Button, FormControl, LoadingIndicator, ScrollArea, Switch, call } from 'frappe-ui'
 import { fileName } from '@/data/inbox'
 import { errorMessage } from '@/utils/format'
 import { translate as __ } from '@/translation'
@@ -144,7 +163,25 @@ const busy = ref(false)
 const draft = ref('')
 const scroller = ref(null)
 const visited = ref([])
+const contact = ref(null)
+const live = ref(false)
 let lastBot = -1
+
+const subtitle = computed(() => {
+  if (contact.value && live.value) return __('You are the customer. Records are real, nothing is sent.')
+  return __('You are the customer. Nothing is sent.')
+})
+
+function pickContact(value) {
+  contact.value = value || null
+  if (!contact.value) live.value = false
+  restart()
+}
+
+function setLive(value) {
+  live.value = !!value
+  restart()
+}
 
 function escape(text) {
   return String(text || '')
@@ -177,6 +214,8 @@ async function send(reply = null) {
       graph_json: JSON.stringify(props.graph()),
       state: state.value ? JSON.stringify(state.value) : undefined,
       reply: reply ? JSON.stringify(reply) : undefined,
+      contact: contact.value || undefined,
+      live: contact.value && live.value ? 1 : 0,
     })
     messages.value.push(...(result.messages || []))
     lastBot = messages.value.findLastIndex((message) => message.from === 'bot')

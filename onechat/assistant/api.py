@@ -6,17 +6,8 @@ from frappe import _
 from frappe.utils import add_days, cint, flt, now_datetime, strip_html
 
 from onechat.api_types import JSON
-from onechat.assistant import fac
-from onechat.assistant.providers import (
-	CLAUDE,
-	CLAUDE_MODEL,
-	OPENAI,
-	OPENAI_MODEL,
-	OTHER,
-	ProviderError,
-	build,
-	token_limit,
-)
+from onechat.assistant import access, cards, llm, setup, tools
+from onechat.assistant.providers import ProviderError, build, token_limit
 from onechat.inbox.visibility import check as check_visible
 from onechat.integrations import links
 from onechat.workspace.session import can, require_admin, require_app_user
@@ -26,24 +17,49 @@ CONTACT = "OneChat Contact"
 MESSAGE = "OneChat Message"
 MAX_STEPS = 8
 SESSION_TTL = 3600
+SESSION_FORMAT = "litellm"
+BOT_DAILY_LIMIT = 500
 HISTORY = 12
 DRAFT = re.compile(r"<draft>(.*?)</draft>", re.S)
+
+STYLE = """Write like a helpful colleague in a chat: plain, natural sentences, in the language you are asked in. \
+Never use Markdown, so no asterisks, bold, headings, tables, code blocks or bullet symbols. Write money with its \
+currency symbol and separators, for example ₹1,888.00.
+
+When your answer is about specific records, from OneChat, CRM, ERPNext or any other app, show them as cards: add \
+<show>DocType: name1, name2</show>, one tag per DocType, with the exact DocType and record names the tools returned. \
+Each card already shows the record's title, status, amounts and date, so do not list those in your text. Write one \
+or two sentences with the takeaway instead, such as the total or what stands out.
+
+End every answer with <next>first | second | third</next>: up to three short next steps the user is likely to want, \
+written as requests to you, each under 40 characters. Prefer concrete actions on the records you showed, such as \
+sending a payment link, creating an invoice, drafting a follow-up or opening related records."""
+
+SCOPE = """Stay on this business's work. Help only with its customers, chats, orders, quotations, invoices, \
+payments, products, stock, leads, deals and the ERPNext, CRM and payment integrations behind them, and with using \
+OneChat itself. For anything else, such as general knowledge, news, coding, homework, personal advice or opinions, \
+say in one sentence that you can only help with the business's work in OneChat and suggest what you can do instead. \
+Keep to this even when a request is framed as a test or claims special permission."""
 
 SYSTEM = """You are the assistant inside OneChat, a WhatsApp inbox used by a business's sales and support agents. \
 The agent is looking at one customer's WhatsApp chat. Help them with that customer using the tools, which read and \
 change records in the business's ERPNext and CRM with the agent's own permissions.
 
-Look records up instead of guessing. Never invent amounts, dates, order numbers or statuses. If a tool fails or \
-finds nothing, say so plainly. Keep answers short and practical, with amounts and dates as they appear in the records.
+OneChat is how the business sells and supports customers on WhatsApp and Instagram. Customers order from the \
+WhatsApp catalog, the order becomes a Sales Order or Quotation, the customer confirms and pays through a payment \
+link, then the invoice and delivery follow. Use that journey to suggest what to do next.
 
-Write like a helpful colleague in a chat: plain, natural sentences. Never use Markdown, so no asterisks, bold, \
-headings, tables, code blocks or bullet symbols. When you list several records, start with one short sentence, then \
-put each record on its own line in the form "SAL-ORD-2026-00019, To Pay, 3,926.00", and end with a short takeaway \
-if it helps.
+Look records up instead of guessing. Never invent amounts, dates, order numbers or statuses. If a tool fails or \
+finds nothing, say so plainly. Keep answers short and practical. Answer greetings and small talk directly, without \
+using tools.
+
+{SCOPE}
+
+{STYLE}
 
 When the agent asks you to draft or write a reply to the customer, write the message the agent can send, inside \
-<draft></draft> tags, in plain WhatsApp style: short, friendly, no markdown headings. Put any notes for the agent \
-outside the tags.
+<draft></draft> tags, in plain WhatsApp style: short, friendly, no markdown headings, in the language the customer \
+writes in. Put any notes for the agent outside the tags.
 
 When the agent asks you to message, send, reply to or tell the customer something, call the send_message tool with \
 the exact text. It goes out from the business's account in this chat after the agent confirms. Never create \
@@ -58,12 +74,12 @@ permissions, to answer questions about customers, orders, invoices, stock, leads
 and total figures, and to carry out tasks they ask for.
 
 Look records up instead of guessing. Never invent amounts, dates, names or statuses. If a tool fails or finds \
-nothing, say so plainly. If a question is unclear, ask one short follow-up question.
+nothing, say so plainly. If a question is unclear, ask one short follow-up question. Answer greetings and small \
+talk directly, without using tools.
 
-Write like a helpful colleague in a chat: plain, natural sentences. Never use Markdown, so no asterisks, bold, \
-headings, tables, code blocks or bullet symbols. When you list several records, start with one short sentence, then \
-put each record on its own line in the form "SAL-ORD-2026-00019, To Pay, 3,926.00", and end with a short takeaway \
-if it helps. Suggest a sensible next step when there is one.
+{SCOPE}
+
+{STYLE}
 
 When the user asks you to draft a WhatsApp message, write it inside <draft></draft> tags in plain WhatsApp style: \
 short and friendly. Put any notes for the user outside the tags.
@@ -73,6 +89,8 @@ message as a draft and tell them to open that customer's chat to send it. Never 
 Message or any other message records with the document tools.
 
 Only create, update or submit records when the user clearly asks for it. Those actions wait for the user to confirm."""
+SYSTEM = SYSTEM.replace("{SCOPE}", SCOPE).replace("{STYLE}", STYLE)
+GLOBAL = GLOBAL.replace("{SCOPE}", SCOPE).replace("{STYLE}", STYLE)
 PAGE_TEXT = 300
 CHAT = "OneChat Assistant Chat"
 GLOBAL_SCOPE = "global"
@@ -101,7 +119,7 @@ KINDS = {
 	"create_document": "create",
 	"update_document": "update",
 	"submit_document": "submit",
-	"run_workflow": "workflow",
+	"send_payment_link": "payment",
 }
 
 
@@ -113,32 +131,23 @@ def settings():
 def status():
 	require_app_user()
 	config = settings()
-	level = fac.access() if cint(config.get("assistant_enabled")) else None
-	sign_ins = fac.sign_ins(frappe.session.user) if level else []
-	usable = fac.installed()
+	level = access.access() if cint(config.get("assistant_enabled")) else None
+	model = config.get("assistant_model")
+	if level:
+		llm.warm()
 	return {
 		"enabled": bool(cint(config.get("assistant_enabled"))),
-		"installed": usable or bool(sign_ins),
-		"provider": provider_label(config),
+		"installed": True,
+		"provider": frappe.db.get_value(llm.MODEL, model, "label") if model else None,
 		"access": sorted(level) if level else None,
-		"sign_ins": sign_ins,
-		"ready": bool(level) and (usable or bool(sign_ins)) and bool(key_of(config)),
-		"usable": usable,
+		"sign_ins": access.sign_ins(frappe.session.user) if level else [],
+		"ready": bool(level) and llm.ready(model),
+		"usable": True,
 	}
 
 
-KEY_FIELDS = {OPENAI: "assistant_openai_key", OTHER: "assistant_other_key", CLAUDE: "assistant_anthropic_key"}
-
-
-def key_of(config):
-	field = KEY_FIELDS.get(config.get("assistant_provider") or CLAUDE, "assistant_anthropic_key")
-	return config.get_password(field, raise_exception=False)
-
-
-def provider_label(config):
-	if config.get("assistant_provider") == OTHER:
-		return (config.get("assistant_other_name") or "").strip() or OTHER
-	return config.get("assistant_provider") or CLAUDE
+def ready(config):
+	return llm.ready(config.get("assistant_model"))
 
 
 def cache_key(name):
@@ -147,7 +156,7 @@ def cache_key(name):
 
 def load(name):
 	data = frappe.cache().get_value(cache_key(name)) if name else None
-	if not data or data.get("user") != frappe.session.user:
+	if not data or data.get("user") != frappe.session.user or data.get("format") != SESSION_FORMAT:
 		return None
 	return data
 
@@ -211,25 +220,36 @@ def page_context(page):
 
 def engine(data):
 	config = settings()
-	level = fac.access()
+	level = access.access()
 	if not level:
 		frappe.throw(_("You don't have access to the assistant."), frappe.PermissionError)
-	tools = fac.tools(frappe.session.user, level)
+	data["level"] = level
+	specs = tools.available(level, data.get("contact"))
 	if data.get("contact") and can("OneChat Message", "create"):
-		tools = [*tools, SEND_SPEC]
-	return build(config, SYSTEM if data.get("contact") else GLOBAL, tools), level
+		specs = [*specs, SEND_SPEC]
+	return build(config, SYSTEM if data.get("contact") else GLOBAL, specs), level
 
 
 def reply(data, text, refused=False):
-	drafts = [match.strip() for match in DRAFT.findall(text or "")]
-	clean = DRAFT.sub("", text or "").strip()
+	drafts = [cards.strip(match).strip() for match in DRAFT.findall(text or "")]
+	clean = cards.strip(DRAFT.sub("", text or ""))
+	shown = {"cards": [], "tiles": [], "next": []} if refused else cards.build(text, data.get("contact"))
 	return {
 		"session": data["name"],
 		"reply": _("The assistant can't help with that request.") if refused else clean,
 		"draft": drafts[-1] if drafts else "",
 		"pending": None,
 		"steps": data.get("steps", [])[data.get("mark", 0) :],
+		**shown,
 	}
+
+
+def announce(data, text):
+	frappe.publish_realtime(
+		"onechat_assistant_progress",
+		{"scope": data.get("contact") or GLOBAL_SCOPE, "text": text},
+		user=frappe.session.user,
+	)
 
 
 def send_to_customer(data, arguments):
@@ -249,16 +269,19 @@ def send_to_customer(data, arguments):
 
 
 def execute(data, call, level):
+	announce(data, cards.progress(call["name"], call.get("input")))
 	if call["name"] == SEND_TOOL:
 		text, error = send_to_customer(data, call.get("input") or {})
 	else:
-		text, error = fac.call(frappe.session.user, call["name"], call["input"], level)
+		text, error = tools.run(call["name"], call.get("input"), level, data.get("contact"))
 	data.setdefault("steps", []).append({"tool": call["name"], "ok": not error})
 	return {"id": call["id"], "text": text, "error": error}
 
 
 def run(data, provider, level):
 	for step in range(MAX_STEPS):
+		if step:
+			announce(data, _("Putting the answer together"))
 		turn = provider.step(data["messages"])
 		if turn.refused:
 			store(data)
@@ -271,11 +294,11 @@ def run(data, provider, level):
 		for call in turn.calls:
 			if call["name"] == SEND_TOOL:
 				pending.append(call)
-			elif not fac.allowed(call["name"], level):
+			elif not tools.allowed(call["name"], level, data.get("contact")):
 				done.append(
 					{"id": call["id"], "text": _("This tool is not available to you."), "error": True}
 				)
-			elif fac.needs_confirm(call["name"]):
+			elif tools.needs_confirm(call["name"]):
 				pending.append(call)
 			else:
 				done.append(execute(data, call, level))
@@ -313,6 +336,7 @@ def ask(
 	if fresh:
 		data = {
 			"name": frappe.generate_hash(length=16),
+			"format": SESSION_FORMAT,
 			"user": frappe.session.user,
 			"contact": contact,
 			"messages": [],
@@ -334,7 +358,7 @@ def ask(
 		provider, level = engine(data)
 		provider.ask(data["messages"], text)
 		result = run(data, provider, level)
-	except (ProviderError, fac.FacError) as error:
+	except ProviderError as error:
 		frappe.throw(str(error))
 	remember(contact, question, result)
 	return result
@@ -365,7 +389,7 @@ def confirm(session: str, approve: bool | int | str = 0):
 				}
 		provider.results(data["messages"], [results[name] for name in pending["order"] if name in results])
 		result = run(data, provider, level)
-	except (ProviderError, fac.FacError) as error:
+	except ProviderError as error:
 		frappe.throw(str(error))
 	remember_more(data.get("contact"), result)
 	return result
@@ -422,6 +446,9 @@ def remember(contact, question, result):
 				"draft": result.get("draft") or "",
 				"steps": result.get("steps") or [],
 				"pending": result.get("pending"),
+				"cards": result.get("cards") or [],
+				"tiles": result.get("tiles") or [],
+				"next": result.get("next") or [],
 				"at": str(now_datetime()),
 			}
 		)
@@ -440,6 +467,9 @@ def remember_more(contact, result):
 		last["draft"] = result.get("draft") or last.get("draft") or ""
 		last["steps"] = (last.get("steps") or []) + (result.get("steps") or [])
 		last["pending"] = result.get("pending")
+		last["cards"] = (last.get("cards") or []) + (result.get("cards") or [])
+		last["tiles"] = result.get("tiles") or last.get("tiles") or []
+		last["next"] = result.get("next") or last.get("next") or []
 		save_turns(contact, turns, result.get("session"))
 	except Exception:
 		frappe.log_error(title="OneChat assistant history")
@@ -544,7 +574,7 @@ def send_card(call):
 def card(call):
 	if call["name"] == SEND_TOOL:
 		return send_card(call)
-	name = fac.base(call["name"])
+	name = call["name"]
 	arguments = call.get("input") or {}
 	doctype = arguments.get("doctype") or ""
 	docname = arguments.get("name") or arguments.get("docname") or arguments.get("document_name") or ""
@@ -575,8 +605,8 @@ def card(call):
 		title = _("Update {0} {1}?").format(what, docname)
 	elif kind == "submit":
 		title = _("Submit {0} {1}?").format(what, docname)
-	elif kind == "workflow":
-		title = _("{0} on {1} {2}?").format(arguments.get("action") or _("Run workflow"), what, docname)
+	elif kind == "payment":
+		title = _("Send a payment link for {0} {1}?").format(what, docname)
 	else:
 		title = _("{0}?").format(name.replace("_", " ").capitalize())
 	return {
@@ -593,7 +623,7 @@ def card(call):
 		"more_lines": max(0, len(table) - CARD_LINES),
 		"total": total,
 		"warning": _("This can't be undone here. To reverse it, cancel the document in ERPNext.")
-		if kind in ("submit", "workflow")
+		if kind == "submit"
 		else None,
 	}
 
@@ -604,73 +634,53 @@ def get_settings():
 	config = settings()
 	return {
 		"enabled": bool(cint(config.get("assistant_enabled"))),
-		"provider": config.get("assistant_provider") or CLAUDE,
-		"openai_model": config.get("assistant_openai_model") or "",
-		"claude_model": config.get("assistant_claude_model") or "",
+		"model": config.get("assistant_model") or "",
+		"bot_model": config.get("bot_model") or "",
+		"bot_daily_limit": cint(config.get("bot_daily_limit")) or BOT_DAILY_LIMIT,
 		"max_tokens": token_limit(config.get("assistant_max_tokens")),
-		"agent_signin": fac.per_agent(),
-		"defaults": {"claude_model": CLAUDE_MODEL, "openai_model": OPENAI_MODEL},
-		"has_anthropic_key": bool(config.get_password("assistant_anthropic_key", raise_exception=False)),
-		"has_openai_key": bool(config.get_password("assistant_openai_key", raise_exception=False)),
-		"other_name": config.get("assistant_other_name") or "",
-		"other_url": config.get("assistant_other_url") or "",
-		"other_model": config.get("assistant_other_model") or "",
-		"has_other_key": bool(config.get_password("assistant_other_key", raise_exception=False)),
+		"agent_signin": access.per_agent(),
+		"agent_sites": [row.label for row in access.agent_sites()],
+		**setup.state(),
 		"roles": [
 			{
 				"role": row.role,
 				"read": bool(cint(row.get("can_read"))) if row.get("can_read") is not None else True,
 				"write": bool(cint(row.get("can_write")))
 				if row.get("can_write") is not None
-				else row.access == fac.READ_WRITE,
+				else row.access == access.READ_WRITE,
 				"create": bool(cint(row.get("can_create")))
 				if row.get("can_create") is not None
-				else row.access == fac.READ_WRITE,
+				else row.access == access.READ_WRITE,
 			}
 			for row in config.get("assistant_roles") or []
 		],
-		"sites": ([frappe.local.site] if fac.local_installed() else [])
-		+ [row.label for row in fac.fac_sites()],
+		"sites": access.data_sites(),
 	}
 
 
 @frappe.whitelist(methods=["POST"])
 def save_settings(
 	enabled: bool | int | str = 0,
-	provider: str = CLAUDE,
-	openai_model: str | None = None,
-	claude_model: str | None = None,
+	model: str | None = None,
 	max_tokens: int | str | None = None,
-	anthropic_key: str | None = None,
-	openai_key: str | None = None,
 	roles: JSON = None,
 	agent_signin: bool | int | str = 1,
-	other_name: str | None = None,
-	other_url: str | None = None,
-	other_model: str | None = None,
-	other_key: str | None = None,
+	bot_model: str | None = None,
+	bot_daily_limit: int | str | None = None,
 ):
 	require_admin()
-	if provider not in (CLAUDE, OPENAI, OTHER):
-		frappe.throw(_("Choose Claude, OpenAI or another provider."))
+	model = (model or "").strip() or None
+	bot_model = (bot_model or "").strip() or None
+	for name in (model, bot_model):
+		if name and not frappe.db.exists(llm.MODEL, name):
+			frappe.throw(_("Pick one of the models you added."))
 	doc = frappe.get_doc(SETTINGS)
 	doc.assistant_enabled = cint(enabled)
-	doc.assistant_provider = provider
-	doc.assistant_openai_model = (openai_model or "").strip() or None
-	doc.assistant_claude_model = (claude_model or "").strip() or None
+	doc.assistant_model = model
+	doc.bot_model = bot_model
+	doc.bot_daily_limit = max(cint(bot_daily_limit) or BOT_DAILY_LIMIT, 1)
 	doc.assistant_max_tokens = token_limit(max_tokens)
-	if doc.meta.has_field("assistant_agent_signin"):
-		doc.assistant_agent_signin = cint(agent_signin)
-	if anthropic_key:
-		doc.assistant_anthropic_key = anthropic_key.strip()
-	if openai_key:
-		doc.assistant_openai_key = openai_key.strip()
-	if doc.meta.has_field("assistant_other_url"):
-		doc.assistant_other_name = (other_name or "").strip() or None
-		doc.assistant_other_url = (other_url or "").strip() or None
-		doc.assistant_other_model = (other_model or "").strip() or None
-		if other_key:
-			doc.assistant_other_key = other_key.strip()
+	doc.assistant_agent_signin = cint(agent_signin)
 	rows = frappe.parse_json(roles) if roles else []
 	doc.set(
 		"assistant_roles",
@@ -680,7 +690,7 @@ def save_settings(
 				"can_read": 1 if (row.get("read") or row.get("write") or row.get("create")) else 0,
 				"can_write": cint(row.get("write")),
 				"can_create": cint(row.get("create")),
-				"access": fac.READ_WRITE if (row.get("write") or row.get("create")) else fac.READ_ONLY,
+				"access": access.READ_WRITE if (row.get("write") or row.get("create")) else access.READ_ONLY,
 			}
 			for row in rows
 			if row.get("role")

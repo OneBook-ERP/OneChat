@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import frappe
 
+from onechat.automation import run_as
 from onechat.integrations import erpnext_commerce, payments
 from onechat.tests.compat import IntegrationTestCase, UnitTestCase
 
@@ -210,16 +211,32 @@ class TestMarkRequestPaid(IntegrationTestCase):
 	def tearDown(self):
 		frappe.set_user("Administrator")
 
-	def test_runs_as_administrator_and_restores_the_user(self):
+	def paid_as(self, automation_user):
 		seen = []
 		doc = MagicMock()
 		doc.set_as_paid.side_effect = lambda: seen.append(frappe.session.user)
 		frappe.set_user("Guest")
+		with patch.object(run_as, "automation_user", return_value=automation_user):
+			erpnext_commerce.mark_request_paid(doc)
+		return seen, doc
 
-		erpnext_commerce.mark_request_paid(doc)
+	def test_runs_as_administrator_and_restores_the_user(self):
+		seen, doc = self.paid_as(None)
 
 		self.assertEqual(seen, ["Administrator"])
 		self.assertTrue(doc.flags.ignore_permissions)
+		self.assertEqual(frappe.session.user, "Guest")
+
+	def test_runs_as_the_automation_user_when_set(self):
+		email = "onechat-pay-bot@example.com"
+		if not frappe.db.exists("User", email):
+			frappe.get_doc(
+				{"doctype": "User", "email": email, "first_name": "Pay bot", "send_welcome_email": 0}
+			).insert(ignore_permissions=True)
+
+		seen, _doc = self.paid_as(email)
+
+		self.assertEqual(seen, [email])
 		self.assertEqual(frappe.session.user, "Guest")
 
 	def test_restores_the_user_when_payment_entry_fails(self):

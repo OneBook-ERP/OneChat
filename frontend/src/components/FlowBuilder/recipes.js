@@ -50,6 +50,25 @@ function flow(graph) {
 
 export const RECIPES = [
   {
+    key: 'ai_agent',
+    title: 'AI Agent',
+    description:
+      'AI answers every customer message: order status, what they owe, products, orders and payment links. Hands over when needed.',
+    icon: 'lucide-sparkles',
+    category: 'Customer Service',
+    build: () => {
+      const nodes = [
+        step('start', 'message_received', { match: 'any' }),
+        step('agent', 'ai_agent', {
+          knowledge: 'Opening hours: \nDelivery areas: \nReturns: ',
+        }),
+        step('handover', 'handover', { text: 'Connecting you to our team, someone will reply shortly.', mode: 'round_robin' }),
+      ]
+      const edges = [link('start', 'agent'), link('agent', 'handover', 'handover')]
+      return flow(layout(nodes, edges))
+    },
+  },
+  {
     key: 'comment_to_dm',
     title: 'Comment keyword to DM',
     description: 'When someone comments a keyword on your Instagram post, DM them the details and reply publicly.',
@@ -217,12 +236,105 @@ export const RECIPES = [
         step('human', 'handover', { text: 'Connecting you to our team.', mode: 'round_robin' }),
       ]
       const edges = [
-        link('start', 'ask'),
+        link('start', 'scan'),
+        link('scan', 'order', 'found'),
+        link('scan', 'partial', 'partial'),
+        link('scan', 'typed', 'none'),
+        link('scan', 'human', 'error'),
+        link('typed', 'missing', 'true'),
+        link('typed', 'asked', 'false'),
+        link('asked', 'ask', 'true'),
+        link('asked', 'quiet', 'false'),
         link('ask', 'find', 'answered'),
         link('find', 'found', 'found'),
         link('find', 'missing', 'not_found'),
         link('missing', 'ask', 'retry'),
         link('missing', 'human', 'human'),
+      ]
+      return flow(layout(nodes, edges))
+    },
+  },
+  {
+    key: 'item_order',
+    title: 'Order an item by name',
+    description:
+      'The customer sends items with quantities, like "apple 2, orange 3", or says order first. Find each ERPNext item, show the lines and total, and place one Sales Order once they confirm. Other messages are left for the team.',
+    icon: 'lucide-package-check',
+    category: 'Sales',
+    needs: 'ERPNext',
+    build: () => {
+      const nodes = [
+        step('start', 'message_received', { match: 'any' }),
+        step('scan', 'find_items', { text: '{{last_reply}}', doctype: 'Item', field: 'item_name', save_as: 'items' }),
+        step('typed', 'condition', {
+          rules: { match: 'all', rules: [{ field: '{{vars.items.quantities}}', operator: 'greater_than', value: '0' }] },
+        }),
+        step('asked', 'condition', {
+          rules: {
+            match: 'any',
+            rules: [
+              { field: '{{last_reply}}', operator: 'contains', value: 'order' },
+              { field: '{{last_reply}}', operator: 'contains', value: 'buy' },
+            ],
+          },
+        }),
+        step('quiet', 'end'),
+        step('ask', 'ask_question', {
+          text: 'What would you like to order? Send each item with its quantity, for example:\n*apple 2, orange 3*',
+          save_as: 'items_text',
+        }),
+        step('find', 'find_items', { text: '{{answers.items_text}}', doctype: 'Item', field: 'item_name', save_as: 'items' }),
+        step('partial', 'send_buttons', {
+          text: 'We found:\n{{vars.items.text}}\n\nWe could not find: *{{vars.items.unknown_text}}*',
+          buttons: [option('go', 'Order the found items'), option('retry', 'Change my order'), option('human', 'Talk to us')],
+        }),
+        step('missing', 'send_buttons', {
+          text: 'Sorry, we could not find *{{vars.items.unknown_text}}*. Please check the name and send it again with the quantity.',
+          buttons: [option('retry', 'Try again'), option('human', 'Talk to us')],
+        }),
+        step('order', 'create_from_order', { doctype: 'Sales Order', items_from: '{{vars.items.lines}}', save_as: 'order' }),
+        step('lines', 'summarize_list', {
+          list: '{{records.order.items}}',
+          line: '{{row.qty}} × {{row.item_name}} @ {{row.rate}} = {{row.amount}}',
+          separator: 'newline',
+          save_as: 'lines',
+        }),
+        step('confirm', 'send_buttons', {
+          text: 'Your order:\n\n{{vars.lines.text}}\n\nTotal: *{{records.order.grand_total}} {{records.order.currency}}*\n\nShall we place the order?',
+          buttons: [option('yes', 'Confirm order'), option('no', 'Cancel')],
+          timeout: 24,
+        }),
+        step('submit', 'submit_record', { name: '{{records.order.name}}', same_as_record: true, save_as: 'order' }),
+        step('placed', 'send_message', {
+          text: 'Order *{{records.order.name}}* is placed ✅\nTotal: {{records.order.grand_total}} {{records.order.currency}}\n\nThank you!',
+        }),
+        step('drop', 'submit_record', { action: 'delete', name: '{{records.order.name}}', same_as_record: true }),
+        step('cancelled', 'send_message', { text: 'No problem, the order was not placed.' }),
+        step('human', 'handover', { text: 'Connecting you to our team.', mode: 'round_robin' }),
+      ]
+      const edges = [
+        link('start', 'ask'),
+        link('ask', 'find', 'answered'),
+        link('find', 'order', 'found'),
+        link('find', 'partial', 'partial'),
+        link('find', 'missing', 'none'),
+        link('find', 'human', 'error'),
+        link('partial', 'order', 'go'),
+        link('partial', 'ask', 'retry'),
+        link('partial', 'human', 'human'),
+        link('missing', 'ask', 'retry'),
+        link('missing', 'human', 'human'),
+        link('order', 'lines', 'done'),
+        link('lines', 'confirm', 'found'),
+        link('lines', 'confirm', 'empty'),
+        link('order', 'human', 'no_items'),
+        link('order', 'human', 'error'),
+        link('confirm', 'submit', 'yes'),
+        link('confirm', 'drop', 'no'),
+        link('confirm', 'drop', 'no_reply'),
+        link('submit', 'placed', 'done'),
+        link('submit', 'human', 'error'),
+        link('drop', 'cancelled', 'done'),
       ]
       return flow(layout(nodes, edges))
     },

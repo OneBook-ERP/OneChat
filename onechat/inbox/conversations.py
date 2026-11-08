@@ -613,6 +613,16 @@ def publish_note(contact, note, deleted=False):
 	)
 
 
+def publish_typing(contact, typing=True, name=None):
+	visibility.broadcast(
+		"onechat_chat_typing",
+		{"contact": contact, "name": name, "typing": bool(typing)},
+		contact,
+		ROOM,
+		after_commit=False,
+	)
+
+
 def note_saved(doc, method=None):
 	before = doc.get_doc_before_save()
 	if (

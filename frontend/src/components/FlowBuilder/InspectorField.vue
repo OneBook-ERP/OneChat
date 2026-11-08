@@ -94,6 +94,7 @@
     v-else-if="LINKS[field.type]"
     :model-value="modelValue"
     :doctype="LINKS[field.type]"
+    :filters="LINK_FILTERS[field.type]"
     :label="__(field.label)"
     :description="description"
     :required="field.required"
@@ -255,6 +256,11 @@ const LINKS = {
   chat_link: 'OneChat Chat Link',
   team: 'OneChat Team',
   account: 'OneChat Account',
+  ai_model: 'OneChat AI Model',
+}
+
+const LINK_FILTERS = {
+  ai_model: { enabled: 1 },
 }
 
 function variableToken(name) {

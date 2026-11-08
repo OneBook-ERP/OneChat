@@ -6,6 +6,12 @@ from frappe.utils import cint
 
 class OneChatSettings(Document):
 	def validate(self):
+		from onechat.automation import run_as
+
+		run_as.check_user(self.get("automation_user"))
+		self.validate_retention()
+
+	def validate_retention(self):
 		from onechat.workspace.retention import MIN_MEDIA_DAYS, MIN_MESSAGE_DAYS
 
 		if not cint(self.get("retention_enabled")):

@@ -11,8 +11,8 @@ classifiers = ["License :: OSI Approved :: GNU Affero General Public License v3"
 dynamic = ["version"]
 dependencies = [
     "python-magic",
-    "anthropic",
-    "openai",
+    "litellm==1.103.1",
+    "json-repair>=0.30",
 ]
 
 [build-system]

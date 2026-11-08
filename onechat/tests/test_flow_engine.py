@@ -300,3 +300,87 @@ class TestSchedule(UnitTestCase):
 		self.assertEqual(engine.cron_of({"frequency": "monthly", "time": "08:00", "day": "31"}), "0 8 28 * *")
 		self.assertEqual(engine.cron_of({"frequency": "hourly", "time": "00:15"}), "15 * * * *")
 		self.assertEqual(engine.cron_of({"frequency": "cron", "schedule": "*/5 * * * *"}), "*/5 * * * *")
+
+
+ITEM_ORDER = {
+	"nodes": [
+		node("start", "message_received", match="any"),
+		node(
+			"order", "create_from_order", doctype="Sales Order", item_code="SHOE-1", qty="2", save_as="order"
+		),
+		node("done", "send_message", text="Draft {{records.order.name}}"),
+	],
+	"edges": [edge("start", "order"), edge("order", "done", "done")],
+}
+
+
+class TestItemOrder(UnitTestCase):
+	def test_item_order_runs_without_a_cart(self):
+		result = engine.simulate(json.dumps(ITEM_ORDER))
+
+		self.assertEqual(
+			[message["text"] for message in result["messages"]],
+			["Create a Sales Order for 2 × SHOE-1", "Draft (test)"],
+		)
+		self.assertTrue(result["done"])
+
+	def test_item_order_needs_no_order_trigger(self):
+		from onechat.automation import flows
+
+		errors = flows.validate_flow(json.dumps(ITEM_ORDER))["errors"]
+		self.assertFalse([error for error in errors if "Create from order" in error])
+
+		cart = json.loads(json.dumps(ITEM_ORDER))
+		cart["nodes"][1]["data"]["config"].pop("item_code")
+		errors = flows.validate_flow(json.dumps(cart))["errors"]
+		self.assertTrue([error for error in errors if "Create from order" in error])
+
+
+class TestOrderText(UnitTestCase):
+	def pairs(self, text):
+		return [pair for tokens in steps.order_chunks(text) for pair in steps.split_pairs(tokens)]
+
+	def test_name_then_quantity(self):
+		self.assertEqual(self.pairs("apple 2 orange 2"), [("apple", 2), ("orange", 2)])
+
+	def test_quantity_then_name(self):
+		self.assertEqual(self.pairs("2 apple 3 orange"), [("apple", 2), ("orange", 3)])
+
+	def test_separators_units_and_x(self):
+		self.assertEqual(
+			self.pairs("apple x2, orange 3 kg and banana\nmango 1.5"),
+			[("apple", 2), ("orange", 3), ("banana", 1), ("mango", 1.5)],
+		)
+
+	def test_whole_line_keeps_numbers_in_the_name(self):
+		self.assertEqual(steps.whole_pair("3M 6000 full-face mask 2".split()), ("3M 6000 full-face mask", 2))
+		self.assertEqual(steps.whole_pair("2 boxes".split()), ("boxes", 2))
+
+	def test_items_list_feeds_the_order(self):
+		graph = {
+			"nodes": [
+				node("start", "message_received", match="any"),
+				node(
+					"order",
+					"create_from_order",
+					doctype="Sales Order",
+					items_from="{{vars.picked}}",
+					save_as="order",
+				),
+				node("done", "send_message", text="{{records.order.items.1.item_code}}"),
+			],
+			"edges": [edge("start", "order"), edge("order", "done", "done")],
+		}
+		run = engine.Run(
+			frappe._dict(name="t"),
+			engine.Graph(json.dumps(graph)),
+			{"vars": {"picked": {"lines": [{"item_code": "A", "qty": 2}, {"item_code": "B", "qty": 1}]}}},
+			simulate=True,
+		)
+		steps.create_from_order(run, "order", engine.Graph.config(run.graph.nodes["order"]))
+		self.assertEqual([row["item_code"] for row in run.context["records"]["order"]["items"]], ["A", "B"])
+		self.assertEqual(run.outbox[-1]["text"], "Create a Sales Order for 2 × A, 1 × B")
+
+	def test_filler_words_are_ignored(self):
+		self.assertEqual(steps.without_filler("I want to order abena gloves please"), "abena gloves")
+		self.assertEqual(steps.without_filler("order"), "")
