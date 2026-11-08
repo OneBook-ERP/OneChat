@@ -1,0 +1,15 @@
+{
+  "announcements": [
+    {
+      "id": "diwali-2026",
+      "type": "image",
+      "theme": "success",
+      "label": "Happy Diwali 🪔",
+      "title": "Happy Diwali from OneBook!",
+      "body": "Wishing you and your team a bright and prosperous festival of lights.",
+      "media": { "src": "https://kymee.in/cdn/shop/articles/diwli_wishes_K.webp?v=1792572902&width=1100" },
+      "ends_at": "2026-11-09T12:00:00+05:30"
+    }
+  ],
+  "updates": []
+}
