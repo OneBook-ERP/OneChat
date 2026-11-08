@@ -78,7 +78,7 @@ def queue(run, node_id):
 
 
 def current(session, node_id, token):
-	if frappe.cache().get_value(token_key(session)) != token:
+	if frappe.cache().get_value(token_key(session), expires=True) != token:
 		return False
 	row = frappe.db.get_value(SESSION, session, ["status", "current_node"], as_dict=True)
 	return bool(row and row.status == "Waiting" and row.current_node == node_id)
@@ -94,16 +94,18 @@ def node_config(session_doc, node_id):
 
 
 def bump(key, ttl):
-	value = cint(frappe.cache().get_value(key)) + 1
+	value = cint(frappe.cache().get_value(key, expires=True)) + 1
 	frappe.cache().set_value(key, value, expires_in_sec=ttl)
 	return value
 
 
 def limit_reason(session, config):
 	daily = cint(frappe.get_cached_doc(SETTINGS).get("bot_daily_limit")) or DAILY_LIMIT
-	if cint(frappe.cache().get_value(day_key())) >= daily:
+	if cint(frappe.cache().get_value(day_key(), expires=True)) >= daily:
 		return _("The AI reached today's reply limit.")
-	if cint(frappe.cache().get_value(count_key(session))) >= (cint(config.get("max_replies")) or MAX_REPLIES):
+	if cint(frappe.cache().get_value(count_key(session), expires=True)) >= (
+		cint(config.get("max_replies")) or MAX_REPLIES
+	):
 		return _("The AI reached its reply limit for this chat.")
 	return None
 

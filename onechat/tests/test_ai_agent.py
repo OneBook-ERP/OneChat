@@ -175,7 +175,8 @@ class TestAgentStep(IntegrationTestCase):
 		self.assertEqual(result.wait, "Reply")
 		self.assertEqual(enqueue.call_args.kwargs["session"], "SESSION-1")
 		self.assertEqual(
-			frappe.cache().get_value(ai_agent.token_key("SESSION-1")), enqueue.call_args.kwargs["token"]
+			frappe.cache().get_value(ai_agent.token_key("SESSION-1"), expires=True),
+			enqueue.call_args.kwargs["token"],
 		)
 
 	def test_live_test_chat_uses_real_records_but_sends_nothing(self):
@@ -258,7 +259,7 @@ class TestTakeTurn(IntegrationTestCase):
 	def test_reply_is_sent_and_counted(self):
 		calls = self.take()
 		self.assertEqual(calls["sent"], ["Hi!"])
-		self.assertEqual(frappe.cache().get_value(ai_agent.count_key("SESSION-2")), 1)
+		self.assertEqual(frappe.cache().get_value(ai_agent.count_key("SESSION-2"), expires=True), 1)
 
 	def test_ai_handover_sends_its_last_words_first(self):
 		calls = self.take(outcome=bot.Outcome(text="Connecting you", handover=True, reason="angry"))
