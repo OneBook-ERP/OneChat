@@ -130,6 +130,7 @@ def update_notice(updates):
 		"id": f"update-{latest}",
 		"type": "card",
 		"theme": "info",
+		"icon": "update",
 		"label": "Update available",
 		"title": release.get("title") or f"OneChat {latest} is available",
 		"body": release.get("body")

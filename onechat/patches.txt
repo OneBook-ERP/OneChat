@@ -1,6 +1,8 @@
 [pre_model_sync]
 onechat.patches.rename_flow_doctype
+onechat.patches.migrate_ai_settings
 
 [post_model_sync]
 onechat.patches.backfill_contact_accounts
 onechat.patches.restore_automation_links
+onechat.patches.remove_fac_leftovers

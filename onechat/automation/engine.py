@@ -8,7 +8,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, cint, get_datetime, now_datetime, strip_html
 
-from onechat.automation import safety, steps
+from onechat.automation import run_as, safety, steps
 from onechat.automation.node_executors import get_node_executor
 from onechat.automation.values import as_text, plain, rules_match
 from onechat.integrations import links
@@ -456,6 +456,7 @@ def new_log(flow, session, context):
 			"flow": flow.name,
 			"run_id": session.name[:10],
 			"contact": session.contact,
+			"run_as": frappe.session.user,
 			"status": "Running",
 			"start_time": now_datetime(),
 			"trigger_data": json.dumps(plain(context), indent=1, default=str)[:20000],
@@ -509,6 +510,11 @@ def sync_contact(session):
 
 
 def start(flow_name, context, contact=None, phone=None, account=None):
+	with run_as.as_automation_user():
+		return start_run(flow_name, context, contact, phone, account)
+
+
+def start_run(flow_name, context, contact=None, phone=None, account=None):
 	flow = load_flow(flow_name)
 	graph = Graph(flow.graph_json or "{}")
 	trigger = graph.trigger()
@@ -548,6 +554,11 @@ def start(flow_name, context, contact=None, phone=None, account=None):
 
 
 def resume(session, event):
+	with run_as.as_automation_user():
+		return resume_run(session, event)
+
+
+def resume_run(session, event):
 	flow = load_flow(session.flow)
 	graph = Graph(flow.graph_json or "{}")
 	if session.current_node and session.current_node not in graph.nodes:
@@ -1194,10 +1205,20 @@ def sample_order():
 	}
 
 
-def simulate(graph_json, state=None, reply=None):
+def test_context(contact, live):
+	found = contact_context(contact)
+	if not found:
+		raise FlowError(_("Contact {0} was not found.").format(contact))
+	return {"trigger": "test", "contact": found, "answers": {}, "vars": {}, "test": {"live": bool(live)}}
+
+
+def simulate(graph_json, state=None, reply=None, contact=None, live=False):
 	graph = Graph(graph_json)
 	flow = frappe._dict(name="test", reply_timeout_hours=DEFAULT_TIMEOUT_HOURS)
+	fresh = not state
 	state = state or {}
+	if fresh and contact:
+		state["context"] = test_context(contact, live)
 	context = state.get("context") or {
 		"trigger": "test",
 		"contact": {
@@ -1213,7 +1234,7 @@ def simulate(graph_json, state=None, reply=None):
 		"vars": {},
 	}
 	trigger = graph.trigger()
-	if not state and trigger and Graph.kind(graph.nodes[trigger]) == "order_placed":
+	if fresh and trigger and Graph.kind(graph.nodes[trigger]) == "order_placed":
 		context["order"] = sample_order()
 	run = Run(flow, graph, context, state=state.get("state"), simulate=True)
 

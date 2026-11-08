@@ -1,0 +1,87 @@
+{
+ "actions": [],
+ "creation": "2026-11-07 20:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "provider",
+  "model_id",
+  "model_column_1",
+  "label",
+  "enabled"
+ ],
+ "fields": [
+  {
+   "fieldname": "provider",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Provider",
+   "options": "OneChat AI Provider",
+   "reqd": 1
+  },
+  {
+   "description": "The model ID as the provider names it, for example claude-opus-5-5.",
+   "fieldname": "model_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Model ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "model_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "label",
+   "fieldtype": "Data",
+   "label": "Label"
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-07 20:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat AI Model",
+ "naming_rule": "By script",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "label",
+ "track_changes": 1
+}

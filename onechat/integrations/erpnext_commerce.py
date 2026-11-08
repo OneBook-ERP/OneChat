@@ -1258,13 +1258,10 @@ def created_from(message, doctype="Sales Order"):
 
 @contextmanager
 def elevated():
-	user = frappe.session.user
-	if not ERP.is_remote():
-		frappe.set_user("Administrator")
-	try:
+	from onechat.automation import run_as
+
+	with run_as.elevated(local=not ERP.is_remote()):
 		yield
-	finally:
-		frappe.set_user(user)
 
 
 def mark_order(message, name, doctype="Sales Order", submitted=False):
@@ -1467,13 +1464,11 @@ def settle(doc):
 
 
 def mark_request_paid(doc):
-	user = frappe.session.user
-	try:
-		frappe.set_user("Administrator")
+	from onechat.automation import run_as
+
+	with run_as.elevated():
 		doc.flags.ignore_permissions = True
 		return doc.set_as_paid()
-	finally:
-		frappe.set_user(user)
 
 
 def payment_received(doc):

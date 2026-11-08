@@ -203,13 +203,13 @@ def audience(contact):
 	return seeing, hidden
 
 
-def broadcast(event, payload, contact, room, removed=None):
+def broadcast(event, payload, contact, room, removed=None, after_commit=True):
 	seeing, hidden = audience(contact)
 	if seeing is None:
-		frappe.publish_realtime(event, payload, room=room, after_commit=True)
+		frappe.publish_realtime(event, payload, room=room, after_commit=after_commit)
 		return
 	for user in seeing:
-		frappe.publish_realtime(event, payload, user=user, after_commit=True)
+		frappe.publish_realtime(event, payload, user=user, after_commit=after_commit)
 	if removed is not None:
 		for user in hidden:
-			frappe.publish_realtime(event, removed, user=user, after_commit=True)
+			frappe.publish_realtime(event, removed, user=user, after_commit=after_commit)

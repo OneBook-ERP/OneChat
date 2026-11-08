@@ -77,8 +77,9 @@ A plain list of announcements, without `updates`, also works.
 | `title` | for cards | Headline |
 | `body` | no | Text under the title |
 | `type` | no | `card` (default), `image`, `video` or `html` |
-| `theme` | no | `new`, `info`, `success`, `warning` or `ad`. Shown as a small coloured dot |
-| `label` | no | Small text above the title, such as `Offer` or `Sponsored` |
+| `theme` | no | `new`, `info`, `success`, `warning` or `ad`. Picks the default icon and the short line under the title |
+| `label` | no | Short line under the title, such as `Offer` or `Sponsored`. Hidden when it repeats the title |
+| `icon` | no | `sparkles`, `wrench`, `alert`, `check`, `megaphone`, `tag`, `update`, `gift`, `calendar`, `party`, `bell` or `rocket`. Overrides the theme's icon on cards without media |
 | `media` | image, video | `{ "src": "https://…", "aspect": "16/9", "poster": "https://…" }`. Videos take YouTube or Vimeo links |
 | `html`, `height`, `expanded_height` | html | A custom HTML banner and its heights in pixels |
 | `action` | no | `{ "label": "Learn more", "url": "https://…" }` |
@@ -148,10 +149,6 @@ If the feed lives in a private repository, give each site a read-only key:
 ```
 
 The key is only sent to `raw.githubusercontent.com` and `api.github.com`. Before it expires, create a new one and update the sites. A public feed repository needs no key at all.
-
-## Previewing
-
-Open OneChat with `?preview_announcement` in the URL to see sample announcements of every type, without touching the live feed.
 
 ## Troubleshooting
 

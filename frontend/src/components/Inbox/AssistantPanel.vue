@@ -368,6 +368,7 @@ const KIND_ICON = {
   submit: 'lucide-file-check-2',
   workflow: 'lucide-workflow',
   send: 'lucide-send',
+  payment: 'lucide-credit-card',
 }
 
 const CUSTOMER_PROMPTS = [

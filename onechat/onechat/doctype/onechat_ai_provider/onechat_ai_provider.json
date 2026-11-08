@@ -1,0 +1,100 @@
+{
+ "actions": [],
+ "autoname": "field:provider_name",
+ "creation": "2026-11-07 20:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "provider_name",
+  "preset",
+  "enabled",
+  "provider_column_1",
+  "litellm_provider",
+  "api_base",
+  "api_key"
+ ],
+ "fields": [
+  {
+   "fieldname": "provider_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Provider Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "preset",
+   "fieldtype": "Data",
+   "label": "Preset",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "provider_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The LiteLLM provider, for example anthropic, openai, openrouter or gemini. A custom address uses openai.",
+   "fieldname": "litellm_provider",
+   "fieldtype": "Data",
+   "label": "LiteLLM Provider"
+  },
+  {
+   "description": "Only for a custom OpenAI-compatible address, for example http://localhost:11434/v1.",
+   "fieldname": "api_base",
+   "fieldtype": "Data",
+   "label": "API Base"
+  },
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "API Key"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-07 20:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OneChat",
+ "name": "OneChat AI Provider",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OneChat Admin",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "provider_name",
+ "track_changes": 1
+}

@@ -26,9 +26,9 @@ def marked():
 
 
 def assistant_ready(settings):
-	from onechat.assistant.api import key_of
+	from onechat.assistant.api import ready
 
-	return bool(cint(settings.get("assistant_enabled")) and key_of(settings))
+	return bool(cint(settings.get("assistant_enabled")) and ready(settings))
 
 
 @frappe.whitelist()

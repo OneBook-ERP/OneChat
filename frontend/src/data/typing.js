@@ -6,9 +6,12 @@ const DOCTYPE = 'OneChat Contact'
 const PING_MS = 3000
 const IDLE_MS = 4000
 const REFRESH_MS = 10000
+const CHAT_TYPING_MS = 15000
 
 const typers = reactive({})
 const viewers = reactive({})
+const chatTypers = reactive({})
+const chatTimers = {}
 const watched = new Map()
 
 let listening = false
@@ -23,6 +26,15 @@ function listen() {
   const socket = useSocket()
   socket.on('onechat_contact_typers', ({ contact, users }) => {
     typers[contact] = (users || []).filter((user) => user !== session.user.name)
+  })
+  socket.on('onechat_chat_typing', ({ contact, name, typing }) => {
+    clearTimeout(chatTimers[contact])
+    if (!typing) {
+      delete chatTypers[contact]
+      return
+    }
+    chatTypers[contact] = { name }
+    chatTimers[contact] = setTimeout(() => delete chatTypers[contact], CHAT_TYPING_MS)
   })
   socket.on('doc_viewers', ({ doctype, docname, users }) => {
     if (doctype !== DOCTYPE) return
@@ -84,6 +96,10 @@ export function stopTyping() {
 
 export function useTypers(contact) {
   return computed(() => typers[toValue(contact)] || [])
+}
+
+export function useChatTyper(contact) {
+  return computed(() => chatTypers[toValue(contact)] || null)
 }
 
 export function useViewers(contact) {

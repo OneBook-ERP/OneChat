@@ -23,6 +23,7 @@ FIELDS = [
 	"token_expires_at",
 	"oauth_user",
 	"api_key",
+	"automation_api_key",
 	"connected",
 	"status",
 	"checked_at",
@@ -85,7 +86,43 @@ class Site:
 	def uses_oauth(self):
 		return self.row().get("auth_method") == OAUTH
 
+	def automation_credentials(self):
+		key = self.row().get("automation_api_key")
+		secret = (
+			get_decrypted_password(CONNECTION, self.key, "automation_api_secret", raise_exception=False)
+			if key
+			else None
+		)
+		return key, secret
+
+	def automation_login(self):
+		from onechat.automation import run_as
+
+		if not run_as.active():
+			return None
+		key, secret = self.automation_credentials()
+		return f"token {key}:{secret}" if key and secret else None
+
+	def agent_login(self, force=False):
+		user = frappe.flags.get("onechat_agent")
+		if not user or not self.uses_oauth():
+			return None
+		from onechat.assistant.access import per_agent
+
+		if not per_agent():
+			return None
+		from onechat.integrations import oauth
+
+		token = oauth.agent_token(user, self, force=force)
+		if not token:
+			raise RemoteError(_("Sign in to {0} from the Assistant panel first.").format(self.label))
+		return f"Bearer {token}"
+
 	def authorization(self, force=False):
+		if login := self.automation_login():
+			return login
+		if login := self.agent_login(force=force):
+			return login
 		if self.uses_oauth():
 			from onechat.integrations import oauth
 
@@ -295,8 +332,9 @@ class Remote:
 
 	def request(self, method, path, **kwargs):
 		label = self.site.label
+		automation = bool(self.site.automation_login())
 		response = self.send(method, path, self.site.authorization(), **kwargs)
-		if response.status_code == 401 and self.site.uses_oauth():
+		if response.status_code == 401 and self.site.uses_oauth() and not automation:
 			response = self.send(method, path, self.site.authorization(force=True), **kwargs)
 
 		try:
@@ -305,11 +343,12 @@ class Remote:
 			body = {}
 
 		if response.status_code in (401, 403):
-			hint = (
-				_("{0} refused the sign-in. Sign in again, or check the user's roles.")
-				if self.site.uses_oauth()
-				else _("{0} refused the API key. Check the key, the secret and the user's roles.")
-			)
+			if automation:
+				hint = _("{0} refused the automation login. Check it in Settings → Automation.")
+			elif self.site.uses_oauth():
+				hint = _("{0} refused the sign-in. Sign in again, or check the user's roles.")
+			else:
+				hint = _("{0} refused the API key. Check the key, the secret and the user's roles.")
 			raise RemoteError(error_text(body) or hint.format(label), status=response.status_code)
 		if not response.ok:
 			raise RemoteError(

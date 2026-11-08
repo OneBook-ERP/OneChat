@@ -23,6 +23,10 @@
   "api_key_column_1",
   "api_secret",
   "webhook_secret",
+  "automation_section",
+  "automation_api_key",
+  "automation_column_1",
+  "automation_api_secret",
   "status_section",
   "connected",
   "checked_at",
@@ -196,11 +200,31 @@
    "fieldtype": "Small Text",
    "label": "Webhooks",
    "read_only": 1
+  },
+  {
+   "description": "API key and secret of the automation user on this site. Flows and the AI use it. Empty uses the login above.",
+   "fieldname": "automation_section",
+   "fieldtype": "Section Break",
+   "label": "Automation Login"
+  },
+  {
+   "fieldname": "automation_api_key",
+   "fieldtype": "Data",
+   "label": "Automation API Key"
+  },
+  {
+   "fieldname": "automation_column_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "automation_api_secret",
+   "fieldtype": "Password",
+   "label": "Automation API Secret"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-03 10:00:00.000000",
+ "modified": "2026-11-07 18:30:00.000000",
  "modified_by": "Administrator",
  "module": "OneChat",
  "name": "OneChat Connection",

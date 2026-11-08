@@ -1,9 +1,6 @@
 <template>
   <template v-if="!dialog">
-    <SettingsHeader
-      :title="__('Assistant')"
-      :description="__('Let agents ask about a customer and draft replies, using Frappe Assistant Core and an AI provider')"
-    >
+    <SettingsHeader :title="__('Assistant')" :description="__('Let agents ask about a customer and draft replies, using an AI provider')">
       <template #actions>
         <Button variant="solid" :loading="saving" :disabled="loading" :label="__('Save')" @click="save" />
       </template>
@@ -30,14 +27,10 @@
       <div v-if="!form.sites.length" class="flex items-start gap-2.5 rounded-4 bg-surface-amber-1 p-3 text-sm text-ink-amber-8">
         <span class="lucide-triangle-alert mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <div class="flex flex-col gap-1.5">
-          <p>{{ __('Frappe Assistant Core is not installed. Install it on the site that has your ERPNext or CRM data:') }}</p>
-          <ScrollArea orientation="horizontal" class="rounded-3 bg-surface-base">
-            <pre class="px-2.5 py-2 font-mono text-xs text-ink-gray-8">{{ installCommand }}</pre>
-          </ScrollArea>
-          <p class="text-ink-gray-6">
+          <p>
             {{
               __(
-                'FAC on another site is found through your ERPNext or Frappe CRM connection. Connect that site with Sign in (OAuth) and install FAC there.',
+                'ERPNext and Frappe CRM aren’t connected. The assistant can still help with chats, but not with orders, invoices or leads.',
               )
             }}
           </p>
@@ -55,14 +48,10 @@
       <div class="flex flex-col gap-3">
         <div class="flex flex-col gap-1.5">
           <div class="flex items-center justify-between gap-3">
-            <FormLabel :label="__('AI provider')" />
+            <FormLabel :label="__('AI providers')" />
             <Tooltip
               v-if="form.sites.length"
-              :text="
-                __('Frappe Assistant Core is installed on {0}. It gives the AI its tools to read and change records.').format(
-                  form.sites.join(', '),
-                )
-              "
+              :text="__('The assistant reads and changes records on {0}, with each agent’s own permissions.').format(form.sites.join(', '))"
             >
               <span
                 class="inline-flex min-w-0 max-w-[65%] cursor-default items-center gap-1 rounded-full bg-surface-green-1 px-2 py-0.5 text-xs text-ink-green-7"
@@ -73,86 +62,73 @@
               </span>
             </Tooltip>
           </div>
-          <TabButtons
-            v-model="form.provider"
-            class="self-start"
-            :options="[
-              { label: 'Claude', value: 'Claude' },
-              { label: 'OpenAI', value: 'OpenAI' },
-              { label: __('Other'), value: 'Other' },
-            ]"
+          <p v-if="!form.providers.length" class="rounded-4 bg-surface-gray-1 px-3 py-2.5 text-sm text-ink-gray-6">
+            {{ __('No AI provider yet. Add one, then pick the model the assistant uses.') }}
+          </p>
+        </div>
+
+        <div
+          v-for="provider in form.providers"
+          :key="provider.name"
+          class="flex flex-col gap-2.5 rounded-4 border border-outline-gray-2 p-3"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium text-ink-gray-8">{{ provider.name }}</p>
+              <p class="truncate text-sm text-ink-gray-5">{{ provider.api_base || provider.litellm_provider }}</p>
+            </div>
+            <div class="flex items-center gap-1">
+              <Badge
+                variant="subtle"
+                :theme="provider.has_key ? 'green' : 'orange'"
+                :label="provider.has_key ? __('Key saved') : __('No key')"
+              />
+              <Button size="sm" variant="ghost" :label="__('Change key')" @click="editKey(provider)" />
+              <Button size="sm" variant="ghost" icon="lucide-trash-2" :label="__('Remove')" @click="removeProvider(provider)" />
+            </div>
+          </div>
+          <div v-if="keyEdit.name === provider.name" class="flex items-end gap-2">
+            <Password v-model="keyEdit.value" class="min-w-0 flex-1" :label="__('New API key')" autocomplete="new-password" />
+            <Button variant="solid" :label="__('Save key')" :loading="keyEdit.saving" @click="saveKey" />
+          </div>
+          <div class="flex flex-wrap gap-x-4 gap-y-1.5">
+            <label
+              v-for="model in provider.models"
+              :key="model.name"
+              class="flex cursor-pointer items-center gap-1.5 text-sm text-ink-gray-7"
+            >
+              <Checkbox :model-value="!!model.enabled" @update:model-value="(value) => toggleModel(model, value)" />
+              {{ model.label }}
+            </label>
+          </div>
+        </div>
+
+        <Button class="self-start" icon-left="lucide-plus" :label="__('Add provider')" @click="adding = true" />
+        <ProviderSetupDialog v-model:open="adding" :presets="form.presets" @added="applyState" />
+
+        <FormControl
+          v-if="modelOptions.length > 1"
+          v-model="form.model"
+          type="select"
+          :label="__('Assistant model')"
+          :options="modelOptions"
+          :description="__('The model agents talk to in the Assistant panel.')"
+        />
+        <div v-if="modelOptions.length > 1" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FormControl
+            v-model="form.bot_model"
+            type="select"
+            :label="__('Customer bot model')"
+            :options="botModelOptions"
+            :description="__('Used by the AI agent step in flows. A fast, cheap model works well here.')"
+          />
+          <FormControl
+            v-model="form.bot_daily_limit"
+            type="number"
+            :label="__('AI replies per day')"
+            :description="__('Across all chats. After that, chats go to the team until tomorrow.')"
           />
         </div>
-        <template v-if="form.provider === 'Claude'">
-          <Password
-            v-model="form.anthropic_key"
-            :label="__('Claude API key')"
-            :placeholder="form.has_anthropic_key ? __('Saved. Leave blank to keep it.') : 'sk-ant-…'"
-            :description="__('From console.anthropic.com → API keys.')"
-          />
-          <FormControl
-            v-model="form.claude_model"
-            type="text"
-            :label="__('Claude model')"
-            :placeholder="form.defaults.claude_model"
-            :description="__('Leave empty to use {0}.').format(form.defaults.claude_model)"
-          />
-        </template>
-        <template v-else-if="form.provider === 'Other'">
-          <div class="flex flex-col gap-1.5">
-            <FormLabel :label="__('Provider')" />
-            <div class="flex flex-wrap gap-1.5">
-              <Button
-                v-for="preset in PRESETS"
-                :key="preset.name"
-                size="sm"
-                :variant="form.other_url === preset.url ? 'solid' : 'subtle'"
-                :label="preset.name"
-                @click="usePreset(preset)"
-              />
-            </div>
-            <p class="text-sm text-ink-gray-5">
-              {{ __('Any provider with an OpenAI-compatible API works. Pick one to fill in its address, or enter your own.') }}
-            </p>
-          </div>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <FormControl v-model="form.other_name" type="text" :label="__('Name')" placeholder="Gemini" />
-            <FormControl
-              v-model="form.other_model"
-              type="text"
-              :label="__('Model')"
-              :placeholder="presetOf(form.other_url)?.model || 'model-name'"
-            />
-          </div>
-          <FormControl
-            v-model="form.other_url"
-            type="text"
-            :label="__('API address')"
-            placeholder="https://generativelanguage.googleapis.com/v1beta/openai/"
-            :description="__('The OpenAI-compatible base URL from the provider\'s docs.')"
-          />
-          <Password
-            v-model="form.other_key"
-            :label="__('API key')"
-            :placeholder="form.has_other_key ? __('Saved. Leave blank to keep it.') : ''"
-            :description="presetOf(form.other_url)?.keyHelp || __('From your provider\'s dashboard.')"
-          />
-        </template>
-        <template v-else>
-          <Password
-            v-model="form.openai_key"
-            :label="__('OpenAI API key')"
-            :placeholder="form.has_openai_key ? __('Saved. Leave blank to keep it.') : 'sk-…'"
-            :description="__('From platform.openai.com → API keys.')"
-          />
-          <FormControl
-            v-model="form.openai_model"
-            type="text"
-            :label="__('OpenAI model')"
-            :placeholder="form.defaults.openai_model"
-            :description="__('Leave empty to use {0}.').format(form.defaults.openai_model)"
-          />
-        </template>
         <FormControl
           v-model="form.max_tokens"
           type="number"
@@ -161,13 +137,13 @@
             __('The longest answer the AI can write, from 1,024 to 64,000. Higher allows longer answers and costs more when used.')
           "
         />
-        <div class="flex items-start justify-between gap-4 rounded-4 border border-outline-gray-2 p-3">
+        <div v-if="form.agent_sites.length" class="flex items-start justify-between gap-4 rounded-4 border border-outline-gray-2 p-3">
           <div class="min-w-0">
             <p class="text-sm font-medium text-ink-gray-8">{{ __('Agents sign in to other sites themselves') }}</p>
             <p class="mt-0.5 text-sm text-ink-gray-6">
               {{
                 __(
-                  'When FAC runs on another site, each agent signs in there once from the Assistant panel, so they only see and change what their own account allows. Turn off to let everyone use the account that connected the site.',
+                  'When ERPNext or CRM is on another site, each agent signs in there once from the Assistant panel, so they only see and change what their own account allows. Turn off to let everyone use the account that connected the site.',
                 )
               }}
             </p>
@@ -183,7 +159,7 @@
             <p class="mt-0.5 text-sm text-ink-gray-5">
               {{
                 __(
-                  'Read looks records up. Write updates, submits and runs workflows on existing records. Create makes new records and dashboards. Write and create always wait for the agent to confirm. Code, database queries and deleting are never allowed.',
+                  'Read looks records up. Write updates and submits existing records and sends payment links. Create makes new records. Write and create always wait for the agent to confirm. Code, database queries and deleting are never allowed.',
                 )
               }}
             </p>
@@ -236,25 +212,26 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import {
+  Badge,
   Button,
   Checkbox,
   ErrorMessage,
   FormControl,
   FormLabel,
   Password,
-  ScrollArea,
   SettingsBody,
   SettingsHeader,
   SettingsRow,
   Skeleton,
   Switch,
-  TabButtons,
   Tooltip,
+  call,
   toast,
 } from 'frappe-ui'
 import LinkField from '@/components/Common/LinkField.vue'
+import ProviderSetupDialog from './ProviderSetupDialog.vue'
 import { assistantSettings, assistantStatus, saveAssistantSettings } from '@/data/assistant'
 import { integrations } from '@/data/integrations'
 import { useUI } from '@/stores/ui'
@@ -265,9 +242,9 @@ defineProps({ dialog: { type: Boolean, default: false } })
 const emit = defineEmits(['saved'])
 
 const RIGHTS = [
-  { key: 'read', label: __('Read'), hint: __('Look up records, reports and files') },
-  { key: 'write', label: __('Write'), hint: __('Update, submit and run workflows on existing records') },
-  { key: 'create', label: __('Create'), hint: __('Create new records and dashboards') },
+  { key: 'read', label: __('Read'), hint: __('Look up records and totals') },
+  { key: 'write', label: __('Write'), hint: __('Update and submit existing records, send payment links') },
+  { key: 'create', label: __('Create'), hint: __('Create new records') },
 ]
 
 function setRight(row, key, value) {
@@ -275,72 +252,97 @@ function setRight(row, key, value) {
   if (value && key !== 'read') row.read = true
 }
 
-const installCommand =
-  'bench get-app https://github.com/buildswithpaul/Frappe_Assistant_Core\nbench --site <site> install-app frappe_assistant_core'
-
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const ui = useUI()
 
+const SETUP = 'onechat.assistant.setup'
+const adding = ref(false)
+const keyEdit = reactive({ name: '', value: '', saving: false })
+
 const form = reactive({
   enabled: false,
-  provider: 'Claude',
-  openai_model: '',
-  claude_model: '',
+  model: '',
+  bot_model: '',
+  bot_daily_limit: 500,
   max_tokens: 16000,
   agent_signin: true,
-  defaults: { claude_model: 'claude-opus-5', openai_model: 'gpt-5' },
-  anthropic_key: '',
-  openai_key: '',
-  has_anthropic_key: false,
-  has_openai_key: false,
+  agent_sites: [],
   roles: [],
   sites: [],
-  other_name: '',
-  other_url: '',
-  other_model: '',
-  other_key: '',
-  has_other_key: false,
+  providers: [],
+  presets: [],
 })
 
-const PRESETS = [
-  {
-    name: 'Gemini',
-    url: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-    model: 'gemini-2.5-flash',
-    keyHelp: 'From aistudio.google.com → Get API key.',
-  },
-  { name: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: 'google/gemini-2.5-flash', keyHelp: 'From openrouter.ai → Keys.' },
-  { name: 'Groq', url: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', keyHelp: 'From console.groq.com → API keys.' },
-  { name: 'Mistral', url: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', keyHelp: 'From console.mistral.ai → API keys.' },
-  { name: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat', keyHelp: 'From platform.deepseek.com → API keys.' },
-  {
-    name: 'Ollama',
-    url: 'http://localhost:11434/v1',
-    model: 'llama3.1',
-    keyHelp: 'Ollama ignores the key. Enter any text, such as ollama.',
-  },
-]
+const modelOptions = computed(() => [
+  { label: __('Pick a model'), value: '' },
+  ...form.providers
+    .filter((provider) => provider.enabled)
+    .flatMap((provider) =>
+      provider.models.filter((model) => model.enabled).map((model) => ({ label: `${model.label} · ${provider.name}`, value: model.name })),
+    ),
+])
 
-function presetOf(url) {
-  return PRESETS.find((preset) => preset.url === url)
-}
+const botModelOptions = computed(() => [{ label: __('Same as the assistant model'), value: '' }, ...modelOptions.value.slice(1)])
 
-function usePreset(preset) {
-  form.other_name = preset.name
-  form.other_url = preset.url
-  if (!form.other_model) form.other_model = preset.model
+function applyState(state) {
+  form.providers = state.providers || []
+  form.presets = state.presets || []
+  if (!form.model || !modelOptions.value.some((option) => option.value === form.model)) {
+    form.model = modelOptions.value[1]?.value || ''
+  }
+  if (form.bot_model && !botModelOptions.value.some((option) => option.value === form.bot_model)) {
+    form.bot_model = ''
+  }
 }
 
 function apply(data) {
   Object.assign(form, {
-    ...data,
-    anthropic_key: '',
-    openai_key: '',
-    other_key: '',
+    enabled: !!data.enabled,
+    model: data.model || '',
+    bot_model: data.bot_model || '',
+    bot_daily_limit: data.bot_daily_limit || 500,
+    max_tokens: data.max_tokens,
+    agent_signin: !!data.agent_signin,
+    agent_sites: data.agent_sites || [],
     roles: (data.roles || []).map((row) => ({ ...row })),
     sites: data.sites || [],
+  })
+  applyState(data)
+}
+
+async function run(action) {
+  error.value = ''
+  try {
+    applyState(await action())
+  } catch (err) {
+    error.value = errorMessage(err)
+  }
+}
+
+function toggleModel(model, value) {
+  run(() => call(`${SETUP}.set_model_enabled`, { name: model.name, enabled: value ? 1 : 0 }))
+}
+
+function editKey(provider) {
+  Object.assign(keyEdit, { name: keyEdit.name === provider.name ? '' : provider.name, value: '' })
+}
+
+async function saveKey() {
+  keyEdit.saving = true
+  await run(() => call(`${SETUP}.update_key`, { name: keyEdit.name, api_key: keyEdit.value }))
+  keyEdit.saving = false
+  if (!error.value) Object.assign(keyEdit, { name: '', value: '' })
+}
+
+function removeProvider(provider) {
+  ui.confirm({
+    title: __('Remove {0}?').format(provider.name),
+    message: __('Its saved key and models are deleted. The assistant stops working if it uses one of them.'),
+    action: __('Remove'),
+    theme: 'red',
+    onConfirm: () => run(() => call(`${SETUP}.remove_provider`, { name: provider.name })),
   })
 }
 
@@ -364,16 +366,10 @@ async function save() {
       await saveAssistantSettings({
         enabled: form.enabled ? 1 : 0,
         agent_signin: form.agent_signin ? 1 : 0,
-        provider: form.provider,
-        openai_model: form.openai_model,
-        claude_model: form.claude_model,
+        model: form.model,
+        bot_model: form.bot_model,
+        bot_daily_limit: Number(form.bot_daily_limit) || 500,
         max_tokens: Number(form.max_tokens) || 16000,
-        anthropic_key: form.anthropic_key || undefined,
-        openai_key: form.openai_key || undefined,
-        other_name: form.other_name,
-        other_url: form.other_url,
-        other_model: form.other_model,
-        other_key: form.other_key || undefined,
         roles: form.roles.filter((row) => row.role),
       }),
     )

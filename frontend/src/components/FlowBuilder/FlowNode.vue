@@ -134,6 +134,7 @@ const chip = computed(() => {
   }
   if (type === 'send_form' && config.value.form) return { icon: 'lucide-clipboard-list', text: config.value.form }
   if (type === 'send_list') return { icon: 'lucide-list', text: config.value.button_label || __('Choose') }
+  if (type === 'ai_agent') return { icon: 'lucide-sparkles', text: config.value.model || __('Default model') }
 
   return null
 })

@@ -88,8 +88,10 @@ function mountLauncher() {
   const $item = $(`
     <li class="nav-item onechat-launcher-item">
       <button type="button" class="nav-link btn-reset onechat-launcher" title="${__('OneChat')}">
-        ${CHAT_ICON}
-        <span class="onechat-launcher-count" style="display: none"></span>
+        <span class="onechat-launcher-icon">
+          ${CHAT_ICON}
+          <span class="onechat-launcher-count" style="display: none"></span>
+        </span>
       </button>
     </li>
   `)

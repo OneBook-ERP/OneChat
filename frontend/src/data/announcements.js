@@ -3,43 +3,7 @@ import { call } from 'frappe-ui'
 import { session } from '@/data/session'
 
 const DISMISSED_KEY = 'onechat-dismissed-announcements'
-const PREVIEW_PARAM = 'preview_announcement'
 const TYPES = ['card', 'image', 'video', 'html']
-
-const PREVIEW = [
-  {
-    id: 'preview-video',
-    type: 'video',
-    label: 'Sponsored',
-    title: 'Sell more on WhatsApp',
-    body: 'A two-minute tour of catalogs, carts and payment links.',
-    media: { src: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ' },
-    action: { label: 'Learn more', url: 'https://onebook.app' },
-  },
-  {
-    id: 'preview-image',
-    type: 'image',
-    label: 'Ad',
-    title: 'Festive offer: 20% off annual plans',
-    media: { src: 'https://picsum.photos/seed/onechat/800/400', aspect: '2/1' },
-    action: { label: 'Claim offer', url: 'https://onebook.app' },
-  },
-  {
-    id: 'preview-html',
-    type: 'html',
-    title: 'Live HTML banner',
-    height: 120,
-    expanded_height: 360,
-    html: '<style>body{margin:0;font:600 15px system-ui;display:grid;place-items:center;height:100vh;color:#fff;background:linear-gradient(135deg,#1f8a5b,#2563eb)}small{display:block;font-weight:400;opacity:.85}</style><div style="text-align:center">New: Customer 360<small>Every order, chat and note in one place</small></div>',
-  },
-  {
-    id: 'preview-card',
-    type: 'card',
-    theme: 'warning',
-    title: 'Scheduled maintenance',
-    body: 'OneChat will be unavailable on Sunday from 2:00 to 2:30 am.',
-  },
-]
 
 export const announcements = reactive({
   items: [],
@@ -64,14 +28,6 @@ function writeDismissed() {
     localStorage.setItem(storageKey(), JSON.stringify(announcements.dismissed.slice(-200)))
   } catch {
     return
-  }
-}
-
-function previewing() {
-  try {
-    return new URLSearchParams(window.location.search).has(PREVIEW_PARAM)
-  } catch {
-    return false
   }
 }
 
@@ -122,7 +78,7 @@ export const visibleAnnouncements = computed(() =>
 
 export async function loadAnnouncements() {
   try {
-    const items = previewing() ? PREVIEW : await fetchAnnouncements()
+    const items = await fetchAnnouncements()
     announcements.items = Array.isArray(items) ? items.map((item) => ({ type: 'card', ...item })) : []
   } catch {
     announcements.items = []
